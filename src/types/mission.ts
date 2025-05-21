@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 
 // Types dérivés de la base de données Supabase
@@ -35,6 +34,8 @@ export type MissionFilters = {
     end?: Date;
   };
   remote?: boolean;
+  page?: number;
+  pageSize?: number;
 };
 
 // Type pour les sélections de date

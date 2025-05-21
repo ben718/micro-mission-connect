@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCategories } from "@/hooks/useMissions";
@@ -30,6 +29,31 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { format, addHours } from "date-fns";
 import { fr } from "date-fns/locale";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Badge,
+  BadgeProps,
+} from "@/components/ui/badge";
+import {
+  ChevronDown,
+  Check,
+  X,
+  CalendarIcon,
+  PlusCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Calendar } from "@/components/ui/calendar";
 
 const formSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
@@ -50,6 +74,9 @@ const CreateMission = () => {
   const navigate = useNavigate();
   const { data: categories = [] } = useCategories();
 
+  const [skillInput, setSkillInput] = useState('');
+  const [skillTags, setSkillTags] = useState<string[]>([]);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -66,6 +93,38 @@ const CreateMission = () => {
       category_ids: [],
     },
   });
+
+  // Sync skillTags with form field value
+  useEffect(() => {
+    if (form.watch('skills')) {
+      setSkillTags(form.watch('skills').split(',').map(s => s.trim()).filter(Boolean));
+    } else {
+      setSkillTags([]);
+    }
+  }, [form.watch('skills')]);
+
+  const handleAddSkill = (skill: string) => {
+    const trimmedSkill = skill.trim();
+    if (trimmedSkill && !skillTags.includes(trimmedSkill)) {
+      const newSkillTags = [...skillTags, trimmedSkill];
+      setSkillTags(newSkillTags);
+      form.setValue('skills', newSkillTags.join(', '));
+      setSkillInput('');
+    }
+  };
+
+  const handleRemoveSkill = (skill: string) => {
+    const newSkillTags = skillTags.filter(tag => tag !== skill);
+    setSkillTags(newSkillTags);
+    form.setValue('skills', newSkillTags.join(', '));
+  };
+
+  const handleSkillInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleAddSkill(skillInput);
+    }
+  };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!user) {
@@ -258,11 +317,37 @@ const CreateMission = () => {
                 control={form.control}
                 name="start_date"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(new Date(field.value), "PPP", { locale: fr })
+                            ) : (
+                              <span>Sélectionner une date</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ? new Date(field.value) : undefined}
+                          onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                          initialFocus
+                          locale={fr}
+                        />
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -275,7 +360,23 @@ const CreateMission = () => {
                   <FormItem>
                     <FormLabel>Heure de début</FormLabel>
                     <FormControl>
-                      <Input type="time" {...field} />
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sélectionner une heure" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 24 * 2 }).map((_, i) => {
+                            const hour = Math.floor(i / 2);
+                            const minute = (i % 2) * 30;
+                            const time = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                            return (
+                              <SelectItem key={time} value={time}>
+                                {time}
+                              </SelectItem>
+                            );
+                          })}
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -317,13 +418,32 @@ const CreateMission = () => {
                 name="skills"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Compétences requises (séparées par des virgules)</FormLabel>
+                    <FormLabel>Compétences requises</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="Ex: Communication, Organisation, Créativité"
-                        {...field}
-                      />
+                      <div className="flex flex-col space-y-2">
+                        <Input
+                          placeholder="Ex: Communication, Organisation"
+                          value={skillInput}
+                          onChange={(e) => setSkillInput(e.target.value)}
+                          onKeyDown={handleSkillInputKeyDown}
+                        />
+                        {/* Affichage des tags */}
+                        {skillTags.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {skillTags.map(skill => (
+                              <Badge key={skill} variant="secondary">
+                                {skill}
+                                <X
+                                  className="ml-1 h-3 w-3 cursor-pointer"
+                                  onClick={() => handleRemoveSkill(skill)}
+                                />
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </FormControl>
+                    <FormDescription>Appuyez sur Entrée pour ajouter une compétence.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -336,36 +456,68 @@ const CreateMission = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Catégories</FormLabel>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map((category) => (
-                      <label
-                        key={category.id}
-                        className={`inline-flex items-center px-3 py-1.5 border rounded-full cursor-pointer transition-colors ${
-                          field.value.includes(category.id)
-                            ? "bg-bleu text-white border-bleu"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          value={category.id}
-                          checked={field.value.includes(category.id)}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            if (e.target.checked) {
-                              field.onChange([...field.value, value]);
-                            } else {
-                              field.onChange(
-                                field.value.filter((id) => id !== value)
-                              );
+                  <FormControl>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          {field.value && field.value.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {field.value.map(categoryId => {
+                                const category = categories.find(cat => cat.id === categoryId);
+                                return category ? (
+                                  <Badge key={categoryId} variant="secondary">
+                                    {category.name}
+                                    <X
+                                      className="ml-1 h-3 w-3 cursor-pointer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        field.onChange(field.value.filter(id => id !== categoryId));
+                                      }}
+                                    />
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </div>
+                          ) : (
+                            <span>Sélectionner les catégories</span>
+                          )}
+                          <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                        <Command>
+                          <CommandInput placeholder="Rechercher une catégorie..." />
+                          <CommandEmpty>Aucune catégorie trouvée.</CommandEmpty>
+                          <CommandGroup>
+                            {categories.map((category) => (
+                              <CommandItem
+                                key={category.id}
+                                value={category.id}
+                                onSelect={(currentValue) => {
+                                  const newCategoryIds = field.value.includes(currentValue)
+                                    ? field.value.filter((id) => id !== currentValue)
+                                    : [...field.value, currentValue];
+                                  field.onChange(newCategoryIds);
+                                }}
+                              >
+                                {category.name}
+                                <Check
+                                  className={
+                                    `ml-auto h-4 w-4 ${field.value.includes(category.id) ? "opacity-100" : "opacity-0"}`
+                                  }
+                                />
+                              </CommandItem>
+                            ))
                             }
-                          }}
-                        />
-                        {category.name}
-                      </label>
-                    ))}
-                  </div>
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
+                  </FormControl>
+                  <FormDescription>Sélectionnez les catégories pertinentes pour votre mission.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

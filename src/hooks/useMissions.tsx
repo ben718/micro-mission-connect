@@ -1,18 +1,22 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association } from "@/types/mission";
 
 export function useMissions(filters?: MissionFilters) {
+  const pageSize = filters?.pageSize || 12; // Default page size
+  const page = filters?.page || 0; // Default to first page (0-indexed)
+  const start = page * pageSize;
+  const end = start + pageSize - 1;
+
   return useQuery({
-    queryKey: ["missions", filters],
-    queryFn: async (): Promise<MissionWithAssociation[]> => {
+    queryKey: ["missions", filters?.query, filters?.city, filters?.categoryIds, filters?.dateRange, filters?.remote, page, pageSize],
+    queryFn: async (): Promise<{ data: MissionWithAssociation[] | null, count: number | null }> => {
       let query = supabase
         .from("missions")
         .select(`
           *,
           association:association_id(*)
-        `)
+        `, { count: 'exact' })
         .eq("status", "open");
       
       // Appliquer les filtres si ils existent
@@ -41,12 +45,24 @@ export function useMissions(filters?: MissionFilters) {
             query = query.lte("ends_at", filters.dateRange.end.toISOString());
           }
         }
+        
+        // Filtre par catégories
+        if (filters.categoryIds && filters.categoryIds.length > 0) {
+          // On filtre les missions dont l'ID est présent dans la table mission_categories
+          // où category_id est dans la liste des filtres.
+          // Cela nécessite de joindre implicitement ou explicitement.
+          // Supabase permet de filtrer à travers les relations.
+          query = query.filter('mission_categories.category_id', 'in', filters.categoryIds);
+        }
       }
       
-      const { data, error } = await query;
+      // Appliquer la pagination
+      query = query.range(start, end);
+
+      const { data, error, count } = await query;
       
       if (error) throw error;
-      return data as MissionWithAssociation[];
+      return { data: data as MissionWithAssociation[], count };
     },
   });
 }

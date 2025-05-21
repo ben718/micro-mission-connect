@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { MissionFilters as MissionFiltersType, DateRangeSelection } from "@/type
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Calendar as CalendarIcon, X, MapPin } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 interface MissionFiltersProps {
   onFilterChange: (filters: MissionFiltersType) => void;
@@ -20,6 +20,7 @@ interface MissionFiltersProps {
 const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
   const { data: categories = [] } = useCategories();
   const { data: cities = [] } = useCities();
+  const location = useLocation();
 
   const [filters, setFilters] = useState<MissionFiltersType>({});
   const [dateRange, setDateRange] = useState<DateRangeSelection>({
@@ -72,6 +73,31 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
     });
     onFilterChange({});
   };
+
+  useEffect(() => {
+    // Lire les paramètres de l'URL au chargement initial
+    const params = new URLSearchParams(location.search);
+    const initialFilters: MissionFiltersType = {};
+
+    const query = params.get('query');
+    if (query) initialFilters.query = query;
+
+    const city = params.get('city');
+    if (city) initialFilters.city = city;
+
+    const remote = params.get('remote');
+    if (remote === 'true') initialFilters.remote = true;
+
+    const categoryIds = params.getAll('category');
+    if (categoryIds.length > 0) initialFilters.categoryIds = categoryIds;
+
+    // Les dates sont plus complexes à gérer ici, on les laisse pour l'instant.
+    // Si nécessaire, il faudrait parser les dates depuis les paramètres.
+
+    setFilters(initialFilters);
+    // onFilterChange(initialFilters); // Ne pas appeler ici pour éviter double appel avec l'autre useEffect
+
+  }, [location.search]); // Dépendance à location.search pour réagir aux changements d'URL
 
   useEffect(() => {
     onFilterChange(filters);

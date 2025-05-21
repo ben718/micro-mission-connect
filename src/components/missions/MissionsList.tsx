@@ -1,15 +1,44 @@
-
 import { MissionWithAssociation, MissionFilters } from "@/types/mission";
 import MissionCard from "@/components/missions/MissionCard";
 import { useMissions } from "@/hooks/useMissions";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface MissionsListProps {
   filters?: MissionFilters;
 }
 
 const MissionsList = ({ filters }: MissionsListProps) => {
-  const { data: missions, isLoading, error } = useMissions(filters);
+  const [currentPage, setCurrentPage] = useState(0); // 0-indexed page
+  const pageSize = 12; // Number of missions per page
+
+  // Reset page to 0 when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [filters]);
+
+  const { data: missionsData, isLoading, error } = useMissions({
+    ...filters,
+    page: currentPage,
+    pageSize: pageSize,
+  });
+
+  const missions = missionsData?.data || [];
+  const totalCount = missionsData?.count || 0;
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handlePreviousPage = () => {
+    setCurrentPage(prev => Math.max(0, prev - 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
+  };
+
+  // Hide pagination if less than 2 pages
+  const showPagination = totalPages > 1;
 
   if (isLoading) {
     return (
@@ -47,11 +76,35 @@ const MissionsList = ({ filters }: MissionsListProps) => {
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      {missions.map((mission) => (
-        <MissionCard key={mission.id} mission={mission} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {missions.map((mission) => (
+          <MissionCard key={mission.id} mission={mission} />
+        ))}
+      </div>
+
+      {showPagination && (
+        <div className="flex justify-center items-center space-x-4 mt-8">
+          <Button
+            variant="outline"
+            onClick={handlePreviousPage}
+            disabled={currentPage === 0}
+          >
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Précédent
+          </Button>
+          <span>Page {currentPage + 1} sur {totalPages}</span>
+          <Button
+            variant="outline"
+            onClick={handleNextPage}
+            disabled={currentPage >= totalPages - 1}
+          >
+            Suivant
+            <ChevronRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )}
+    </>
   );
 };
 
