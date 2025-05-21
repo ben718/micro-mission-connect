@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X, User, LogOut } from "lucide-react";
@@ -59,6 +58,11 @@ const Header = () => {
             {user && profile?.is_association && (
               <Link to="/missions/new" className="nav-link">
                 Proposer une mission
+              </Link>
+            )}
+            {user && (
+              <Link to="/dashboard" className="nav-link">
+                Dashboard
               </Link>
             )}
             <Link to="#" className="nav-link">
@@ -152,6 +156,15 @@ const Header = () => {
                   onClick={() => setIsOpen(false)}
                 >
                   Proposer une mission
+                </Link>
+              )}
+              {user && (
+                <Link
+                  to="/dashboard"
+                  className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Dashboard
                 </Link>
               )}
               <Link
