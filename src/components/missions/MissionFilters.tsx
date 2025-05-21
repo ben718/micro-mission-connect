@@ -6,11 +6,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { useCategories, useCities } from "@/hooks/useMissions";
 import { MissionFilters as MissionFiltersType, DateRangeSelection } from "@/types/mission";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar as CalendarIcon, X } from "lucide-react";
+import { Calendar as CalendarIcon, X, MapPin } from "lucide-react";
 
 interface MissionFiltersProps {
   onFilterChange: (filters: MissionFiltersType) => void;
@@ -48,6 +49,19 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
       start: range.from,
       end: range.to
     });
+  };
+
+  const handleCategoryToggle = (categoryId: string) => {
+    const currentCategories = filters.categoryIds || [];
+    let newCategories: string[];
+
+    if (currentCategories.includes(categoryId)) {
+      newCategories = currentCategories.filter((id) => id !== categoryId);
+    } else {
+      newCategories = [...currentCategories, categoryId];
+    }
+
+    handleFilterChange("categoryIds", newCategories);
   };
 
   const handleReset = () => {
@@ -92,6 +106,7 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
                   {city}
                 </SelectItem>
               ))}
+              <SelectItem value="remote">À distance</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -134,7 +149,37 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
         </div>
       </div>
 
-      <div className="flex justify-between items-center mt-4">
+      <div className="mt-4">
+        <Label className="mb-2 block">Catégories</Label>
+        <div className="flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <Badge
+              key={category.id}
+              variant={filters.categoryIds?.includes(category.id) ? "default" : "outline"}
+              className={`cursor-pointer ${
+                filters.categoryIds?.includes(category.id)
+                  ? "bg-bleu hover:bg-bleu-700"
+                  : "bg-gray-50 hover:bg-gray-100 text-gray-700"
+              }`}
+              onClick={() => handleCategoryToggle(category.id)}
+            >
+              {category.name}
+            </Badge>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center mt-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => handleFilterChange("remote", !filters.remote)}
+          className={`flex items-center mr-4 ${filters.remote ? "bg-bleu text-white hover:bg-bleu-700" : ""}`}
+        >
+          <MapPin className="mr-1 h-4 w-4" />
+          À distance
+        </Button>
+
         <Button
           variant="outline"
           size="sm"

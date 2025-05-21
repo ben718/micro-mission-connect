@@ -1,9 +1,10 @@
 
 import { useState } from "react";
+import { Helmet } from "react-helmet";
 import MissionsList from "@/components/missions/MissionsList";
 import MissionFilters from "@/components/missions/MissionFilters";
+import MissionNavigation from "@/components/missions/MissionNavigation";
 import { MissionFilters as MissionFiltersType } from "@/types/mission";
-import { Helmet } from "react-helmet";
 
 const MissionsPage = () => {
   const [filters, setFilters] = useState<MissionFiltersType>({});
@@ -25,6 +26,7 @@ const MissionsPage = () => {
           </p>
         </div>
 
+        <MissionNavigation />
         <MissionFilters onFilterChange={handleFilterChange} />
         <MissionsList filters={filters} />
       </div>

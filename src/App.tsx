@@ -15,6 +15,7 @@ import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
 import UserProfile from "./pages/profile/UserProfile";
 import AssociationProfile from "./pages/profile/AssociationProfile";
+import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
           <Header />
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/confirmation" element={<Confirmation />} />
