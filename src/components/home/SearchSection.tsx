@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -38,8 +37,12 @@ const SearchSection = () => {
       params.append("query", searchQuery);
     }
     
-    if (selectedLocation) {
+    if (selectedLocation && selectedLocation !== "all") {
       params.append("city", selectedLocation);
+    }
+    
+    if (selectedDuration && selectedDuration !== "all") {
+      params.append("duration", selectedDuration);
     }
     
     if (selectedCategories.length > 0) {
@@ -90,7 +93,7 @@ const SearchSection = () => {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Toutes les localisations</SelectItem>
+                  <SelectItem value="all">Toutes les localisations</SelectItem>
                   <SelectItem value="Paris">Paris</SelectItem>
                   <SelectItem value="Lyon">Lyon</SelectItem>
                   <SelectItem value="Marseille">Marseille</SelectItem>
@@ -108,7 +111,7 @@ const SearchSection = () => {
                   </div>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Toutes les durées</SelectItem>
+                  <SelectItem value="all">Toutes les durées</SelectItem>
                   <SelectItem value="15">15 minutes</SelectItem>
                   <SelectItem value="30">30 minutes</SelectItem>
                   <SelectItem value="60">1 heure</SelectItem>
