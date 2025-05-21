@@ -60,11 +60,6 @@ const Header = () => {
                 Proposer une mission
               </Link>
             )}
-            {user && (
-              <Link to="/dashboard" className="nav-link">
-                Dashboard
-              </Link>
-            )}
             <Link to="#" className="nav-link">
               À propos
             </Link>
@@ -90,6 +85,11 @@ const Header = () => {
                     <Link to="/profile" className="cursor-pointer">
                       <User className="mr-2 h-4 w-4" />
                       Profil
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link to="/dashboard" className="cursor-pointer">
+                      Tableau de bord
                     </Link>
                   </DropdownMenuItem>
                   {profile?.is_association && (

@@ -60,6 +60,21 @@ const DashboardBenevole = () => {
     });
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>;
+      case "confirmed":
+        return <Badge className="bg-green-100 text-green-800">Acceptée</Badge>;
+      case "refused":
+        return <Badge className="bg-red-100 text-red-800">Refusée</Badge>;
+      case "completed":
+        return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="container-custom py-10">
       {/* En-tête */}
@@ -172,7 +187,7 @@ const DashboardBenevole = () => {
                       <p className="text-gray-600 text-sm line-clamp-2 mb-2">{p.mission.description}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <Badge className="bg-green-100 text-green-800">{p.status === "confirmed" ? "Confirmé" : "Inscrit"}</Badge>
+                      {getStatusBadge(p.status)}
                     </div>
                   </div>
                 </CardContent>
@@ -214,7 +229,7 @@ const DashboardBenevole = () => {
                       <p className="text-gray-600 text-sm line-clamp-2 mb-2">{p.mission.description}</p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
-                      <Badge className="bg-blue-100 text-blue-800">Mission accomplie</Badge>
+                      {getStatusBadge(p.status)}
                     </div>
                   </div>
                 </CardContent>

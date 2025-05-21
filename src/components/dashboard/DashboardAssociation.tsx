@@ -89,6 +89,14 @@ const DashboardAssociation = () => {
     }
   };
 
+  const handleCandidature = async (participantId: string, status: 'confirmed' | 'refused') => {
+    await supabase
+      .from('mission_participants')
+      .update({ status })
+      .eq('id', participantId);
+    fetchAssociationMissions();
+  };
+
   if (loading) {
     return (
       <div className="container-custom py-10">
@@ -272,6 +280,31 @@ const DashboardAssociation = () => {
                           <span>{mission.city}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-2">{mission.description}</p>
+                        {mission.mission_participants && mission.mission_participants.length > 0 && (
+                          <div className="mt-4">
+                            <h4 className="font-semibold mb-2 text-sm text-gray-700">Candidatures en attente</h4>
+                            <div className="space-y-2">
+                              {mission.mission_participants.filter((p: any) => p.status === 'pending').length === 0 && (
+                                <span className="text-gray-400 text-sm">Aucune candidature en attente</span>
+                              )}
+                              {mission.mission_participants.filter((p: any) => p.status === 'pending').map((p: any) => (
+                                <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                                  <div className="flex items-center gap-2">
+                                    <Avatar className="h-8 w-8">
+                                      <AvatarFallback>{p.profiles?.first_name?.[0] || '?'}</AvatarFallback>
+                                    </Avatar>
+                                    <span className="font-medium">{p.profiles?.first_name} {p.profiles?.last_name}</span>
+                                    <span className="text-xs text-gray-500">{p.profiles?.email}</span>
+                                  </div>
+                                  <div className="flex gap-2">
+                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCandidature(p.id, 'confirmed')}>Accepter</Button>
+                                    <Button size="sm" variant="outline" className="border-red-400 text-red-600 hover:bg-red-50" onClick={() => handleCandidature(p.id, 'refused')}>Refuser</Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="flex justify-between items-center">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />

@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -75,6 +74,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile(data);
+
+      // Synchronisation de l'email dans profiles
+      const userAuth = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user : null;
+      if (userAuth && userAuth.email && data.email !== userAuth.email) {
+        await supabase
+          .from("profiles")
+          .update({ email: userAuth.email })
+          .eq("id", userId);
+      }
     } catch (error) {
       console.error("Erreur lors de la récupération du profil:", error);
     }

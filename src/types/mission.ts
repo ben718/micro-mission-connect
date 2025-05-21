@@ -1,7 +1,7 @@
 import { Database } from "@/integrations/supabase/types";
 
 // Types dérivés de la base de données Supabase
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & { email?: string };
 export type Mission = Database["public"]["Tables"]["missions"]["Row"];
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type MissionCategory = Database["public"]["Tables"]["mission_categories"]["Row"];
