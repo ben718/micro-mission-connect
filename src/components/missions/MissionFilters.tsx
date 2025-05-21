@@ -34,12 +34,10 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
   ) => {
     setFilters((prev) => {
       const newFilters = { ...prev, [key]: value };
-      
-      // Si la valeur est vide, supprimer la propriété
-      if (value === "" || value === undefined || (Array.isArray(value) && value.length === 0)) {
+      // Si la valeur est vide ou 'all', supprimer la propriété
+      if (value === "" || value === undefined || value === "all" || (Array.isArray(value) && value.length === 0)) {
         delete newFilters[key];
       }
-      
       return newFilters;
     });
   };
@@ -119,14 +117,14 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
         <div className="space-y-2">
           <Label htmlFor="city">Ville</Label>
           <Select
-            value={filters.city || ""}
+            value={filters.city || "all"}
             onValueChange={(value) => handleFilterChange("city", value)}
           >
             <SelectTrigger id="city">
               <SelectValue placeholder="Toutes les villes" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Toutes les villes</SelectItem>
+              <SelectItem value="all">Toutes les villes</SelectItem>
               {cities.map((city) => (
                 <SelectItem key={city} value={city}>
                   {city}
