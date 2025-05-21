@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useCategories, useCities } from "@/hooks/useMissions";
-import { MissionFilters as MissionFiltersType } from "@/types/mission";
+import { MissionFilters as MissionFiltersType, DateRangeSelection } from "@/types/mission";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Calendar as CalendarIcon, X } from "lucide-react";
@@ -21,10 +21,10 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
   const { data: cities = [] } = useCities();
 
   const [filters, setFilters] = useState<MissionFiltersType>({});
-  const [dateRange, setDateRange] = useState<{
-    from?: Date;
-    to?: Date;
-  }>({});
+  const [dateRange, setDateRange] = useState<DateRangeSelection>({
+    from: undefined,
+    to: undefined
+  });
 
   const handleFilterChange = <T extends keyof MissionFiltersType>(
     key: T,
@@ -42,7 +42,7 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
     });
   };
 
-  const handleDateRangeChange = (range: { from?: Date; to?: Date }) => {
+  const handleDateRangeChange = (range: DateRangeSelection) => {
     setDateRange(range);
     handleFilterChange("dateRange", {
       start: range.from,
@@ -52,7 +52,10 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
 
   const handleReset = () => {
     setFilters({});
-    setDateRange({});
+    setDateRange({
+      from: undefined,
+      to: undefined
+    });
     onFilterChange({});
   };
 

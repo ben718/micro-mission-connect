@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails } from "@/types/mission";
+import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association } from "@/types/mission";
 
 export function useMissions(filters?: MissionFilters) {
   return useQuery({
@@ -11,7 +11,7 @@ export function useMissions(filters?: MissionFilters) {
         .from("missions")
         .select(`
           *,
-          association:association_id(id, first_name, last_name, avatar_url, bio)
+          association:association_id(*)
         `)
         .eq("status", "open");
       
@@ -46,7 +46,7 @@ export function useMissions(filters?: MissionFilters) {
       const { data, error } = await query;
       
       if (error) throw error;
-      return data || [];
+      return data as MissionWithAssociation[];
     },
   });
 }
@@ -62,7 +62,7 @@ export function useMission(id: string | undefined) {
         .from("missions")
         .select(`
           *,
-          association:association_id(id, first_name, last_name, avatar_url, bio),
+          association:association_id(*),
           mission_categories(category_id)
         `)
         .eq("id", id)
@@ -106,7 +106,7 @@ export function useMission(id: string | undefined) {
         categories: categories || [],
         participants_count: count || 0,
         is_registered: isRegistered
-      };
+      } as MissionWithDetails;
     },
     enabled: !!id
   });

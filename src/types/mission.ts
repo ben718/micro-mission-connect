@@ -10,15 +10,19 @@ export type MissionParticipant = Database["public"]["Tables"]["mission_participa
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
 
+// Type pour l'association (profile d'une association)
+export type Association = Profile;
+
 // Types pour l'interface utilisateur
 export type MissionWithAssociation = Mission & {
-  association: Profile;
+  association: Association;
   categories?: Category[];
 };
 
 export type MissionWithDetails = MissionWithAssociation & {
   participants_count: number;
   is_registered?: boolean;
+  mission_categories?: MissionCategory[];
 };
 
 // Types pour les filtres de recherche
@@ -31,4 +35,10 @@ export type MissionFilters = {
     end?: Date;
   };
   remote?: boolean;
+};
+
+// Type pour les sélections de date
+export type DateRangeSelection = {
+  from: Date | undefined;
+  to: Date | undefined;
 };
