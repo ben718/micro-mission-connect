@@ -1,5 +1,5 @@
-
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const HeroSection = () => {
   return (
@@ -21,15 +21,17 @@ const HeroSection = () => {
             </p>
             <div className="mt-8 flex flex-col sm:flex-row gap-4">
               <Button
+                asChild
                 className="text-white bg-bleu hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"
               >
-                Trouver une mission
+                <Link to="/missions">Trouver une mission</Link>
               </Button>
               <Button
+                asChild
                 variant="outline"
                 className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"
               >
-                Proposer une mission
+                <Link to="/missions/new">Proposer une mission</Link>
               </Button>
             </div>
           </div>
