@@ -12,6 +12,7 @@ import { format } from "date-fns"
 import { addDays } from 'date-fns';
 import { cn } from "@/lib/utils"
 import { Category, MissionFilters, DateRangeSelection } from "@/types/mission";
+import { DateRange } from "react-day-picker";
 
 const MissionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,7 +21,8 @@ const MissionsPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     searchParams.getAll('category')
   );
-  const [dateRange, setDateRange] = useState<DateRangeSelection>({
+  // Use DateRange from react-day-picker directly
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: searchParams.get('startDate') ? new Date(searchParams.get('startDate') as string) : undefined,
     to: searchParams.get('endDate') ? new Date(searchParams.get('endDate') as string) : undefined,
   });

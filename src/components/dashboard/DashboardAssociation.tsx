@@ -70,13 +70,15 @@ const DashboardAssociation = () => {
           city,
           status,
           duration_minutes,
-          mission_participants(id, status, user_id, profiles(first_name, last_name, email))
+          mission_participants(id, status, user_id, profiles:user_id(first_name, last_name, email))
         `)
         .eq("association_id", user?.id)
         .order("starts_at", { ascending: true });
       
       if (error) throw error;
-      setMissions(data || []);
+      
+      // Type assertion to fix the deep instantiation
+      setMissions(data as AssociationMission[] || []);
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue");
     } finally {

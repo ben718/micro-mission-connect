@@ -40,6 +40,7 @@ export type MissionWithDetails = MissionWithAssociation & {
 };
 
 // Type for date range selection used in calendar component
+// Match the react-day-picker DateRange structure
 export type DateRangeSelection = {
   from: Date | undefined;
   to: Date | undefined;
