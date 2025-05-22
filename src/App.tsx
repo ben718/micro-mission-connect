@@ -1,10 +1,10 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ProfileBenevole from "@/pages/ProfileBenevole";
@@ -71,14 +71,22 @@ const App = () => (
         <AuthProvider>
           <Header />
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            } />
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
             <Route path="/auth/confirmation" element={<Confirmation />} />
             <Route path="/missions" element={<MissionsPage />} />
             <Route path="/missions/:id" element={<MissionDetail />} />
-            <Route path="/missions/new" element={<CreateMission />} />
+            <Route path="/missions/new" element={
+              <PrivateRoute>
+                <CreateMission />
+              </PrivateRoute>
+            } />
             <Route
               path="/profile"
               element={
