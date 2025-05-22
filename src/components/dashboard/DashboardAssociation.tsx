@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
 
-// Define simpler types to avoid recursive type issues
+// Use simpler, flattened types to avoid recursive references
 type SimpleProfile = {
   first_name?: string;
   last_name?: string;
@@ -25,7 +25,7 @@ type MissionParticipant = {
   profiles?: SimpleProfile;
 };
 
-// Define a simpler mission type 
+// Define a simpler mission type with explicitly defined structure
 type AssociationMission = {
   id: string;
   title: string;
@@ -60,6 +60,7 @@ const DashboardAssociation = () => {
     setLoading(true);
     setError(null);
     try {
+      // Use explicit type definition with .returns() to help TypeScript understand the structure
       const { data, error } = await supabase
         .from("missions")
         .select(`
@@ -70,15 +71,51 @@ const DashboardAssociation = () => {
           city,
           status,
           duration_minutes,
-          mission_participants(id, status, user_id, profiles:user_id(first_name, last_name, email))
+          mission_participants(id, status, user_id)
         `)
         .eq("association_id", user?.id)
         .order("starts_at", { ascending: true });
       
       if (error) throw error;
       
-      // Type assertion to fix the deep instantiation
-      setMissions(data as AssociationMission[] || []);
+      // After fetching missions, separately fetch participant profiles to avoid deep nesting
+      const missionsWithParticipants: AssociationMission[] = data || [];
+      
+      // Process each mission to handle participants with profiles
+      for (const mission of missionsWithParticipants) {
+        if (mission.mission_participants && mission.mission_participants.length > 0) {
+          // Get unique user IDs from participants
+          const userIds = mission.mission_participants.map(p => p.user_id);
+          
+          if (userIds.length > 0) {
+            // Fetch profiles separately
+            const { data: profilesData } = await supabase
+              .from("profiles")
+              .select("id, first_name, last_name, email")
+              .in("id", userIds);
+              
+            // Map profiles to participants
+            if (profilesData) {
+              const profilesMap: Record<string, SimpleProfile> = {};
+              profilesData.forEach(profile => {
+                profilesMap[profile.id] = {
+                  first_name: profile.first_name,
+                  last_name: profile.last_name,
+                  email: profile.email
+                };
+              });
+              
+              // Assign profiles to participants
+              mission.mission_participants = mission.mission_participants.map(p => ({
+                ...p,
+                profiles: profilesMap[p.user_id]
+              }));
+            }
+          }
+        }
+      }
+      
+      setMissions(missionsWithParticipants);
     } catch (err: any) {
       setError(err.message || "Une erreur est survenue");
     } finally {
@@ -328,10 +365,10 @@ const DashboardAssociation = () => {
                           <div className="mt-4">
                             <h4 className="font-semibold mb-2 text-sm text-gray-700">Candidatures en attente</h4>
                             <div className="space-y-2">
-                              {mission.mission_participants.filter((p: any) => p.status === 'pending').length === 0 && (
+                              {mission.mission_participants.filter((p) => p.status === 'pending').length === 0 && (
                                 <span className="text-gray-400 text-sm">Aucune candidature en attente</span>
                               )}
-                              {mission.mission_participants.filter((p: any) => p.status === 'pending').map((p: any) => (
+                              {mission.mission_participants.filter((p) => p.status === 'pending').map((p) => (
                                 <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
