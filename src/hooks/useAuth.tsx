@@ -91,38 +91,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error("Erreur lors de la récupération du profil:", error);
+        alert("Erreur lors de la récupération du profil: " + error.message);
+        return;
+      }
+      if (!data) {
+        console.error("Aucun profil trouvé pour l'utilisateur:", userId);
+        alert("Aucun profil trouvé pour l'utilisateur: " + userId);
         return;
       }
 
       // Mapping vers l'interface Profile locale
-      const profileData = data as any;
-      const firstName = profileData?.first_name ?? '';
-      const lastName = profileData?.last_name ?? '';
+      const firstName = data?.first_name ?? '';
+      const lastName = data?.last_name ?? '';
       
       const mappedProfile: Profile = {
-        id: profileData?.id ?? '',
+        id: data?.id ?? '',
         first_name: firstName,
         last_name: lastName,
-        is_association: profileData?.is_association ?? false,
-        avatar_url: profileData?.avatar_url ?? undefined,
-        bio: profileData?.bio ?? '',
-        location: profileData?.location ?? '',
-        website: profileData?.website ?? '',
-        phone: profileData?.phone ?? '',
+        is_association: data?.is_association ?? false,
+        avatar_url: data?.avatar_url ?? undefined,
+        bio: data?.bio ?? '',
+        location: data?.location ?? '',
+        website: data?.website ?? '',
+        phone: data?.phone ?? '',
         // Propriétés synthétiques
         name: firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '',
-        role: profileData?.is_association ? 'association' : 'benevole',
-        avatar: profileData?.avatar_url ?? undefined,
-        badges: profileData?.badges ?? [],
-        skills: profileData?.skills ?? [],
-        email: profileData?.email ?? user?.email ?? '',
-        created_at: profileData?.created_at ?? '',
-        updated_at: profileData?.updated_at ?? '',
+        role: data?.is_association ? 'association' : 'benevole',
+        avatar: data?.avatar_url ?? undefined,
+        badges: data?.badges ?? [],
+        skills: data?.skills ?? [],
+        email: data?.email ?? user?.email ?? '',
+        created_at: data?.created_at ?? '',
+        updated_at: data?.updated_at ?? '',
       };
       
       setProfile(mappedProfile);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la récupération du profil:", error);
+      alert("Erreur lors de la récupération du profil: " + error.message);
     }
   }
 
