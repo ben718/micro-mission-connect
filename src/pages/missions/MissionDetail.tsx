@@ -1,4 +1,3 @@
-
 import { useParams, Link } from "react-router-dom";
 import { useMission } from "@/hooks/useMissions";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MapPin, Calendar, Clock, Users, ArrowLeft, Heart, Share2 } from "lucide-react";
 import { format, formatDistance } from "date-fns";
 import { fr } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const MissionDetail = () => {

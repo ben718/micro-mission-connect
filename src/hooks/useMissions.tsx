@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association } from "@/types/mission";
 
 export function useMissions(filters?: MissionFilters) {
