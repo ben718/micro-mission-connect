@@ -1,27 +1,29 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import type { Profile } from "@/types/profile";
 
-type AuthContextType = {
+interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData: Partial<Profile>) => Promise<void>;
+  signUp: (email: string, password: string, metadata: any) => Promise<void>;
   signOut: () => Promise<void>;
-};
+}
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         setLoading(false);
+        setIsLoading(false);
       }
     );
 
@@ -53,6 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setLoading(false);
+      setIsLoading(false);
     });
 
     return () => {
@@ -96,59 +100,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  async function signIn(email: string, password: string) {
+  const signIn = async (email: string, password: string) => {
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-
-      if (error) {
-        toast.error(error.message);
-        return;
-      }
-
+      if (error) throw error;
       toast.success("Connexion réussie");
       navigate("/");
-    } catch (error) {
-      console.error("Erreur lors de la connexion:", error);
-      toast.error("Une erreur est survenue lors de la connexion");
+    } catch (error: any) {
+      console.error("Erreur de connexion:", error.message);
+      toast.error(error.message);
+      throw error;
     }
-  }
+  };
 
-  async function signUp(email: string, password: string, userData: Partial<Profile>) {
+  const signUp = async (email: string, password: string, metadata: any) => {
     try {
-      const { error: signUpError } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData,
+          data: metadata,
         },
       });
-
-      if (signUpError) {
-        toast.error(signUpError.message);
-        return;
-      }
-
-      toast.success("Inscription réussie! Veuillez vérifier votre email.");
+      if (error) throw error;
+      toast.success("Inscription réussie ! Vérifiez votre email pour confirmer votre compte.");
       navigate("/auth/confirmation");
-    } catch (error) {
-      console.error("Erreur lors de l'inscription:", error);
-      toast.error("Une erreur est survenue lors de l'inscription");
+    } catch (error: any) {
+      console.error("Erreur d'inscription:", error.message);
+      toast.error(error.message);
+      throw error;
     }
-  }
+  };
 
-  async function signOut() {
+  const signOut = async () => {
     try {
       await supabase.auth.signOut();
       toast.success("Déconnexion réussie");
       navigate("/");
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error);
-      toast.error("Une erreur est survenue lors de la déconnexion");
+    } catch (error: any) {
+      console.error("Erreur de déconnexion:", error.message);
+      toast.error(error.message);
+      throw error;
     }
-  }
+  };
 
   return (
     <AuthContext.Provider
@@ -157,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         profile,
         loading,
+        isLoading,
         signIn,
         signUp,
         signOut,
@@ -165,12 +163,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error("useAuth doit être utilisé à l'intérieur d'un AuthProvider");
   }
   return context;
-}
+};

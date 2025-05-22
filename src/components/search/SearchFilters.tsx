@@ -2,94 +2,125 @@ import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { X, Search, Filter, MapPin, Calendar, Clock, Users, Tag } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { X, Search, MapPin, Calendar, Tag, RefreshCw, Globe, Filter } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 interface SearchFiltersProps {
   onSearch: (filters: SearchFilters) => void;
   initialFilters?: SearchFilters;
+  totalResults?: number;
 }
 
 export interface SearchFilters {
   query: string;
-  category: string;
+  category: string[];
   location: string;
   date: string;
-  timeSlot: string;
-  duration: string;
+  remote: boolean;
   skills: string[];
-  participants: string;
 }
 
-const categories = [
-  { value: "all", label: "Toutes les catégories" },
-  { value: "education", label: "Éducation" },
-  { value: "social", label: "Social" },
-  { value: "environment", label: "Environnement" },
-  { value: "health", label: "Santé" },
-  { value: "culture", label: "Culture" },
-  { value: "sport", label: "Sport" },
-  { value: "other", label: "Autre" }
-];
-
-const timeSlots = [
-  { value: "all", label: "Tous les créneaux" },
-  { value: "morning", label: "Matin (8h-12h)" },
-  { value: "afternoon", label: "Après-midi (12h-18h)" },
-  { value: "evening", label: "Soirée (18h-22h)" },
-  { value: "weekend", label: "Week-end" }
-];
-
-const durations = [
-  { value: "all", label: "Toutes les durées" },
-  { value: "1-2", label: "1-2 heures" },
-  { value: "2-4", label: "2-4 heures" },
-  { value: "4-8", label: "4-8 heures" },
-  { value: "8+", label: "Plus de 8 heures" }
-];
-
-const participants = [
-  { value: "all", label: "Tous les effectifs" },
-  { value: "1-5", label: "1-5 personnes" },
-  { value: "5-10", label: "5-10 personnes" },
-  { value: "10-20", label: "10-20 personnes" },
-  { value: "20+", label: "Plus de 20 personnes" }
-];
-
-const commonSkills = [
-  "Communication",
-  "Organisation",
-  "Travail d'équipe",
-  "Leadership",
-  "Informatique",
-  "Langues",
-  "Animation",
-  "Premiers secours",
-  "Médiation",
-  "Enseignement"
-];
-
-export function SearchFilters({ onSearch, initialFilters }: SearchFiltersProps) {
+export function SearchFilters({ onSearch, initialFilters, totalResults }: SearchFiltersProps) {
   const [filters, setFilters] = React.useState<SearchFilters>(initialFilters || {
     query: "",
-    category: "all",
+    category: [],
     location: "",
     date: "",
-    timeSlot: "all",
-    duration: "all",
+    remote: false,
     skills: [],
-    participants: "all"
   });
 
-  const [showAdvancedFilters, setShowAdvancedFilters] = React.useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState("");
+  const [suggestedCities, setSuggestedCities] = React.useState<string[]>([]);
 
-  const handleFilterChange = (key: keyof SearchFilters, value: string | string[]) => {
+  // Catégories dynamiques
+  const [categories, setCategories] = React.useState<{ value: string; label: string; icon?: string }[]>([]);
+  // Villes dynamiques
+  const [villes, setVilles] = React.useState<string[]>([]);
+  // Compétences dynamiques
+  const [skills, setSkills] = React.useState<string[]>([]);
+
+  React.useEffect(() => {
+    // Charger les catégories dynamiquement
+    supabase
+      .from('categories')
+      .select('id, name')
+      .order('name')
+      .then(({ data }) => {
+        if (data) {
+          setCategories(data.map((cat: any) => ({ value: cat.name, label: cat.name })));
+        }
+      });
+
+    // Charger les villes dynamiquement
+    supabase
+      .from('missions')
+      .select('city')
+      .neq('city', '')
+      .then(({ data }) => {
+        if (data) {
+          const unique = Array.from(new Set(data.map((m: any) => m.city)));
+          setVilles(unique.filter(Boolean).sort());
+        }
+      });
+
+    // Charger les compétences dynamiquement (badges comme skills)
+    supabase
+      .from('badges')
+      .select('name')
+      .order('name')
+      .then(({ data }) => {
+        if (data) {
+          setSkills(data.map((b: any) => b.name));
+        }
+      });
+  }, []);
+
+  // Gestion de l'autocomplétion des villes
+  React.useEffect(() => {
+    if (searchQuery.length >= 2) {
+      const filtered = villes.filter(ville =>
+        ville.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSuggestedCities(filtered);
+    } else {
+      setSuggestedCities([]);
+    }
+  }, [searchQuery, villes]);
+
+  const handleFilterChange = (key: keyof SearchFilters, value: any) => {
     const newFilters = { ...filters, [key]: value };
     setFilters(newFilters);
     onSearch(newFilters);
+  };
+
+  const handleCategoryToggle = (cat: string) => {
+    const newCategories = filters.category.includes(cat)
+      ? filters.category.filter(c => c !== cat)
+      : [...filters.category, cat];
+    handleFilterChange("category", newCategories);
   };
 
   const handleSkillToggle = (skill: string) => {
@@ -100,238 +131,308 @@ export function SearchFilters({ onSearch, initialFilters }: SearchFiltersProps) 
   };
 
   const clearFilters = () => {
-    const clearedFilters = {
-      query: "",
-      category: "all",
-      location: "",
-      date: "",
-      timeSlot: "all",
-      duration: "all",
-      skills: [],
-      participants: "all"
-    };
-    setFilters(clearedFilters);
-    onSearch(clearedFilters);
+    const cleared = { query: "", category: [], location: "", date: "", remote: false, skills: [] };
+    setFilters(cleared);
+    onSearch(cleared);
   };
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilterChange("date", e.target.value);
+  };
+
+  // Composant pour les filtres avancés (utilisé dans le popover et le sheet)
+  const AdvancedFilters = () => (
+    <div className="space-y-4 transition-all duration-300 ease-in-out animate-fade-in">
+      {/* Catégories */}
+      <div>
+        <div className="mb-2 font-medium flex items-center gap-2">
+          <Tag className="h-4 w-4" /> Catégories
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {categories.map(cat => (
+            <Button
+              key={cat.value}
+              type="button"
+              variant={filters.category.includes(cat.value) ? "default" : "outline"}
+              className={filters.category.includes(cat.value) ? "bg-bleu text-white transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" : "transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"}
+              onClick={() => handleCategoryToggle(cat.value)}
+              aria-pressed={filters.category.includes(cat.value)}
+              aria-label={`Filtrer par catégorie ${cat.label}`}
+            >
+              {cat.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* Compétences */}
+      <div>
+        <div className="mb-2 font-medium flex items-center gap-2">
+          <Tag className="h-4 w-4" /> Compétences
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {skills.map(skill => (
+            <Button
+              key={skill}
+              type="button"
+              variant={filters.skills.includes(skill) ? "default" : "outline"}
+              className={filters.skills.includes(skill) ? "bg-bleu text-white transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" : "transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"}
+              onClick={() => handleSkillToggle(skill)}
+              aria-pressed={filters.skills.includes(skill)}
+              aria-label={`Filtrer par compétence ${skill}`}
+            >
+              {skill}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      {/* À distance */}
+      <div>
+        <Button
+          type="button"
+          variant={filters.remote ? "default" : "outline"}
+          className={`w-full ${filters.remote ? "bg-bleu text-white" : ""} transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]`}
+          onClick={() => handleFilterChange("remote", !filters.remote)}
+          aria-pressed={filters.remote}
+          aria-label="Filtrer par missions à distance"
+        >
+          <Globe className="h-4 w-4 mr-2" /> À distance
+        </Button>
+      </div>
+
+      {/* Réinitialiser */}
+      <Button 
+        type="button" 
+        variant="ghost" 
+        onClick={() => {
+          clearFilters();
+          setIsFiltersOpen(false);
+        }} 
+        className="w-full"
+      >
+        <RefreshCw className="h-4 w-4 mr-2" /> Réinitialiser les filtres
+      </Button>
+    </div>
+  );
 
   return (
     <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="space-y-4">
-          {/* Barre de recherche principale */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Rechercher une mission..."
-              value={filters.query}
-              onChange={(e) => handleFilterChange("query", e.target.value)}
-              className="pl-10"
-            />
-          </div>
-
-          {/* Filtres rapides */}
-          <div className="flex flex-wrap gap-2">
-            <Select
-              value={filters.category}
-              onValueChange={(value) => handleFilterChange("category", value)}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Catégorie" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.value} value={category.value}>
-                    {category.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
+      <CardContent className="p-4 sm:p-6">
+        <form className="flex flex-col gap-4">
+          {/* Ligne principale : Recherche, Ville, Date */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Barre de recherche */}
             <div className="relative flex-1">
-              <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
               <Input
-                placeholder="Localisation"
-                value={filters.location}
-                onChange={(e) => handleFilterChange("location", e.target.value)}
-                className="pl-10"
+                placeholder="Rechercher une mission..."
+                value={filters.query}
+                onChange={e => handleFilterChange("query", e.target.value)}
+                className="pl-10 h-12 text-base"
               />
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-              className="flex items-center gap-2"
-            >
-              <Filter className="h-4 w-4" />
-              {showAdvancedFilters ? "Masquer les filtres" : "Filtres avancés"}
-            </Button>
+            {/* Filtres secondaires sur desktop */}
+            <div className="hidden sm:flex gap-4">
+              {/* Autocomplétion ville */}
+              <div className="relative w-64 transition-all duration-300 ease-in-out">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-haspopup="listbox"
+                      aria-expanded={!!filters.location}
+                      aria-label="Choisir une ville"
+                      className="w-full justify-between h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"
+                    >
+                      <MapPin className="mr-2 h-4 w-4" />
+                      {filters.location || "Choisir une ville"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[200px] p-0 animate-fade-in transition-all duration-300">
+                    <Command>
+                      <CommandInput 
+                        placeholder="Rechercher une ville..."
+                        value={searchQuery}
+                        onValueChange={setSearchQuery}
+                      />
+                      <CommandEmpty>Aucune ville trouvée</CommandEmpty>
+                      <CommandGroup>
+                        {suggestedCities.map((ville) => (
+                          <CommandItem
+                            key={ville}
+                            value={ville}
+                            onSelect={() => {
+                              handleFilterChange("location", ville);
+                              setSearchQuery("");
+                            }}
+                          >
+                            {ville}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Date */}
+              <div className="relative w-64">
+                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                <Input
+                  type="date"
+                  value={filters.date}
+                  onChange={handleDateChange}
+                  className="pl-10 h-12 text-base"
+                />
+              </div>
+
+              {/* Filtres avancés (desktop) */}
+              <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" aria-expanded={isFiltersOpen} aria-controls="advanced-filters-popover" aria-label="Ouvrir les filtres avancés">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtres avancés
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4 animate-fade-in transition-all duration-300" id="advanced-filters-popover">
+                  <AdvancedFilters />
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Filtres secondaires sur mobile */}
+            <div className="flex sm:hidden gap-2">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" className="flex-1 h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" aria-expanded={isFiltersOpen} aria-controls="mobile-filters-sheet" aria-label="Ouvrir les filtres sur mobile">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filtres
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="h-[80vh] animate-fade-in transition-all duration-300" id="mobile-filters-sheet">
+                  <SheetHeader>
+                    <SheetTitle>Filtres</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4 space-y-4">
+                    {/* Ville */}
+                    <div>
+                      <div className="mb-2 font-medium">Ville</div>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-haspopup="listbox"
+                            aria-expanded={!!filters.location}
+                            aria-label="Choisir une ville"
+                            className="w-full justify-between h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"
+                          >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            {filters.location || "Choisir une ville"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[200px] p-0">
+                          <Command>
+                            <CommandInput 
+                              placeholder="Rechercher une ville..."
+                              value={searchQuery}
+                              onValueChange={setSearchQuery}
+                            />
+                            <CommandEmpty>Aucune ville trouvée</CommandEmpty>
+                            <CommandGroup>
+                              {suggestedCities.map((ville) => (
+                                <CommandItem
+                                  key={ville}
+                                  value={ville}
+                                  onSelect={() => {
+                                    handleFilterChange("location", ville);
+                                    setSearchQuery("");
+                                  }}
+                                >
+                                  {ville}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                      <div className="mb-2 font-medium">Date</div>
+                      <Input
+                        type="date"
+                        value={filters.date}
+                        onChange={handleDateChange}
+                        className="w-full"
+                      />
+                    </div>
+
+                    <Separator />
+
+                    {/* Filtres avancés */}
+                    <AdvancedFilters />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
 
-          {/* Filtres avancés */}
-          {showAdvancedFilters && (
-            <div className="space-y-4 pt-4 border-t">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Date</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      type="date"
-                      value={filters.date}
-                      onChange={(e) => handleFilterChange("date", e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Créneau horaire</label>
-                  <Select
-                    value={filters.timeSlot}
-                    onValueChange={(value) => handleFilterChange("timeSlot", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Créneau horaire" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {timeSlots.map((slot) => (
-                        <SelectItem key={slot.value} value={slot.value}>
-                          {slot.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Durée</label>
-                  <Select
-                    value={filters.duration}
-                    onValueChange={(value) => handleFilterChange("duration", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Durée" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {durations.map((duration) => (
-                        <SelectItem key={duration.value} value={duration.value}>
-                          {duration.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Effectif</label>
-                  <Select
-                    value={filters.participants}
-                    onValueChange={(value) => handleFilterChange("participants", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Nombre de participants" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {participants.map((participant) => (
-                        <SelectItem key={participant.value} value={participant.value}>
-                          {participant.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          {/* Compteur de résultats et filtres actifs */}
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-2 transition-all duration-300">
+            {totalResults !== undefined && (
+              <div className="text-sm text-muted-foreground animate-fade-in transition-all duration-300">
+                {totalResults} {totalResults > 1 ? 'missions trouvées' : 'mission trouvée'}
               </div>
-
-              {/* Compétences */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium flex items-center gap-2">
-                  <Tag className="h-4 w-4" />
-                  Compétences requises
-                </label>
-                <ScrollArea className="h-24 w-full rounded-md border p-2">
-                  <div className="flex flex-wrap gap-2">
-                    {commonSkills.map((skill) => (
-                      <Badge
-                        key={skill}
-                        variant={filters.skills.includes(skill) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => handleSkillToggle(skill)}
-                      >
-                        {skill}
-                        {filters.skills.includes(skill) && (
-                          <X className="ml-1 h-3 w-3" />
-                        )}
-                      </Badge>
-                    ))}
-                  </div>
-                </ScrollArea>
+            )}
+            
+            {/* Filtres actifs */}
+            {(filters.query || filters.location || filters.date || filters.category.length > 0 || filters.remote || filters.skills.length > 0) && (
+              <div className="flex flex-wrap gap-2 items-center animate-fade-in transition-all duration-300">
+                {filters.query && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Search className="h-3 w-3" /> {filters.query}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleFilterChange("query", "")} />
+                  </Badge>
+                )}
+                {filters.location && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {filters.location}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleFilterChange("location", "")} />
+                  </Badge>
+                )}
+                {filters.date && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> {filters.date}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleFilterChange("date", "")} />
+                  </Badge>
+                )}
+                {filters.category.map(cat => (
+                  <Badge key={cat} variant="secondary" className="flex items-center gap-1">
+                    {categories.find(c => c.value === cat)?.label || cat}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleCategoryToggle(cat)} />
+                  </Badge>
+                ))}
+                {filters.skills.map(skill => (
+                  <Badge key={skill} variant="secondary" className="flex items-center gap-1">
+                    {skill}
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleSkillToggle(skill)} />
+                  </Badge>
+                ))}
+                {filters.remote && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Globe className="h-3 w-3" /> À distance
+                    <X className="h-3 w-3 cursor-pointer" onClick={() => handleFilterChange("remote", false)} />
+                  </Badge>
+                )}
               </div>
-
-              {/* Filtres actifs */}
-              {(filters.skills.length > 0 || filters.category !== "all" || filters.timeSlot !== "all" || 
-                filters.duration !== "all" || filters.participants !== "all") && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Filtres actifs</label>
-                  <div className="flex flex-wrap gap-2">
-                    {filters.category !== "all" && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {categories.find(c => c.value === filters.category)?.label}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleFilterChange("category", "all")}
-                        />
-                      </Badge>
-                    )}
-                    {filters.timeSlot !== "all" && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {timeSlots.find(t => t.value === filters.timeSlot)?.label}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleFilterChange("timeSlot", "all")}
-                        />
-                      </Badge>
-                    )}
-                    {filters.duration !== "all" && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {durations.find(d => d.value === filters.duration)?.label}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleFilterChange("duration", "all")}
-                        />
-                      </Badge>
-                    )}
-                    {filters.participants !== "all" && (
-                      <Badge variant="secondary" className="flex items-center gap-1">
-                        {participants.find(p => p.value === filters.participants)?.label}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleFilterChange("participants", "all")}
-                        />
-                      </Badge>
-                    )}
-                    {filters.skills.map((skill) => (
-                      <Badge key={skill} variant="secondary" className="flex items-center gap-1">
-                        {skill}
-                        <X
-                          className="h-3 w-3 cursor-pointer"
-                          onClick={() => handleSkillToggle(skill)}
-                        />
-                      </Badge>
-                    ))}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearFilters}
-                      className="h-6 px-2"
-                    >
-                      Tout effacer
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        </form>
       </CardContent>
     </Card>
   );

@@ -1,15 +1,16 @@
 export interface Profile {
-  id: string;
-  email: string;
-  name: string;
-  role: 'benevole' | 'association';
-  avatar?: string;
+  id?: string;
+  first_name: string;
+  last_name: string;
+  avatar_url?: string;
   bio?: string;
-  location?: string;
-  website?: string;
   phone?: string;
-  badges?: string[];
+  location?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_association: boolean;
+  association_description?: string;
+  website?: string;
   skills?: string[];
-  createdAt: string;
-  updatedAt: string;
+  categories?: string[];
 } 

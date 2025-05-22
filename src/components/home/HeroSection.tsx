@@ -7,7 +7,7 @@ const HeroSection = () => {
 
   let title = (
     <>
-      <span className="block">Offrez votre temps,</span>
+      <span className="block text-bleu">Offrez votre temps,</span>
       <span className="bg-clip-text text-transparent bg-gradient-to-r from-bleu to-bleu-400">
         même 15 minutes comptent
       </span>
@@ -15,7 +15,7 @@ const HeroSection = () => {
   );
   let description =
     "Rejoignez notre communauté et transformez des moments libres en actions concrètes pour les associations qui ont besoin de vous.";
-  let primaryBtn = <Button asChild className="text-white bg-bleu hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions">Trouver une mission</Link></Button>;
+  let primaryBtn = <Button asChild className="bg-bleu text-white hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions">Trouver une mission</Link></Button>;
   let secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/missions/new">Proposer une mission</Link></Button>;
 
   if (profile?.role === 'association') {

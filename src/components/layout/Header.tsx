@@ -23,6 +23,13 @@ const Header = () => {
     setIsOpen(false);
   }, [location.pathname]);
 
+  // Détermination du rôle et de la couleur associée
+  const roleLabel = profile?.role === 'association' ? 'Association' : profile?.role === 'benevole' ? 'Bénévole' : '';
+  const roleColor = profile?.role === 'association' ? 'bg-green-100 text-green-800' : profile?.role === 'benevole' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+
+  // Fonction pour savoir si un lien est actif
+  const isActive = (path: string) => location.pathname === path;
+
   const getInitials = (firstName?: string, lastName?: string) => {
     if (!firstName && !lastName) return "?";
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`;
@@ -49,30 +56,18 @@ const Header = () => {
 
           {/* Navigation - Desktop */}
           <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className="nav-link">
-              Accueil
-            </Link>
-            <Link to="/missions" className="nav-link">
-              Trouver une mission
-            </Link>
+            <Link to="/" className={`nav-link ${isActive("/") ? "text-bleu font-bold underline" : ""}`}>Accueil</Link>
+            <Link to="/missions" className={`nav-link ${isActive("/missions") ? "text-bleu font-bold underline" : ""}`}>Trouver une mission</Link>
             {user && profile?.role === 'association' && (
-              <Link to="/missions/new" className="nav-link">
-                Proposer une mission
-              </Link>
+              <Link to="/missions/new" className={`nav-link ${isActive("/missions/new") ? "text-bleu font-bold underline" : ""}`}>Proposer une mission</Link>
             )}
             {user && profile?.role === 'benevole' && (
-              <Link to="/profile/benevole" className="nav-link">
-                Mon espace bénévole
-              </Link>
+              <Link to="/profile/benevole" className={`nav-link ${isActive("/profile/benevole") ? "text-bleu font-bold underline" : ""}`}>Mon espace bénévole</Link>
             )}
             {user && profile?.role === 'association' && (
-              <Link to="/profile/association" className="nav-link">
-                Mon espace asso
-              </Link>
+              <Link to="/profile/association" className={`nav-link ${isActive("/profile/association") ? "text-bleu font-bold underline" : ""}`}>Mon espace asso</Link>
             )}
-            <Link to="#" className="nav-link">
-              À propos
-            </Link>
+            <Link to="#" className="nav-link">À propos</Link>
           </nav>
 
           {/* Buttons - Desktop */}
@@ -87,6 +82,10 @@ const Header = () => {
                         {profile?.name ? profile.name[0] : '?'}
                       </AvatarFallback>
                     </Avatar>
+                    {/* Badge rôle */}
+                    {roleLabel && (
+                      <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-xs ${roleColor} border border-white shadow`}>{roleLabel}</span>
+                    )}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -145,93 +144,27 @@ const Header = () => {
         {isOpen && (
           <div className="md:hidden pt-4 pb-3 animate-fade-in">
             <nav className="flex flex-col space-y-4 py-4">
-              <Link
-                to="/"
-                className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                onClick={() => setIsOpen(false)}
-              >
-                Accueil
-              </Link>
-              <Link
-                to="/missions"
-                className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                onClick={() => setIsOpen(false)}
-              >
-                Trouver une mission
-              </Link>
+              <Link to="/" className={`px-4 py-2 rounded-md ${isActive("/") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Accueil</Link>
+              <Link to="/missions" className={`px-4 py-2 rounded-md ${isActive("/missions") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Trouver une mission</Link>
               {user && profile?.role === 'association' && (
-                <Link
-                  to="/missions/new"
-                  className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Proposer une mission
-                </Link>
+                <Link to="/missions/new" className={`px-4 py-2 rounded-md ${isActive("/missions/new") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Proposer une mission</Link>
               )}
               {user && profile?.role === 'benevole' && (
-                <Link
-                  to="/profile/benevole"
-                  className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Mon espace bénévole
-                </Link>
+                <Link to="/profile/benevole" className={`px-4 py-2 rounded-md ${isActive("/profile/benevole") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace bénévole</Link>
               )}
               {user && profile?.role === 'association' && (
-                <Link
-                  to="/profile/association"
-                  className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                  onClick={() => setIsOpen(false)}
-                >
-                  Mon espace asso
-                </Link>
+                <Link to="/profile/association" className={`px-4 py-2 rounded-md ${isActive("/profile/association") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace asso</Link>
               )}
-              <Link
-                to="#"
-                className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
-                onClick={() => setIsOpen(false)}
-              >
-                À propos
-              </Link>
-
+              <Link to="#" className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md" onClick={() => setIsOpen(false)}>À propos</Link>
               {user ? (
                 <>
-                  <Link
-                    to="/profile"
-                    className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    Mon profil
-                  </Link>
-                  <button
-                    onClick={() => {
-                      signOut();
-                      setIsOpen(false);
-                    }}
-                    className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center w-full text-left"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Déconnexion
-                  </button>
+                  <Link to="/profile" className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center" onClick={() => setIsOpen(false)}><User className="h-4 w-4 mr-2" />Mon profil</Link>
+                  <button onClick={() => { signOut(); setIsOpen(false); }} className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center w-full text-left"><LogOut className="h-4 w-4 mr-2" />Déconnexion</button>
                 </>
               ) : (
                 <div className="pt-2 space-y-3">
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-full"
-                    asChild
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Link to="/auth/login">Se connecter</Link>
-                  </Button>
-                  <Button
-                    className="w-full bg-bleu hover:bg-bleu-700 text-white rounded-full"
-                    asChild
-                    onClick={() => setIsOpen(false)}
-                  >
-                    <Link to="/auth/register">S'inscrire</Link>
-                  </Button>
+                  <Button variant="outline" className="w-full rounded-full" asChild onClick={() => setIsOpen(false)}><Link to="/auth/login">Se connecter</Link></Button>
+                  <Button className="w-full bg-bleu hover:bg-bleu-700 text-white rounded-full" asChild onClick={() => setIsOpen(false)}><Link to="/auth/register">S'inscrire</Link></Button>
                 </div>
               )}
             </nav>

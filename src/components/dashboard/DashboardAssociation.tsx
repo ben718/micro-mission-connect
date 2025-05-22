@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2, CheckCircle2 } from "lucide-react";
+import { toast } from 'sonner';
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
@@ -90,11 +91,16 @@ const DashboardAssociation = () => {
   };
 
   const handleCandidature = async (participantId: string, status: 'confirmed' | 'refused') => {
-    await supabase
-      .from('mission_participants')
-      .update({ status })
-      .eq('id', participantId);
-    fetchAssociationMissions();
+    try {
+      await supabase
+        .from('mission_participants')
+        .update({ status })
+        .eq('id', participantId);
+      fetchAssociationMissions();
+      toast.success(status === 'confirmed' ? 'Candidature acceptée' : 'Candidature refusée');
+    } catch (error) {
+      toast.error("Une erreur est survenue lors du traitement de la candidature");
+    }
   };
 
   if (loading) {
@@ -148,17 +154,17 @@ const DashboardAssociation = () => {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold mb-1">{profile?.first_name} {profile?.last_name}</h1>
+            <h1 className="text-3xl font-bold mb-1 text-bleu">{profile?.first_name} {profile?.last_name}</h1>
             <p className="text-gray-600">Bienvenue sur votre espace association !</p>
             {profile?.location && (
               <div className="flex items-center text-gray-500 mt-1">
-                <MapPin className="w-4 h-4 mr-1" />
+                <MapPin className="w-4 h-4 mr-1 text-bleu" />
                 <span>{profile.location}</span>
               </div>
             )}
           </div>
         </div>
-        <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3">
+        <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
           <Link to="/missions/new">
             <Plus className="w-5 h-5 mr-2" />
             Créer une mission
@@ -167,8 +173,8 @@ const DashboardAssociation = () => {
       </div>
 
       {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <Card className="shadow-sm border-bleu/20">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Calendar className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
@@ -177,7 +183,7 @@ const DashboardAssociation = () => {
             <span className="text-3xl font-bold text-bleu">{missions.length}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Users className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Bénévoles mobilisés</CardTitle>
@@ -186,7 +192,7 @@ const DashboardAssociation = () => {
             <span className="text-3xl font-bold text-bleu">{stats.totalBenevoles}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Heures bénévolat</CardTitle>
@@ -195,7 +201,7 @@ const DashboardAssociation = () => {
             <span className="text-3xl font-bold text-bleu">{stats.totalHeures}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <BarChart2 className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Taux de complétion</CardTitle>
@@ -207,11 +213,11 @@ const DashboardAssociation = () => {
       </div>
 
       {/* Actions rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <Card className="hover:shadow-lg transition-shadow border-bleu/10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-bleu">
-              <Plus className="w-5 h-5" />
+              <Plus className="w-5 h-5 text-bleu" />
               Créer une mission
             </CardTitle>
           </CardHeader>
@@ -222,10 +228,10 @@ const DashboardAssociation = () => {
             </Button>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-lg transition-shadow border-bleu/10">
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-bleu">
-              <Users className="w-5 h-5" />
+              <Users className="w-5 h-5 text-bleu" />
               Voir les inscriptions
             </CardTitle>
           </CardHeader>
@@ -236,10 +242,10 @@ const DashboardAssociation = () => {
             </Button>
           </CardContent>
         </Card>
-        <Card className="hover:shadow-lg transition-shadow border-bleu/10">
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-bleu">
-              <BarChart2 className="w-5 h-5" />
+              <BarChart2 className="w-5 h-5 text-bleu" />
               Statistiques détaillées
             </CardTitle>
           </CardHeader>
@@ -253,7 +259,7 @@ const DashboardAssociation = () => {
       </div>
 
       {/* Missions */}
-      <Card>
+      <Card className="border border-gray-200 border-opacity-60 bg-white p-6">
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full border-b rounded-none">

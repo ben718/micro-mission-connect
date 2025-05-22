@@ -54,6 +54,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar } from "@/components/ui/calendar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 
 const formSchema = z.object({
   title: z.string().min(3, "Le titre doit contenir au moins 3 caractères"),
@@ -76,6 +77,7 @@ const CreateMission = () => {
 
   const [skillInput, setSkillInput] = useState('');
   const [skillTags, setSkillTags] = useState<string[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -190,6 +192,8 @@ const CreateMission = () => {
     }
   };
 
+  const formValues = form.watch();
+
   if (!user) {
     return (
       <div className="container-custom py-10">
@@ -231,7 +235,7 @@ const CreateMission = () => {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md p-6">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 border-opacity-60 p-8 mb-8">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
@@ -240,6 +244,7 @@ const CreateMission = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Titre de la mission</FormLabel>
+                  <p className="text-xs text-muted-foreground mt-1">Ex : Distribution alimentaire, Atelier lecture...</p>
                   <FormControl>
                     <Input placeholder="Ex: Distribution alimentaire" {...field} />
                   </FormControl>
@@ -254,6 +259,7 @@ const CreateMission = () => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
+                  <p className="text-xs text-muted-foreground mt-1">Décrivez précisément la mission et son objectif.</p>
                   <FormControl>
                     <Textarea
                       placeholder="Décrivez la mission, ses objectifs et ce que feront les bénévoles..."
@@ -273,6 +279,7 @@ const CreateMission = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Adresse (optionnelle pour les missions à distance)</FormLabel>
+                    <p className="text-xs text-muted-foreground mt-1">Lieu précis de la mission (optionnel si à distance).</p>
                     <FormControl>
                       <Input placeholder="Ex: 10 rue de la Solidarité" {...field} />
                     </FormControl>
@@ -288,6 +295,7 @@ const CreateMission = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Ville</FormLabel>
+                      <p className="text-xs text-muted-foreground mt-1">Ville où se déroule la mission.</p>
                       <FormControl>
                         <Input placeholder="Ex: Paris" {...field} />
                       </FormControl>
@@ -302,6 +310,7 @@ const CreateMission = () => {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Code postal</FormLabel>
+                      <p className="text-xs text-muted-foreground mt-1">Code postal du lieu de la mission.</p>
                       <FormControl>
                         <Input placeholder="Ex: 75001" {...field} />
                       </FormControl>
@@ -319,6 +328,7 @@ const CreateMission = () => {
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
                     <FormLabel>Date</FormLabel>
+                    <p className="text-xs text-muted-foreground mt-1">Date de début de la mission.</p>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -359,6 +369,7 @@ const CreateMission = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Heure de début</FormLabel>
+                    <p className="text-xs text-muted-foreground mt-1">Heure de début de la mission.</p>
                     <FormControl>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <SelectTrigger>
@@ -389,6 +400,7 @@ const CreateMission = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Durée (minutes)</FormLabel>
+                    <p className="text-xs text-muted-foreground mt-1">Durée totale en minutes (ex : 120 pour 2h).</p>
                     <FormControl>
                       <Input type="number" min="15" step="15" {...field} />
                     </FormControl>
@@ -405,6 +417,7 @@ const CreateMission = () => {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nombre de places disponibles</FormLabel>
+                    <p className="text-xs text-muted-foreground mt-1">Nombre de bénévoles recherchés.</p>
                     <FormControl>
                       <Input type="number" min="1" {...field} />
                     </FormControl>
@@ -523,12 +536,54 @@ const CreateMission = () => {
               )}
             />
 
-            <Button type="submit" className="bg-bleu hover:bg-bleu-700 w-full md:w-auto">
-              Créer la mission
-            </Button>
+            <div className="flex gap-4 mt-8">
+              <Button type="button" variant="outline" onClick={() => setPreviewOpen(true)}>
+                Prévisualiser
+              </Button>
+              <Button type="submit" className="bg-bleu text-white">
+                Publier
+              </Button>
+            </div>
           </form>
         </Form>
       </div>
+
+      {/* Modale de prévisualisation */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Prévisualisation de la mission</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold">{formValues.title || 'Titre de la mission'}</h2>
+            <p className="text-muted-foreground">{formValues.description || 'Description de la mission...'}</p>
+            <div className="flex flex-wrap gap-2">
+              {formValues.category_ids && formValues.category_ids.length > 0 && (
+                <span className="text-sm font-medium">Catégories : {formValues.category_ids.join(', ')}</span>
+              )}
+              {formValues.skills && (
+                <span className="text-sm font-medium">Compétences : {formValues.skills}</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span><b>Date :</b> {formValues.start_date || '-'}</span>
+              <span><b>Heure :</b> {formValues.start_time || '-'}</span>
+              <span><b>Durée :</b> {formValues.duration_minutes ? `${formValues.duration_minutes} min` : '-'}</span>
+              <span><b>Places :</b> {formValues.spots_available || '-'}</span>
+            </div>
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span><b>Adresse :</b> {formValues.address || '-'}</span>
+              <span><b>Ville :</b> {formValues.city || '-'}</span>
+              <span><b>Code postal :</b> {formValues.postal_code || '-'}</span>
+            </div>
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline">Retour à l'édition</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

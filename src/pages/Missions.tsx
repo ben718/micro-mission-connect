@@ -6,21 +6,21 @@ import { useMissions } from '@/hooks/useMissions';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { MissionWithAssociation } from '@/types/mission';
 
 export function Missions() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
-  const { data: missions = [], isLoading } = useMissions();
+  const { data, isLoading } = useMissions();
+  const missions: MissionWithAssociation[] = data?.data || [];
 
   // Convertir les paramètres d'URL en filtres
   const initialFilters: SearchFiltersType = {
     query: searchParams.get('q') || '',
-    category: searchParams.get('category') || 'all',
+    category: searchParams.get('category')?.split(',') || [],
     location: searchParams.get('location') || '',
     date: searchParams.get('date') || '',
-    timeSlot: searchParams.get('timeSlot') || 'all',
-    duration: searchParams.get('duration') || 'all',
-    participants: searchParams.get('participants') || 'all',
+    remote: searchParams.get('remote') === 'true',
     skills: searchParams.get('skills')?.split(',') || []
   };
 
@@ -28,65 +28,71 @@ export function Missions() {
     const newParams = new URLSearchParams();
     
     if (filters.query) newParams.set('q', filters.query);
-    if (filters.category !== 'all') newParams.set('category', filters.category);
+    if (filters.category.length > 0) newParams.set('category', filters.category.join(','));
     if (filters.location) newParams.set('location', filters.location);
     if (filters.date) newParams.set('date', filters.date);
-    if (filters.timeSlot !== 'all') newParams.set('timeSlot', filters.timeSlot);
-    if (filters.duration !== 'all') newParams.set('duration', filters.duration);
-    if (filters.participants !== 'all') newParams.set('participants', filters.participants);
+    if (filters.remote) newParams.set('remote', 'true');
     if (filters.skills.length > 0) newParams.set('skills', filters.skills.join(','));
 
     setSearchParams(newParams);
   };
 
-  // Filtrer les missions en fonction des paramètres
-  const filteredMissions = missions.filter(mission => {
-    if (initialFilters.query && !mission.title.toLowerCase().includes(initialFilters.query.toLowerCase())) {
-      return false;
-    }
-    if (initialFilters.category !== 'all' && mission.category !== initialFilters.category) {
-      return false;
-    }
-    if (initialFilters.location && !mission.location.toLowerCase().includes(initialFilters.location.toLowerCase())) {
-      return false;
-    }
-    if (initialFilters.date && mission.date !== initialFilters.date) {
-      return false;
-    }
-    if (initialFilters.timeSlot !== 'all' && mission.timeSlot !== initialFilters.timeSlot) {
-      return false;
-    }
-    if (initialFilters.duration !== 'all' && mission.duration !== initialFilters.duration) {
-      return false;
-    }
-    if (initialFilters.participants !== 'all' && mission.participants !== initialFilters.participants) {
-      return false;
-    }
-    if (initialFilters.skills.length > 0) {
-      const hasRequiredSkills = initialFilters.skills.every(skill => 
-        mission.requiredSkills.includes(skill)
-      );
-      if (!hasRequiredSkills) return false;
-    }
-    return true;
-  });
+  // Filtrer les missions en fonction des paramètres de recherche
+  const filteredMissions = React.useMemo(() => {
+    return missions.filter(mission => {
+      // Filtre par recherche textuelle
+      if (initialFilters.query && !mission.title.toLowerCase().includes(initialFilters.query.toLowerCase())) {
+        return false;
+      }
+
+      // Filtre par catégorie
+      if (initialFilters.category.length > 0 && !initialFilters.category.some(cat => mission.categories?.includes(cat))) {
+        return false;
+      }
+
+      // Filtre par ville
+      if (initialFilters.location && mission.city !== initialFilters.location) {
+        return false;
+      }
+
+      // Filtre par date
+      if (initialFilters.date) {
+        const missionDate = new Date(mission.starts_at);
+        const filterDate = new Date(initialFilters.date);
+        if (missionDate.toDateString() !== filterDate.toDateString()) {
+          return false;
+        }
+      }
+
+      // Filtre par compétences
+      if (initialFilters.skills.length > 0 && !initialFilters.skills.some(skill => mission.skills_required?.includes(skill))) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [missions, initialFilters]);
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Missions disponibles</h1>
+    <div className="container mx-auto px-4 py-4 sm:py-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold">Missions disponibles</h1>
         {user?.role === 'association' && (
-          <Button className="flex items-center gap-2">
+          <Button className="w-full sm:w-auto flex items-center justify-center gap-2">
             <Plus className="h-4 w-4" />
             Créer une mission
           </Button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 sm:gap-8">
         {/* Sidebar avec filtres */}
         <div className="lg:col-span-1">
-          <SearchFilters onSearch={handleSearch} initialFilters={initialFilters} />
+          <SearchFilters 
+            onSearch={handleSearch} 
+            initialFilters={initialFilters}
+            totalResults={filteredMissions.length}
+          />
         </div>
 
         {/* Liste des missions */}
@@ -105,7 +111,7 @@ export function Missions() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 transition-all duration-300">
               {filteredMissions.map((mission) => (
                 <MissionCard key={mission.id} mission={mission} />
               ))}

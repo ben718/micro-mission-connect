@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { SearchFilters, type SearchFilters as SearchFiltersType } from './search/SearchFilters';
+import { SearchFilters, type SearchFilters as SearchFiltersType } from '@/components/search/SearchFilters';
 
 export function SearchSection() {
   const navigate = useNavigate();
@@ -10,12 +10,10 @@ export function SearchSection() {
     const searchParams = new URLSearchParams();
     
     if (filters.query) searchParams.set('q', filters.query);
-    if (filters.category !== 'all') searchParams.set('category', filters.category);
+    if (filters.category.length > 0) searchParams.set('category', filters.category.join(','));
     if (filters.location) searchParams.set('location', filters.location);
     if (filters.date) searchParams.set('date', filters.date);
-    if (filters.timeSlot !== 'all') searchParams.set('timeSlot', filters.timeSlot);
-    if (filters.duration !== 'all') searchParams.set('duration', filters.duration);
-    if (filters.participants !== 'all') searchParams.set('participants', filters.participants);
+    if (filters.remote) searchParams.set('remote', 'true');
     if (filters.skills.length > 0) searchParams.set('skills', filters.skills.join(','));
 
     // Naviguer vers la page des missions avec les filtres
@@ -23,14 +21,14 @@ export function SearchSection() {
   };
 
   return (
-    <section className="w-full py-12 md:py-24 lg:py-32 bg-background">
+    <section className="w-full py-8 sm:py-12 md:py-16 lg:py-24 bg-background">
       <div className="container px-4 md:px-6">
         <div className="flex flex-col items-center justify-center space-y-4 text-center">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tighter">
               Trouvez votre mission
             </h1>
-            <p className="mx-auto max-w-[700px] text-gray-500 md:text-xl dark:text-gray-400">
+            <p className="mx-auto max-w-[700px] text-sm sm:text-base md:text-lg text-gray-500 dark:text-gray-400">
               Des milliers de missions vous attendent. Utilisez les filtres pour trouver celle qui vous correspond.
             </p>
           </div>
