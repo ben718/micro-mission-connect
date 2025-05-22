@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMissions, useCategories, useCities } from '@/hooks/useMissions';
@@ -9,10 +10,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
-import { DateRange } from "react-day-picker"
-import { cn } from "@/lib/utils"
 import { addDays } from 'date-fns';
-import { Category } from "@/types/mission";
+import { cn } from "@/lib/utils"
+import { Category, MissionFilters } from "@/types/mission";
 
 const MissionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -21,10 +21,13 @@ const MissionsPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     searchParams.getAll('category')
   );
-  const [dateRange, setDateRange] = React.useState<DateRange | undefined>({
+  const [dateRange, setDateRange] = React.useState<{
+    from?: Date;
+    to?: Date;
+  } | undefined>({
     from: searchParams.get('startDate') ? new Date(searchParams.get('startDate') as string) : undefined,
     to: searchParams.get('endDate') ? new Date(searchParams.get('endDate') as string) : undefined,
-  })
+  });
   const [remote, setRemote] = useState(searchParams.get('remote') === 'true');
   const [page, setPage] = useState(0);
 
@@ -33,7 +36,10 @@ const MissionsPage = () => {
     query,
     city,
     categoryIds: selectedCategories,
-    dateRange,
+    dateRange: dateRange ? {
+      start: dateRange.from,
+      end: dateRange.to
+    } : undefined,
     remote,
     page,
     pageSize: 12,
@@ -55,7 +61,6 @@ const MissionsPage = () => {
   }, [query, city, selectedCategories, dateRange, remote, setSearchParams]);
 
   // Handle category selection
-  // Transformez la fonction pour accepter une string ou un objet Category
   const handleCategorySelect = (category: string | Category) => {
     const categoryId = typeof category === 'string' ? category : category.id;
 

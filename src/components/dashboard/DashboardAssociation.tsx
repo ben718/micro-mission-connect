@@ -8,12 +8,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Users, Clock, Calendar, MapPin, BarChart2, CheckCircle2 } from "lucide-react";
+import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
+
+// Define a simpler participant type to avoid recursive type issues
+type MissionParticipant = {
+  id: string;
+  status: string;
+  user_id: string;
+  profiles?: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+  };
+};
+
+// Define a simpler mission type 
+type AssociationMission = {
+  id: string;
+  title: string;
+  description: string;
+  starts_at: string;
+  city: string;
+  status: string;
+  duration_minutes?: number;
+  mission_participants?: MissionParticipant[];
+};
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
-  const [missions, setMissions] = useState<any[]>([]);
+  const [missions, setMissions] = useState<AssociationMission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("missions");
@@ -36,9 +60,19 @@ const DashboardAssociation = () => {
     try {
       const { data, error } = await supabase
         .from("missions")
-        .select(`*, mission_participants(id, status, user_id, profiles(first_name, last_name, email))`)
+        .select(`
+          id, 
+          title, 
+          description,
+          starts_at,
+          city,
+          status,
+          duration_minutes,
+          mission_participants(id, status, user_id, profiles(first_name, last_name, email))
+        `)
         .eq("association_id", user?.id)
         .order("starts_at", { ascending: true });
+      
       if (error) throw error;
       setMissions(data || []);
     } catch (err: any) {
@@ -364,4 +398,4 @@ const DashboardAssociation = () => {
   );
 };
 
-export default DashboardAssociation; 
+export default DashboardAssociation;

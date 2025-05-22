@@ -13,6 +13,7 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   requiredSkills?: string[]; // Pour la compatibilité avec le code existant
   associationId?: string; // Pour la compatibilité avec le code existant
 };
+
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type MissionCategory = Database["public"]["Tables"]["mission_categories"]["Row"];
 export type MissionParticipant = Database["public"]["Tables"]["mission_participants"]["Row"];
@@ -31,7 +32,11 @@ export type MissionWithAssociation = Mission & {
 export type MissionWithDetails = MissionWithAssociation & {
   participants_count: number;
   is_registered?: boolean;
-  mission_categories?: MissionCategory[];
+  mission_categories?: {
+    id?: string;
+    mission_id?: string;
+    category_id: string;
+  }[];
 };
 
 // Types pour les filtres de recherche
