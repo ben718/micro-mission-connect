@@ -18,12 +18,19 @@ const Login = () => {
     e.preventDefault();
     setIsLoading(true);
 
+    // Timeout de sécurité (10 secondes)
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      toast.error("La connexion prend trop de temps. Vérifiez votre connexion ou réessayez plus tard.");
+    }, 10000);
+
     try {
       await signIn(email, password);
       navigate("/");
-    } catch (error) {
-      // L'erreur est déjà gérée dans le hook useAuth
+    } catch (error: any) {
+      toast.error(error?.message || "Erreur de connexion");
     } finally {
+      clearTimeout(timeout);
       setIsLoading(false);
     }
   };
