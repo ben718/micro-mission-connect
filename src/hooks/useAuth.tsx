@@ -38,9 +38,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         
         if (currentSession?.user) {
           console.log("[AuthProvider] Utilisateur connecté, récupération du profil...");
-          setTimeout(async () => {
+          try {
             await fetchProfile(currentSession.user.id);
-          }, 0);
+          } catch (error) {
+            console.error("[AuthProvider] Erreur lors de la récupération du profil:", error);
+          }
         } else {
           console.log("[AuthProvider] Aucun utilisateur connecté");
           setProfile(null);
@@ -60,9 +62,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       if (currentSession?.user) {
         console.log("[AuthProvider] Session existante, récupération du profil...");
-        fetchProfile(currentSession.user.id);
+        fetchProfile(currentSession.user.id).catch(error => {
+          console.error("[AuthProvider] Erreur lors de la récupération du profil:", error);
+        });
       }
       
+      setLoading(false);
+      setIsLoading(false);
+    }).catch(error => {
+      console.error("[AuthProvider] Erreur lors de la vérification de la session:", error);
       setLoading(false);
       setIsLoading(false);
     });

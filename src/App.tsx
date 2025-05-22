@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -18,13 +17,16 @@ import CreateMission from "./pages/missions/CreateMission";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 import { Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
+  console.log("[PrivateRoute] État:", { user: !!user, isLoading });
 
   if (isLoading) {
+    console.log("[PrivateRoute] Chargement en cours...");
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin" />
@@ -33,9 +35,11 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
+    console.log("[PrivateRoute] Pas d'utilisateur, redirection vers login");
     return <Navigate to="/auth/login" />;
   }
 
+  console.log("[PrivateRoute] Utilisateur authentifié, affichage du contenu");
   return <>{children}</>;
 };
 
@@ -62,61 +66,69 @@ const ProfileRoute = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <Router>
-        <AuthProvider>
-          <Header />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={
-              <PrivateRoute>
-                <Dashboard />
-              </PrivateRoute>
-            } />
-            <Route path="/auth/login" element={<Login />} />
-            <Route path="/auth/register" element={<Register />} />
-            <Route path="/auth/confirmation" element={<Confirmation />} />
-            <Route path="/missions" element={<MissionsPage />} />
-            <Route path="/missions/:id" element={<MissionDetail />} />
-            <Route path="/missions/new" element={
-              <PrivateRoute>
-                <CreateMission />
-              </PrivateRoute>
-            } />
-            <Route
-              path="/profile"
-              element={
+const App = () => {
+  useEffect(() => {
+    console.log("[App] Initialisation du composant App");
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <Router>
+          <AuthProvider>
+            {console.log("[App] AuthProvider monté")}
+            <Header />
+            <Routes>
+              {console.log("[App] Configuration des routes")}
+              <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={
                 <PrivateRoute>
-                  <ProfileRoute />
+                  <Dashboard />
                 </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile/benevole"
-              element={
+              } />
+              <Route path="/auth/login" element={<Login />} />
+              <Route path="/auth/register" element={<Register />} />
+              <Route path="/auth/confirmation" element={<Confirmation />} />
+              <Route path="/missions" element={<MissionsPage />} />
+              <Route path="/missions/:id" element={<MissionDetail />} />
+              <Route path="/missions/new" element={
                 <PrivateRoute>
-                  <ProfileBenevole />
+                  <CreateMission />
                 </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile/association"
-              element={
-                <PrivateRoute>
-                  <ProfileAssociation />
-                </PrivateRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AuthProvider>
-      </Router>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+              } />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <ProfileRoute />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile/benevole"
+                element={
+                  <PrivateRoute>
+                    <ProfileBenevole />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile/association"
+                element={
+                  <PrivateRoute>
+                    <ProfileAssociation />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AuthProvider>
+        </Router>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
