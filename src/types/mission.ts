@@ -1,4 +1,5 @@
 import { Database } from "@/integrations/supabase/types";
+import type { Profile } from './profile';
 
 // Types dérivés de la base de données Supabase
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & { email?: string };
@@ -43,3 +44,38 @@ export type DateRangeSelection = {
   from: Date | undefined;
   to: Date | undefined;
 };
+
+export interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  date: string;
+  timeSlot: string;
+  duration: string;
+  location: string;
+  participants: string;
+  requiredSkills: string[];
+  associationId: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MissionWithAssociation extends Mission {
+  association: Profile;
+}
+
+export interface MissionApplication {
+  id: string;
+  missionId: string;
+  userId: string;
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
+  message?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MissionApplicationWithDetails extends MissionApplication {
+  mission: Mission;
+  user: Profile;
+}
