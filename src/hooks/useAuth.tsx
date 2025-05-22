@@ -27,17 +27,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    console.log("[AuthProvider] Initialisation...");
+    
     // Configurer l'écouteur d'état d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
+        console.log("[AuthProvider] État d'authentification changé:", event);
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
         
         if (currentSession?.user) {
+          console.log("[AuthProvider] Utilisateur connecté, récupération du profil...");
           setTimeout(async () => {
             await fetchProfile(currentSession.user.id);
           }, 0);
         } else {
+          console.log("[AuthProvider] Aucun utilisateur connecté");
           setProfile(null);
         }
 
@@ -47,11 +52,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
 
     // Vérifier la session existante
+    console.log("[AuthProvider] Vérification de la session existante...");
     supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      console.log("[AuthProvider] Session récupérée:", currentSession ? "oui" : "non");
       setSession(currentSession);
       setUser(currentSession?.user ?? null);
       
       if (currentSession?.user) {
+        console.log("[AuthProvider] Session existante, récupération du profil...");
         fetchProfile(currentSession.user.id);
       }
       
@@ -60,6 +68,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
+      console.log("[AuthProvider] Nettoyage...");
       subscription.unsubscribe();
     };
   }, []);

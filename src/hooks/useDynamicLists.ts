@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface Category {
   id: string;
@@ -83,10 +83,14 @@ export const useDynamicLists = () => {
       if (!citiesData) {
         const { data, error: citiesError } = await supabase
           .from('cities')
-          .select('*')
+          .select('id, name, postal_code')
           .order('name');
         if (citiesError) throw citiesError;
-        citiesData = data || [];
+        citiesData = (data || []).map(city => ({
+          id: city.id,
+          name: city.name,
+          postal_code: city.postal_code
+        }));
         setCachedData(CACHE_KEYS.cities, citiesData);
       }
       setCities(citiesData);

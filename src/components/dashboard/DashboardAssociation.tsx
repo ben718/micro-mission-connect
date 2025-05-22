@@ -35,8 +35,14 @@ type AssociationMission = {
   city: string;
   status: string;
   duration_minutes?: number;
-  mission_participants?: MissionParticipant[];
+  participants?: MissionParticipant[];
 };
+
+interface Stats {
+  totalBenevoles: number;
+  totalHeures: number;
+  tauxCompletion: number;
+}
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
@@ -44,7 +50,7 @@ const DashboardAssociation = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("missions");
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     totalBenevoles: 0,
     totalHeures: 0,
     tauxCompletion: 0
@@ -92,7 +98,7 @@ const DashboardAssociation = () => {
         if (participantsError) throw participantsError;
         
         // Ajouter les participants à la mission
-        mission.mission_participants = participantsData || [];
+        mission.participants = participantsData || [];
         
         // Si des participants existent, récupérer leurs profils
         if (participantsData && participantsData.length > 0) {
@@ -118,7 +124,7 @@ const DashboardAssociation = () => {
             });
             
             // Associer les profils aux participants
-            mission.mission_participants = mission.mission_participants.map(p => ({
+            mission.participants = mission.participants.map(p => ({
               ...p,
               profile: profilesMap[p.user_id]
             }));
@@ -372,14 +378,14 @@ const DashboardAssociation = () => {
                           <span>{mission.city}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-2">{mission.description}</p>
-                        {mission.mission_participants && mission.mission_participants.length > 0 && (
+                        {mission.participants && mission.participants.length > 0 && (
                           <div className="mt-4">
                             <h4 className="font-semibold mb-2 text-sm text-gray-700">Candidatures en attente</h4>
                             <div className="space-y-2">
-                              {mission.mission_participants.filter((p) => p.status === 'pending').length === 0 && (
+                              {mission.participants.filter((p) => p.status === 'pending').length === 0 && (
                                 <span className="text-gray-400 text-sm">Aucune candidature en attente</span>
                               )}
-                              {mission.mission_participants.filter((p) => p.status === 'pending').map((p) => (
+                              {mission.participants.filter((p) => p.status === 'pending').map((p) => (
                                 <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
@@ -400,7 +406,7 @@ const DashboardAssociation = () => {
                         <div className="flex justify-between items-center">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.mission_participants?.length || 0}</span>
+                            <span>{mission.participants?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
@@ -433,7 +439,7 @@ const DashboardAssociation = () => {
                         <div className="flex justify-between items-center">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.mission_participants?.length || 0}</span>
+                            <span>{mission.participants?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>

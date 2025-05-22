@@ -1,4 +1,3 @@
-
 -- Création d'une table pour les profils utilisateurs
 CREATE TABLE public.profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -90,6 +89,16 @@ CREATE TABLE public.mission_categories (
 );
 ALTER TABLE public.mission_categories ENABLE ROW LEVEL SECURITY;
 
+-- Création d'une table pour les villes
+CREATE TABLE public.cities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  postal_code TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+);
+ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
+
 -- Création d'une fonction pour mettre à jour la colonne updated_at
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -110,6 +119,10 @@ FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 CREATE TRIGGER handle_mission_participants_updated_at
 BEFORE UPDATE ON public.mission_participants
+FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER handle_cities_updated_at
+BEFORE UPDATE ON public.cities
 FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- Création d'une fonction pour gérer les nouveaux utilisateurs
@@ -275,6 +288,11 @@ USING (auth.uid() IN (
   SELECT association_id FROM public.missions WHERE id = mission_id
 ));
 
+-- Politique de sécurité pour les villes
+CREATE POLICY "Cities are viewable by everyone" 
+ON public.cities FOR SELECT 
+USING (true);
+
 -- Insertion de données de test pour les badges
 INSERT INTO public.badges (name, description, icon) VALUES
 ('Premier pas', 'A complété sa première mission', 'award'),
@@ -294,3 +312,16 @@ INSERT INTO public.categories (name, description, icon) VALUES
 ('Culture', 'Promotion de l''art et de la culture', 'music'),
 ('Sport', 'Activités sportives et loisirs', 'zap'),
 ('Animaux', 'Protection et soins aux animaux', 'github');
+
+-- Insertion de quelques villes de test
+INSERT INTO public.cities (name, postal_code) VALUES
+('Paris', '75000'),
+('Lyon', '69000'),
+('Marseille', '13000'),
+('Bordeaux', '33000'),
+('Lille', '59000'),
+('Toulouse', '31000'),
+('Nantes', '44000'),
+('Strasbourg', '67000'),
+('Montpellier', '34000'),
+('Nice', '06000');
