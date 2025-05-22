@@ -1,4 +1,4 @@
-import React from 'react';
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +8,38 @@ import { useMissions } from '@/hooks/useMissions';
 import type { Profile } from '@/types/profile';
 import { MissionWithAssociation } from '@/types/mission';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function AssociationProfile() {
   const { user, profile, signOut } = useAuth();
   const { data: missionsResponse } = useMissions();
+  const navigate = useNavigate();
 
-  if (!user || !profile) return <div>Chargement...</div>;
+  // Vérification de cohérence
+  useEffect(() => {
+    if (user && profile && user.id !== profile.id) {
+      console.error("Incohérence détectée : le profil ne correspond pas à l'utilisateur connecté");
+      toast.error("Erreur de cohérence des données. Veuillez vous reconnecter.");
+      signOut();
+    }
+  }, [user, profile, signOut]);
+
+  if (!user || !profile) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bleu mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Vérification supplémentaire avant le rendu
+  if (user.id !== profile.id) {
+    return null; // Ne rien afficher si incohérence
+  }
 
   const missions = Array.isArray(missionsResponse) 
     ? missionsResponse 
