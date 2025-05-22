@@ -39,6 +39,12 @@ export type MissionWithDetails = MissionWithAssociation & {
   }[];
 };
 
+// Type for date range selection used in calendar component
+export type DateRangeSelection = {
+  from: Date | undefined;
+  to: Date | undefined;
+};
+
 // Types pour les filtres de recherche
 export type MissionFilters = {
   query?: string;
@@ -51,12 +57,6 @@ export type MissionFilters = {
   remote?: boolean;
   page?: number;
   pageSize?: number;
-};
-
-// Type pour les sélections de date
-export type DateRangeSelection = {
-  from: Date | undefined;
-  to: Date | undefined;
 };
 
 export interface MissionApplication {

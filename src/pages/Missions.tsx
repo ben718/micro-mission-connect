@@ -11,7 +11,7 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
 import { addDays } from 'date-fns';
 import { cn } from "@/lib/utils"
-import { Category, MissionFilters } from "@/types/mission";
+import { Category, MissionFilters, DateRangeSelection } from "@/types/mission";
 
 const MissionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -20,10 +20,7 @@ const MissionsPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     searchParams.getAll('category')
   );
-  const [dateRange, setDateRange] = React.useState<{
-    from?: Date;
-    to?: Date;
-  } | undefined>({
+  const [dateRange, setDateRange] = useState<DateRangeSelection>({
     from: searchParams.get('startDate') ? new Date(searchParams.get('startDate') as string) : undefined,
     to: searchParams.get('endDate') ? new Date(searchParams.get('endDate') as string) : undefined,
   });
@@ -197,7 +194,7 @@ const MissionsPage = () => {
             <Calendar
               mode="range"
               defaultMonth={dateRange?.from}
-              selected={dateRange as any}
+              selected={dateRange}
               onSelect={setDateRange}
               disabled={{ before: new Date() }}
               numberOfMonths={2}

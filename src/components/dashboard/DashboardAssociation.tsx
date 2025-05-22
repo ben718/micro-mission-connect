@@ -11,16 +11,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
 
-// Define a simpler participant type to avoid recursive type issues
+// Define simpler types to avoid recursive type issues
+type SimpleProfile = {
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+};
+
 type MissionParticipant = {
   id: string;
   status: string;
   user_id: string;
-  profiles?: {
-    first_name?: string;
-    last_name?: string;
-    email?: string;
-  };
+  profiles?: SimpleProfile;
 };
 
 // Define a simpler mission type 
