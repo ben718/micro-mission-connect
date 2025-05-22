@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { Profile } from "@/types/mission";
+import type { Profile } from "@/types/profile";
 
 type AuthContextType = {
   user: User | null;
@@ -73,16 +73,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      setProfile(data);
-
-      // Synchronisation de l'email dans profiles
-      const userAuth = supabase.auth.getUser ? (await supabase.auth.getUser()).data.user : null;
-      if (userAuth && userAuth.email && data.email !== userAuth.email) {
-        await supabase
-          .from("profiles")
-          .update({ email: userAuth.email })
-          .eq("id", userId);
-      }
+      // Mapping vers l'interface Profile locale
+      const d = data as any;
+      const mappedProfile: Profile = {
+        id: d?.id ?? '',
+        email: d?.email ?? '',
+        name: d?.name ?? d?.first_name ?? '',
+        role: d?.role ?? (d?.is_association ? 'association' : 'benevole'),
+        avatar: d?.avatar ?? d?.avatar_url ?? undefined,
+        bio: d?.bio ?? '',
+        location: d?.location ?? '',
+        website: d?.website ?? '',
+        phone: d?.phone ?? '',
+        badges: d?.badges ?? [],
+        skills: d?.skills ?? [],
+        createdAt: d?.created_at ?? '',
+        updatedAt: d?.updated_at ?? '',
+      };
+      setProfile(mappedProfile);
     } catch (error) {
       console.error("Erreur lors de la récupération du profil:", error);
     }

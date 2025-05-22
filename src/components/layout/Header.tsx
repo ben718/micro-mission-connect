@@ -55,9 +55,19 @@ const Header = () => {
             <Link to="/missions" className="nav-link">
               Trouver une mission
             </Link>
-            {user && profile?.is_association && (
+            {user && profile?.role === 'association' && (
               <Link to="/missions/new" className="nav-link">
                 Proposer une mission
+              </Link>
+            )}
+            {user && profile?.role === 'benevole' && (
+              <Link to="/profile/benevole" className="nav-link">
+                Mon espace bénévole
+              </Link>
+            )}
+            {user && profile?.role === 'association' && (
+              <Link to="/profile/association" className="nav-link">
+                Mon espace asso
               </Link>
             )}
             <Link to="#" className="nav-link">
@@ -72,9 +82,9 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar>
-                      <AvatarImage src={profile?.avatar_url || ""} />
+                      <AvatarImage src={profile?.avatar || ''} />
                       <AvatarFallback>
-                        {getInitials(profile?.first_name, profile?.last_name)}
+                        {profile?.name ? profile.name[0] : '?'}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -92,7 +102,7 @@ const Header = () => {
                       Tableau de bord
                     </Link>
                   </DropdownMenuItem>
-                  {profile?.is_association && (
+                  {profile?.role === 'association' && (
                     <DropdownMenuItem asChild>
                       <Link to="/missions/new" className="cursor-pointer">
                         Créer une mission
@@ -149,7 +159,7 @@ const Header = () => {
               >
                 Trouver une mission
               </Link>
-              {user && profile?.is_association && (
+              {user && profile?.role === 'association' && (
                 <Link
                   to="/missions/new"
                   className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
@@ -158,13 +168,22 @@ const Header = () => {
                   Proposer une mission
                 </Link>
               )}
-              {user && (
+              {user && profile?.role === 'benevole' && (
                 <Link
-                  to="/dashboard"
+                  to="/profile/benevole"
                   className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
                   onClick={() => setIsOpen(false)}
                 >
-                  Dashboard
+                  Mon espace bénévole
+                </Link>
+              )}
+              {user && profile?.role === 'association' && (
+                <Link
+                  to="/profile/association"
+                  className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Mon espace asso
                 </Link>
               )}
               <Link

@@ -8,6 +8,8 @@ export interface Profile {
   location?: string;
   website?: string;
   phone?: string;
+  badges?: string[];
+  skills?: string[];
   createdAt: string;
   updatedAt: string;
 } 
