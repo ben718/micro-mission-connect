@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMissions, useCategories, useCities } from '@/hooks/useMissions';
@@ -198,7 +197,7 @@ const MissionsPage = () => {
             <Calendar
               mode="range"
               defaultMonth={dateRange?.from}
-              selected={dateRange}
+              selected={dateRange as any}
               onSelect={setDateRange}
               disabled={{ before: new Date() }}
               numberOfMonths={2}

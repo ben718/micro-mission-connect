@@ -120,7 +120,7 @@ const DashboardAssociation = () => {
       case "completed":
         return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline">{String(status)}</Badge>;
     }
   };
 
