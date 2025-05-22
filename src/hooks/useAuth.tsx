@@ -170,6 +170,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const signOut = async () => {
     try {
       await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
       toast.success("Déconnexion réussie");
       navigate("/");
     } catch (error: any) {
