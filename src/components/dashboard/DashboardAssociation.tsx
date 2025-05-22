@@ -11,8 +11,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
 
-// Use simpler, flattened types to avoid recursive references
+// Définition de types simplifiés pour éviter la récursion
 type SimpleProfile = {
+  id: string;
   first_name?: string;
   last_name?: string;
   email?: string;
@@ -22,10 +23,10 @@ type MissionParticipant = {
   id: string;
   status: string;
   user_id: string;
-  profiles?: SimpleProfile;
+  profile?: SimpleProfile;
 };
 
-// Define a simpler mission type with explicitly defined structure
+// Type de mission simplifié avec une structure explicite
 type AssociationMission = {
   id: string;
   title: string;
@@ -60,8 +61,8 @@ const DashboardAssociation = () => {
     setLoading(true);
     setError(null);
     try {
-      // Use explicit type definition with .returns() to help TypeScript understand the structure
-      const { data, error } = await supabase
+      // Récupérer les missions sans les participants imbriqués
+      const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select(`
           id, 
@@ -70,47 +71,57 @@ const DashboardAssociation = () => {
           starts_at,
           city,
           status,
-          duration_minutes,
-          mission_participants(id, status, user_id)
+          duration_minutes
         `)
         .eq("association_id", user?.id)
         .order("starts_at", { ascending: true });
       
-      if (error) throw error;
+      if (missionsError) throw missionsError;
       
-      // After fetching missions, separately fetch participant profiles to avoid deep nesting
-      const missionsWithParticipants: AssociationMission[] = data || [];
+      // Initialiser les missions sans les participants
+      const missionsWithParticipants: AssociationMission[] = missionsData || [];
       
-      // Process each mission to handle participants with profiles
+      // Récupérer les participants pour chaque mission
       for (const mission of missionsWithParticipants) {
-        if (mission.mission_participants && mission.mission_participants.length > 0) {
-          // Get unique user IDs from participants
-          const userIds = mission.mission_participants.map(p => p.user_id);
+        // Récupérer les participants de cette mission
+        const { data: participantsData, error: participantsError } = await supabase
+          .from("mission_participants")
+          .select("id, status, user_id")
+          .eq("mission_id", mission.id);
           
-          if (userIds.length > 0) {
-            // Fetch profiles separately
-            const { data: profilesData } = await supabase
-              .from("profiles")
-              .select("id, first_name, last_name, email")
-              .in("id", userIds);
-              
-            // Map profiles to participants
-            if (profilesData) {
-              const profilesMap: Record<string, SimpleProfile> = {};
-              profilesData.forEach(profile => {
-                profilesMap[profile.id] = {
-                  first_name: profile.first_name,
-                  last_name: profile.last_name,
-                  email: profile.email
-                };
-              });
-              
-              // Assign profiles to participants
-              mission.mission_participants = mission.mission_participants.map(p => ({
-                ...p,
-                profiles: profilesMap[p.user_id]
-              }));
-            }
+        if (participantsError) throw participantsError;
+        
+        // Ajouter les participants à la mission
+        mission.mission_participants = participantsData || [];
+        
+        // Si des participants existent, récupérer leurs profils
+        if (participantsData && participantsData.length > 0) {
+          // Extraire les IDs utilisateurs uniques
+          const userIds = participantsData.map(p => p.user_id);
+          
+          // Récupérer les profils correspondants
+          const { data: profilesData } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, email")
+            .in("id", userIds);
+            
+          if (profilesData) {
+            // Créer un dictionnaire pour associer les profils aux participants
+            const profilesMap: Record<string, SimpleProfile> = {};
+            profilesData.forEach(profile => {
+              profilesMap[profile.id] = {
+                id: profile.id,
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                email: profile.email
+              };
+            });
+            
+            // Associer les profils aux participants
+            mission.mission_participants = mission.mission_participants.map(p => ({
+              ...p,
+              profile: profilesMap[p.user_id]
+            }));
           }
         }
       }
@@ -372,10 +383,10 @@ const DashboardAssociation = () => {
                                 <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
-                                      <AvatarFallback>{p.profiles?.first_name?.[0] || '?'}</AvatarFallback>
+                                      <AvatarFallback>{p.profile?.first_name?.[0] || '?'}</AvatarFallback>
                                     </Avatar>
-                                    <span className="font-medium">{p.profiles?.first_name} {p.profiles?.last_name}</span>
-                                    <span className="text-xs text-gray-500">{p.profiles?.email}</span>
+                                    <span className="font-medium">{p.profile?.first_name} {p.profile?.last_name}</span>
+                                    <span className="text-xs text-gray-500">{p.profile?.email}</span>
                                   </div>
                                   <div className="flex gap-2">
                                     <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCandidature(p.id, 'confirmed')}>Accepter</Button>
