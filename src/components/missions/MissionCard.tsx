@@ -1,4 +1,3 @@
-
 import { MissionWithAssociation } from "@/types/mission";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -79,7 +78,7 @@ const MissionCard = ({ mission }: MissionCardProps) => {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 mb-2">
-          {mission.skills_required?.slice(0, 3).map((skill, index) => (
+          {(mission.skills_required || []).slice(0, 3).map((skill, index) => (
             <Badge key={index} variant="secondary" className="bg-gray-100">
               {skill}
             </Badge>

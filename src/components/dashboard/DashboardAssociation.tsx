@@ -364,7 +364,7 @@ const DashboardAssociation = () => {
                 <p className="text-gray-500">Aucune mission à venir.</p>
               ) : (
                 <div className="space-y-4">
-                  {upcomingMissions.map((mission) => (
+                  {(upcomingMissions || []).map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
@@ -422,7 +422,7 @@ const DashboardAssociation = () => {
                 <p className="text-gray-500">Aucune mission passée.</p>
               ) : (
                 <div className="space-y-4">
-                  {pastMissions.map((mission) => (
+                  {(pastMissions || []).map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">

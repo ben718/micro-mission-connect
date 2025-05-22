@@ -93,11 +93,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   async function fetchProfile(userId: string) {
     try {
       console.log("fetchProfile userId:", userId);
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      // Timeout de sécurité sur la récupération du profil
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("La récupération du profil a expiré.")), 10000));
+      const supabasePromise = supabase.from("profiles").select("*").eq("id", userId).single();
+      const { data, error } = await Promise.race([
+        supabasePromise,
+        timeoutPromise
+      ]) as { data: any; error: any };
       console.log("fetchProfile response:", { data, error });
 
       if (error) {
@@ -151,7 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(mappedProfile);
     } catch (error: any) {
       console.error("Erreur lors de la récupération du profil:", error);
-      toast.error("Erreur lors de la récupération du profil: " + error.message);
+      toast.error(error.message || "Erreur lors de la récupération du profil");
       await signOut(); // Force la déconnexion en cas d'erreur
     }
   }
@@ -163,10 +165,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Client Supabase non initialisé");
       }
       console.log("[signIn] Tentative de connexion avec:", email);
-      const response = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      // Timeout de sécurité sur la connexion
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("La connexion a expiré. Veuillez réessayer.")), 10000));
+      const supabasePromise = supabase.auth.signInWithPassword({ email, password });
+      const response = await Promise.race([
+        supabasePromise,
+        timeoutPromise
+      ]) as { data: any; error: any };
       console.log("[signIn] Réponse Supabase:", response);
       const { error, data } = response;
       if (error) {
@@ -182,6 +187,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error: any) {
       console.error("Erreur de connexion:", error.message, error);
       toast.error(error.message || "Erreur de connexion inconnue");
+      // Nettoyage de l'état en cas d'échec
+      await signOut();
       throw error;
     }
   };

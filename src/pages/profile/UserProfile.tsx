@@ -25,20 +25,8 @@ export default function UserProfile() {
     }
   }, [user, profile, signOut]);
 
-  if (!user || !profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-bleu mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement du profil...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Vérification supplémentaire avant le rendu
-  if (user.id !== profile.id) {
-    return null; // Ne rien afficher si incohérence
+  if (!user || !profile || user.id !== profile.id) {
+    return null;
   }
   
   const missions = Array.isArray(missionsResponse) 
