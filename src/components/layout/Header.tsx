@@ -24,16 +24,11 @@ const Header = () => {
   }, [location.pathname]);
 
   // Détermination du rôle et de la couleur associée
-  const roleLabel = profile?.role === 'association' ? 'Association' : profile?.role === 'benevole' ? 'Bénévole' : '';
-  const roleColor = profile?.role === 'association' ? 'bg-green-100 text-green-800' : profile?.role === 'benevole' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800';
+  const roleLabel = profile?.is_association ? 'Association' : 'Bénévole';
+  const roleColor = profile?.is_association ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
 
   // Fonction pour savoir si un lien est actif
   const isActive = (path: string) => location.pathname === path;
-
-  const getInitials = (firstName?: string, lastName?: string) => {
-    if (!firstName && !lastName) return "?";
-    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`;
-  };
 
   return (
     <header className="py-4 bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
@@ -58,13 +53,13 @@ const Header = () => {
           <nav className="hidden md:flex items-center space-x-8">
             <Link to="/" className={`nav-link ${isActive("/") ? "text-bleu font-bold underline" : ""}`}>Accueil</Link>
             <Link to="/missions" className={`nav-link ${isActive("/missions") ? "text-bleu font-bold underline" : ""}`}>Trouver une mission</Link>
-            {user && profile?.role === 'association' && (
+            {user && profile?.is_association && (
               <Link to="/missions/new" className={`nav-link ${isActive("/missions/new") ? "text-bleu font-bold underline" : ""}`}>Proposer une mission</Link>
             )}
-            {user && profile?.role === 'benevole' && (
+            {user && !profile?.is_association && (
               <Link to="/profile/benevole" className={`nav-link ${isActive("/profile/benevole") ? "text-bleu font-bold underline" : ""}`}>Mon espace bénévole</Link>
             )}
-            {user && profile?.role === 'association' && (
+            {user && profile?.is_association && (
               <Link to="/profile/association" className={`nav-link ${isActive("/profile/association") ? "text-bleu font-bold underline" : ""}`}>Mon espace asso</Link>
             )}
             <Link to="#" className="nav-link">À propos</Link>
@@ -77,9 +72,9 @@ const Header = () => {
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar>
-                      <AvatarImage src={profile?.avatar || ''} />
+                      <AvatarImage src={profile?.avatar_url || ''} />
                       <AvatarFallback>
-                        {profile?.name ? profile.name[0] : '?'}
+                        {profile ? (profile.first_name?.[0] || '') + (profile.last_name?.[0] || '') : '?'}
                       </AvatarFallback>
                     </Avatar>
                     {/* Badge rôle */}
@@ -101,7 +96,7 @@ const Header = () => {
                       Tableau de bord
                     </Link>
                   </DropdownMenuItem>
-                  {profile?.role === 'association' && (
+                  {profile?.is_association && (
                     <DropdownMenuItem asChild>
                       <Link to="/missions/new" className="cursor-pointer">
                         Créer une mission
@@ -146,13 +141,13 @@ const Header = () => {
             <nav className="flex flex-col space-y-4 py-4">
               <Link to="/" className={`px-4 py-2 rounded-md ${isActive("/") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Accueil</Link>
               <Link to="/missions" className={`px-4 py-2 rounded-md ${isActive("/missions") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Trouver une mission</Link>
-              {user && profile?.role === 'association' && (
+              {user && profile?.is_association && (
                 <Link to="/missions/new" className={`px-4 py-2 rounded-md ${isActive("/missions/new") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Proposer une mission</Link>
               )}
-              {user && profile?.role === 'benevole' && (
+              {user && !profile?.is_association && (
                 <Link to="/profile/benevole" className={`px-4 py-2 rounded-md ${isActive("/profile/benevole") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace bénévole</Link>
               )}
-              {user && profile?.role === 'association' && (
+              {user && profile?.is_association && (
                 <Link to="/profile/association" className={`px-4 py-2 rounded-md ${isActive("/profile/association") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace asso</Link>
               )}
               <Link to="#" className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md" onClick={() => setIsOpen(false)}>À propos</Link>

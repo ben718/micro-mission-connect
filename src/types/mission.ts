@@ -1,9 +1,18 @@
+
 import { Database } from "@/integrations/supabase/types";
 import type { Profile } from './profile';
 
 // Types dérivés de la base de données Supabase
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & { email?: string };
-export type Mission = Database["public"]["Tables"]["missions"]["Row"];
+export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
+  category?: string; // Pour la compatibilité avec le code existant
+  date?: string; // Pour la compatibilité avec le code existant
+  timeSlot?: string; // Pour la compatibilité avec le code existant
+  duration?: string; // Pour la compatibilité avec le code existant
+  location?: string; // Pour la compatibilité avec le code existant
+  participants?: string; // Pour la compatibilité avec le code existant
+  requiredSkills?: string[]; // Pour la compatibilité avec le code existant
+  associationId?: string; // Pour la compatibilité avec le code existant
+};
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
 export type MissionCategory = Database["public"]["Tables"]["mission_categories"]["Row"];
 export type MissionParticipant = Database["public"]["Tables"]["mission_participants"]["Row"];
@@ -44,26 +53,6 @@ export type DateRangeSelection = {
   from: Date | undefined;
   to: Date | undefined;
 };
-
-export interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  date: string;
-  timeSlot: string;
-  duration: string;
-  location: string;
-  participants: string;
-  requiredSkills: string[];
-  associationId: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface MissionWithAssociation extends Mission {
-  association: Profile;
-}
 
 export interface MissionApplication {
   id: string;

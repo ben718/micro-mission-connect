@@ -238,7 +238,7 @@ const ProfileBenevole = () => {
                       <Badge
                         variant={
                           mission.status === "completed"
-                            ? "success"
+                            ? "secondary"
                             : mission.status === "cancelled"
                             ? "destructive"
                             : "default"
@@ -291,4 +291,4 @@ const ProfileBenevole = () => {
   );
 };
 
-export default ProfileBenevole; 
+export default ProfileBenevole;

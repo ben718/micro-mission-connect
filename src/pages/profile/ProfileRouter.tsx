@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -12,7 +13,7 @@ export default function ProfileRouter() {
       navigate('/auth/login');
       return;
     }
-    if (profile.role === 'association') {
+    if (profile.is_association) {
       navigate('/profile/association');
     } else {
       navigate('/profile/benevole');

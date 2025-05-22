@@ -40,7 +40,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ProfileRoute = () => {
-  const { user, isLoading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -55,7 +55,7 @@ const ProfileRoute = () => {
   }
 
   // Rediriger vers le bon profil selon le type d'utilisateur
-  return user.is_association ? (
+  return profile?.is_association ? (
     <Navigate to="/profile/association" />
   ) : (
     <Navigate to="/profile/benevole" />

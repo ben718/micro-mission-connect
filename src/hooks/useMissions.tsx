@@ -62,7 +62,33 @@ export function useMissions(filters?: MissionFilters) {
       const { data, error, count } = await query;
       
       if (error) throw error;
-      return { data: data as MissionWithAssociation[], count };
+      
+      // Ici, nous devons transformer les données pour correspondre à l'interface MissionWithAssociation
+      if (data) {
+        const transformedData = data.map(mission => {
+          const transformed = mission as unknown as MissionWithAssociation;
+          // Ajout des propriétés compatibles avec l'ancien code
+          transformed.category = mission.skills_required?.[0] || 'Général';
+          transformed.date = new Date(mission.starts_at).toLocaleDateString('fr-FR');
+          transformed.location = mission.address || `${mission.city}, ${mission.postal_code}`;
+          transformed.timeSlot = new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          transformed.duration = `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}`;
+          transformed.participants = mission.spots_taken.toString() + '/' + mission.spots_available.toString();
+          transformed.requiredSkills = mission.skills_required || [];
+          transformed.associationId = mission.association_id;
+          
+          // Si l'association existe, ajouter la propriété name
+          if (transformed.association) {
+            transformed.association.name = `${transformed.association.first_name || ''} ${transformed.association.last_name || ''}`.trim();
+          }
+          
+          return transformed;
+        });
+        
+        return { data: transformedData, count };
+      }
+      
+      return { data, count };
     },
   });
 }
@@ -117,12 +143,33 @@ export function useMission(id: string | undefined) {
         isRegistered = !!participation;
       }
       
-      return {
-        ...data,
-        categories: categories || [],
-        participants_count: count || 0,
-        is_registered: isRegistered
-      } as MissionWithDetails;
+      // Transformer les données pour correspondre à l'interface MissionWithDetails
+      if (data) {
+        const transformedData = {
+          ...data,
+          categories: categories || [],
+          participants_count: count || 0,
+          is_registered: isRegistered,
+          // Ajout des propriétés compatibles avec l'ancien code
+          category: data.skills_required?.[0] || 'Général',
+          date: new Date(data.starts_at).toLocaleDateString('fr-FR'),
+          location: data.address || `${data.city}, ${data.postal_code}`,
+          timeSlot: new Date(data.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          duration: `${Math.round(data.duration_minutes / 60)}h${data.duration_minutes % 60 || ''}`,
+          participants: data.spots_taken.toString() + '/' + data.spots_available.toString(),
+          requiredSkills: data.skills_required || [],
+          associationId: data.association_id,
+        } as unknown as MissionWithDetails;
+        
+        // Si l'association existe, ajouter la propriété name
+        if (transformedData.association) {
+          transformedData.association.name = `${transformedData.association.first_name || ''} ${transformedData.association.last_name || ''}`.trim();
+        }
+        
+        return transformedData;
+      }
+      
+      return null;
     },
     enabled: !!id
   });

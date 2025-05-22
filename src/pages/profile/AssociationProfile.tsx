@@ -5,25 +5,35 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Edit, LogOut, Users, Clock, Award, Mail, MapPin, Globe, Phone, Plus } from 'lucide-react';
 import { useMissions } from '@/hooks/useMissions';
-import type { Profile as LocalProfile } from '@/types/profile';
+import type { Profile } from '@/types/profile';
+import { MissionWithAssociation } from '@/types/mission';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function AssociationProfile() {
-  const { user, profile: rawProfile, signOut } = useAuth();
-  const profile = rawProfile as LocalProfile;
-  const { data: missions = [] } = useMissions();
+  const { user, profile, signOut } = useAuth();
+  const { data: missionsResponse } = useMissions();
 
   if (!user || !profile) return <div>Chargement...</div>;
 
+  const missions = Array.isArray(missionsResponse) 
+    ? missionsResponse 
+    : (missionsResponse?.data || []);
+    
   // Missions créées par l'association
-  const myMissions = Array.isArray(missions) ? missions.filter(m => m.associationId === profile.id) : [];
+  const myMissions = missions.filter(m => m.association_id === profile.id);
   // Nombre total de bénévoles mobilisés (somme des participants)
-  const benevoles = myMissions.reduce((acc, m) => acc + (parseInt(m.participants || '0', 10) || 0), 0);
+  const benevoles = myMissions.reduce((acc, m) => {
+    const participants = typeof m.participants === 'string' 
+      ? parseInt(m.participants.split('/')[0], 10) || 0
+      : m.spots_taken || 0;
+    return acc + participants;
+  }, 0);
+  
   // Heures réelles à partir de la durée des missions créées
   const heures = myMissions.reduce((acc, m) => acc + (m.duration_minutes || 0), 0) / 60;
   const heuresAffiche = Math.round(heures * 10) / 10;
   // Taux de complétion (missions passées / total)
-  const missionsPassees = myMissions.filter(m => new Date(m.date) < new Date());
+  const missionsPassees = myMissions.filter(m => new Date(m.starts_at) < new Date());
   const tauxCompletion = myMissions.length > 0 ? Math.round((missionsPassees.length / myMissions.length) * 100) : 0;
 
   // Mapping local des badges (nom -> description)
@@ -42,13 +52,13 @@ export default function AssociationProfile() {
       <Card className="mb-6 relative border border-gray-200 border-opacity-60 bg-white p-6">
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           <img
-            src={profile.avatar ? profile.avatar : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.name ?? 'Association')}`}
+            src={profile.avatar_url ? profile.avatar_url : `https://ui-avatars.com/api/?name=${encodeURIComponent(profile.first_name ?? 'Association')}`}
             alt="Logo"
             className="w-24 h-24 rounded-full object-cover border"
           />
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-bleu">
-              {profile.name ?? "Nom de l'association"}
+              {profile.first_name ?? "Nom de l'association"}
               <Badge variant="secondary">Association</Badge>
             </h2>
             <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
@@ -102,7 +112,7 @@ export default function AssociationProfile() {
                 if (m.status === 'cancelled') {
                   statut = 'Annulée';
                   badgeClass = 'bg-red-100 text-red-800 border-red-200';
-                } else if (new Date(m.date) < new Date()) {
+                } else if (new Date(m.starts_at) < new Date()) {
                   statut = 'Passée';
                   badgeClass = 'bg-green-100 text-green-800 border-green-200';
                 } else {
@@ -113,9 +123,9 @@ export default function AssociationProfile() {
                   <li key={m.id} className="flex flex-col md:flex-row md:items-center md:gap-4 border-b py-2">
                     <span className="font-medium">{m.title}</span>
                     <Badge className={badgeClass}>{statut}</Badge>
-                    <span className="text-xs text-muted-foreground">{m.date}</span>
+                    <span className="text-xs text-muted-foreground">{m.starts_at}</span>
                     <Badge variant="outline">{m.category}</Badge>
-                    <span className="text-xs text-muted-foreground">{m.participants} bénévoles</span>
+                    <span className="text-xs text-muted-foreground">{m.spots_taken} bénévoles</span>
                     <Button size="sm" variant="outline" className="ml-auto mt-2 md:mt-0">Gérer</Button>
                   </li>
                 );

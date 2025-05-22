@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +12,36 @@ interface MissionCardProps {
 }
 
 export function MissionCard({ mission }: MissionCardProps) {
+  // Préparer les valeurs à afficher
+  const associationName = mission.association ? 
+    `${mission.association.first_name || ''} ${mission.association.last_name || ''}`.trim() : 
+    'Association';
+  
+  const categoryName = mission.category || 'Général';
+  
+  const formattedDate = mission.starts_at ? 
+    new Date(mission.starts_at).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 
+    mission.date || 'Date non spécifiée';
+  
+  const formattedTimeSlot = mission.timeSlot || 
+    (mission.starts_at ? new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+  
+  const formattedDuration = mission.duration || 
+    (mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '');
+  
+  const formattedLocation = mission.location || 
+    (mission.address ? mission.address : `${mission.city || ''}, ${mission.postal_code || ''}`.trim());
+  
+  const formattedParticipants = mission.participants || 
+    `${mission.spots_taken || 0}/${mission.spots_available || 0}`;
+  
+  const skills = mission.requiredSkills || mission.skills_required || [];
+
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
@@ -22,10 +53,10 @@ export function MissionCard({ mission }: MissionCardProps) {
               </Link>
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {mission.association.name}
+              {associationName}
             </p>
           </div>
-          <Badge variant="outline">{mission.category}</Badge>
+          <Badge variant="outline">{categoryName}</Badge>
         </div>
       </CardHeader>
 
@@ -37,34 +68,29 @@ export function MissionCard({ mission }: MissionCardProps) {
         <div className="space-y-2">
           <div className="flex items-center text-sm text-muted-foreground">
             <Calendar className="h-4 w-4 mr-2" />
-            {new Date(mission.date).toLocaleDateString('fr-FR', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
+            {formattedDate}
           </div>
 
           <div className="flex items-center text-sm text-muted-foreground">
             <Clock className="h-4 w-4 mr-2" />
-            {mission.timeSlot} - {mission.duration} heures
+            {formattedTimeSlot} - {formattedDuration}
           </div>
 
           <div className="flex items-center text-sm text-muted-foreground">
             <MapPin className="h-4 w-4 mr-2" />
-            {mission.location}
+            {formattedLocation}
           </div>
 
           <div className="flex items-center text-sm text-muted-foreground">
             <Users className="h-4 w-4 mr-2" />
-            {mission.participants} participants
+            {formattedParticipants} participants
           </div>
 
-          {mission.requiredSkills.length > 0 && (
+          {skills.length > 0 && (
             <div className="flex items-start text-sm text-muted-foreground">
               <Tag className="h-4 w-4 mr-2 mt-1" />
               <div className="flex flex-wrap gap-1">
-                {mission.requiredSkills.map((skill) => (
+                {skills.map((skill) => (
                   <Badge key={skill} variant="secondary" className="text-xs">
                     {skill}
                   </Badge>
@@ -84,4 +110,4 @@ export function MissionCard({ mission }: MissionCardProps) {
       </CardFooter>
     </Card>
   );
-} 
+}

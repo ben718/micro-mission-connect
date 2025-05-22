@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,18 +7,23 @@ import { Button } from '@/components/ui/button';
 import { Edit, LogOut, Users, Clock, Award, Mail, MapPin } from 'lucide-react';
 import { useMissions } from '@/hooks/useMissions';
 import type { Profile } from '@/types/profile';
+import { MissionWithAssociation } from '@/types/mission';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 export default function UserProfile() {
   const { user, profile, signOut } = useAuth();
-  const { data: missions = [] } = useMissions();
+  const { data: missionsResponse } = useMissions();
 
   if (!user || !profile) return <div>Chargement...</div>;
+  
+  const missions = Array.isArray(missionsResponse) 
+    ? missionsResponse 
+    : (missionsResponse?.data || []);
 
   // Missions du bénévole
   const myMissions = missions.filter(m => m.participants?.includes(user.id));
-  const missionsAVenir = myMissions.filter(m => new Date(m.date) >= new Date());
-  const missionsPassees = myMissions.filter(m => new Date(m.date) < new Date());
+  const missionsAVenir = myMissions.filter(m => new Date(m.starts_at) >= new Date());
+  const missionsPassees = myMissions.filter(m => new Date(m.starts_at) < new Date());
 
   // Statistiques
   // Calcul des heures réelles à partir de la durée des missions passées
@@ -41,13 +47,13 @@ export default function UserProfile() {
       <Card className="mb-6 relative border border-gray-200 border-opacity-60 bg-white p-6">
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           <img
-            src={profile.avatar || `https://ui-avatars.com/api/?name=${profile.name}`}
+            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.first_name}+${profile.last_name}`}
             alt="Avatar"
             className="w-24 h-24 rounded-full object-cover border"
           />
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-bold flex items-center gap-2 text-bleu">
-              {profile.name}
+              {profile.first_name} {profile.last_name}
               <Badge variant="secondary">Bénévole</Badge>
             </h2>
             <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">

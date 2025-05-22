@@ -78,22 +78,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Mapping vers l'interface Profile locale
-      const d = data as any;
+      const profileData = data as any;
+      const firstName = profileData?.first_name ?? '';
+      const lastName = profileData?.last_name ?? '';
+      
       const mappedProfile: Profile = {
-        id: d?.id ?? '',
-        email: d?.email ?? '',
-        name: d?.name ?? d?.first_name ?? '',
-        role: d?.role ?? (d?.is_association ? 'association' : 'benevole'),
-        avatar: d?.avatar ?? d?.avatar_url ?? undefined,
-        bio: d?.bio ?? '',
-        location: d?.location ?? '',
-        website: d?.website ?? '',
-        phone: d?.phone ?? '',
-        badges: d?.badges ?? [],
-        skills: d?.skills ?? [],
-        createdAt: d?.created_at ?? '',
-        updatedAt: d?.updated_at ?? '',
+        id: profileData?.id ?? '',
+        first_name: firstName,
+        last_name: lastName,
+        is_association: profileData?.is_association ?? false,
+        avatar_url: profileData?.avatar_url ?? undefined,
+        bio: profileData?.bio ?? '',
+        location: profileData?.location ?? '',
+        website: profileData?.website ?? '',
+        phone: profileData?.phone ?? '',
+        // Propriétés synthétiques
+        name: firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '',
+        role: profileData?.is_association ? 'association' : 'benevole',
+        avatar: profileData?.avatar_url ?? undefined,
+        badges: profileData?.badges ?? [],
+        skills: profileData?.skills ?? [],
+        email: profileData?.email ?? user?.email ?? '',
+        created_at: profileData?.created_at ?? '',
+        updated_at: profileData?.updated_at ?? '',
       };
+      
       setProfile(mappedProfile);
     } catch (error) {
       console.error("Erreur lors de la récupération du profil:", error);
