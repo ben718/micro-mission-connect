@@ -161,9 +161,8 @@ const DashboardAssociation = () => {
       // Nombre total de bénévoles uniques
       const { data: participants, error: participantsError } = await supabase
         .from("mission_participants")
-        .select("user_id")
-        .eq("mission_id", "in", "(select id from missions where association_id = '" + user.id + "')");
-
+        .select("user_id");
+      
       if (participantsError) {
         console.error("Erreur lors de la récupération des participants:", participantsError);
         return;

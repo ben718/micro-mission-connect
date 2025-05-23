@@ -26,6 +26,13 @@ export type Badge = {
   created_at: string;
 };
 
+export type Skill = {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+}
+
 export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -148,4 +155,57 @@ export function useBadges() {
   }, []);
 
   return { badges, loading, error };
+}
+
+export function useSkills() {
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchSkills = async () => {
+      try {
+        setLoading(true);
+        // En réalité, il faudrait avoir une table de compétences
+        // Pour l'instant, retournons quelques compétences par défaut
+        const mockSkills: Skill[] = [
+          { id: "1", name: "Communication", created_at: new Date().toISOString() },
+          { id: "2", name: "Développement web", created_at: new Date().toISOString() },
+          { id: "3", name: "Design graphique", created_at: new Date().toISOString() },
+          { id: "4", name: "Cuisine", created_at: new Date().toISOString() },
+          { id: "5", name: "Jardinage", created_at: new Date().toISOString() },
+          { id: "6", name: "Photographie", created_at: new Date().toISOString() }
+        ];
+        setSkills(mockSkills);
+      } catch (err) {
+        setError(err as Error);
+        console.error("Erreur lors du chargement des compétences:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSkills();
+  }, []);
+
+  return { skills, loading, error };
+}
+
+export function useDynamicLists() {
+  const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
+  const { cities, loading: citiesLoading, error: citiesError } = useCities();
+  const { badges, loading: badgesLoading, error: badgesError } = useBadges();
+  const { skills, loading: skillsLoading, error: skillsError } = useSkills();
+  
+  const isLoading = categoriesLoading || citiesLoading || badgesLoading || skillsLoading;
+  const error = categoriesError || citiesError || badgesError || skillsError;
+  
+  return {
+    categories,
+    cities,
+    badges,
+    skills,
+    isLoading,
+    error
+  };
 }
