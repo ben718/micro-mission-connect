@@ -429,7 +429,7 @@ const RegisterForm = () => {
             </>
           )}
           {formError && <div className="text-red-500 text-sm">{formError}</div>}
-          {listsError && <div className="text-red-500 text-sm">{listsError}</div>}
+          {listsError && <div className="text-red-500 text-sm">{listsError ? listsError.message : ''}</div>}
           <div className="flex justify-between mt-6">
             <Button type="button" variant="outline" onClick={handlePrev}>Précédent</Button>
             <Button type="button" className="bg-bleu text-white" onClick={handleNext}>Suivant</Button>
