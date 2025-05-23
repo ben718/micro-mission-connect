@@ -86,3 +86,45 @@ export interface MissionApplicationWithDetails extends MissionApplication {
   mission: Mission;
   user: Profile;
 }
+
+// Nouveaux types pour la gestion des missions
+
+// Statuts possibles d'une mission
+export type MissionStatus = 'draft' | 'open' | 'in_progress' | 'filled' | 'completed' | 'cancelled';
+
+// Interface pour les statistiques de missions dans le tableau de bord
+export interface MissionStats {
+  total: number;
+  active: number;
+  completed: number;
+  cancelled: number;
+  totalVolunteers: number;
+  totalHours: number;
+}
+
+// Interface pour les validations de participation
+export interface ParticipationValidation {
+  participant_id: string;
+  mission_id: string;
+  user: Profile;
+  attendance: boolean;
+  feedback?: string;
+  rating?: number;
+  badges?: string[];
+  skills?: string[];
+}
+
+// Statuts possibles pour une participation
+export type ParticipationStatus = 'registered' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+
+// Interface pour les notifications liées aux missions
+export interface MissionNotification {
+  id: string;
+  user_id: string;
+  mission_id: string;
+  type: 'inscription' | 'rappel' | 'annulation' | 'validation' | 'feedback';
+  message: string;
+  read: boolean;
+  created_at: string;
+}
+

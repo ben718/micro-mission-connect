@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -7,41 +8,40 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search } from "lucide-react";
+import { useUserMissions, useMissionStats } from "@/hooks/useMissions";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 
 const DashboardBenevole = () => {
   const { user, profile } = useAuth();
-  const [missions, setMissions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
+  const [activeTab, setActiveTab] = useState("upcoming");
+  
+  // Utiliser les hooks personnalisés pour récupérer les données
+  const { data: missions, isLoading: missionsLoading } = useUserMissions(user?.id);
+  const { data: stats, isLoading: statsLoading } = useMissionStats(user?.id, false);
+  
   useEffect(() => {
-    if (user) fetchMissions();
-  }, [user]);
-
-  const fetchMissions = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from("mission_participants")
-      .select(`*, mission:mission_id(*, association:association_id(first_name, last_name))`)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    setMissions(data || []);
-    setLoading(false);
-  };
+    if (!missionsLoading && !statsLoading) {
+      setLoading(false);
+    }
+  }, [missionsLoading, statsLoading]);
 
   // Séparer missions à venir et passées
   const now = new Date();
-  const missionsAVenir = missions.filter(
-    (p) => p.mission && new Date(p.mission.starts_at) >= now && ["registered", "confirmed"].includes(p.status)
-  );
-  const missionsPassees = missions.filter(
-    (p) => p.mission && (new Date(p.mission.starts_at) < now || p.status === "completed")
-  );
+  const missionsAVenir = missions?.filter(
+    (m) => new Date(m.starts_at) >= now && ["registered", "confirmed"].includes(m.participant_status || '')
+  ) || [];
+  const missionsPassees = missions?.filter(
+    (m) => new Date(m.starts_at) < now || m.participant_status === "completed"
+  ) || [];
 
   // Statistiques
-  const nbMissions = missions.length;
-  const nbMissionsPassees = missionsPassees.length;
-  const nbMissionsAVenir = missionsAVenir.length;
-  const heuresTotal = missionsPassees.reduce((acc, p) => acc + (p.mission?.duration_minutes || 0), 0) / 60;
+  const nbMissions = missions?.length || 0;
+  const nbMissionsPassees = missionsPassees?.length || 0;
+  const nbMissionsAVenir = missionsAVenir?.length || 0;
+  const heuresTotal = stats?.totalHours || 0;
 
   // Badges simples
   const badges = [];
@@ -55,24 +55,29 @@ const DashboardBenevole = () => {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("fr-FR", {
-      day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit"
-    });
+    return format(new Date(dateString), "EEEE d MMMM à HH'h'mm", { locale: fr });
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
-        return <Badge className="bg-yellow-100 text-yellow-800">En attente</Badge>;
+      case "registered":
+        return <Badge className="bg-blue-100 text-blue-800">Inscrit</Badge>;
       case "confirmed":
-        return <Badge className="bg-green-100 text-green-800">Acceptée</Badge>;
-      case "refused":
-        return <Badge className="bg-red-100 text-red-800">Refusée</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Confirmé</Badge>;
       case "completed":
-        return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800">Validé</Badge>;
+      case "cancelled":
+        return <Badge className="bg-red-100 text-red-800">Annulé</Badge>;
+      case "no_show":
+        return <Badge className="bg-red-100 text-red-800">Absence</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+  
+  const getIcon = (missionType: string | undefined) => {
+    // Logique pour retourner l'icône appropriée selon le type de mission
+    return <Calendar className="h-4 w-4 text-bleu" />;
   };
 
   return (
@@ -120,10 +125,12 @@ const DashboardBenevole = () => {
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <CheckCircle2 className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Missions réalisées</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Missions validées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{nbMissionsPassees}</span>
+            <span className="text-3xl font-bold text-bleu">
+              {missions?.filter(m => m.participant_status === "completed").length || 0}
+            </span>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-bleu/20">
@@ -155,91 +162,142 @@ const DashboardBenevole = () => {
         </Card>
       </div>
 
-      {/* Prochaines missions */}
-      <div className="mb-10">
-        <h2 className="text-xl font-bold mb-4">Mes prochaines missions</h2>
-        {loading ? (
-          <p>Chargement…</p>
-        ) : nbMissionsAVenir === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">Vous n'avez pas de missions à venir.</p>
-            <Button asChild>
-              <Link to="/missions">Trouver une mission</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {missionsAVenir.map((p) => (
-              <Card key={p.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <Link to={`/missions/${p.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
-                        {p.mission.title}
-                      </Link>
-                      <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span>{formatDate(p.mission.starts_at)}</span>
-                        <span className="mx-2">•</span>
-                        <MapPin className="w-4 h-4 mr-1" />
-                        <span>{p.mission.city}</span>
-                      </div>
-                      <p className="text-gray-600 text-sm line-clamp-2 mb-2">{p.mission.description}</p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(p.status)}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Onglets pour les missions */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
+        <TabsList className="mb-6">
+          <TabsTrigger value="upcoming">Missions à venir ({nbMissionsAVenir})</TabsTrigger>
+          <TabsTrigger value="past">Historique ({nbMissionsPassees})</TabsTrigger>
+        </TabsList>
 
-      {/* Historique missions */}
-      <div className="mb-10">
-        <h2 className="text-xl font-bold mb-4">Historique de mes missions</h2>
-        {loading ? (
-          <p>Chargement…</p>
-        ) : nbMissionsPassees === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 mb-4">Vous n'avez pas encore réalisé de mission.</p>
-            <Button asChild>
-              <Link to="/missions">Trouver une mission</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {missionsPassees.map((p) => (
-              <Card key={p.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <Link to={`/missions/${p.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
-                        {p.mission.title}
-                      </Link>
-                      <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        <span>{formatDate(p.mission.starts_at)}</span>
-                        <span className="mx-2">•</span>
-                        <MapPin className="w-4 h-4 mr-1" />
-                        <span>{p.mission.city}</span>
+        {/* Missions à venir */}
+        <TabsContent value="upcoming">
+          {loading ? (
+            <p>Chargement…</p>
+          ) : nbMissionsAVenir === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">Vous n'avez pas de missions à venir.</p>
+              <Button asChild>
+                <Link to="/missions">Trouver une mission</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {missionsAVenir.map((m) => (
+                <Card key={m.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-3">
+                          <div className="h-8 w-8 rounded-full bg-bleu/10 flex items-center justify-center mr-2">
+                            {getIcon(m.category)}
+                          </div>
+                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-bleu hover:underline">
+                            {m.title}
+                          </Link>
+                        </div>
+                        <div className="flex flex-col space-y-1.5 text-gray-500 text-sm mb-3">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span>{formatDate(m.starts_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{m.city}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span>Durée: {m.duration}</span>
+                          </div>
+                        </div>
+                        <p className="text-gray-600 text-sm line-clamp-2 mb-3">{m.description}</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={m.association?.avatar_url || ""} />
+                              <AvatarFallback className="text-xs">
+                                {m.association?.first_name?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-gray-500">
+                              Par {m.association?.first_name}
+                            </span>
+                          </div>
+                          {getStatusBadge(m.participant_status || 'registered')}
+                        </div>
                       </div>
-                      <p className="text-gray-600 text-sm line-clamp-2 mb-2">{p.mission.description}</p>
                     </div>
-                    <div className="flex flex-col items-end gap-2">
-                      {getStatusBadge(p.status)}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Historique missions */}
+        <TabsContent value="past">
+          {loading ? (
+            <p>Chargement…</p>
+          ) : nbMissionsPassees === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">Vous n'avez pas encore réalisé de mission.</p>
+              <Button asChild>
+                <Link to="/missions">Trouver une mission</Link>
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {missionsPassees.map((m) => (
+                <Card key={m.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="flex items-center mb-3">
+                          <div className="h-8 w-8 rounded-full bg-bleu/10 flex items-center justify-center mr-2">
+                            {getIcon(m.category)}
+                          </div>
+                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-bleu hover:underline">
+                            {m.title}
+                          </Link>
+                        </div>
+                        <div className="flex flex-col space-y-1.5 text-gray-500 text-sm mb-3">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4 text-gray-400" />
+                            <span>{formatDate(m.starts_at)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{m.city}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-4 h-4 text-gray-400" />
+                            <span>Durée: {m.duration}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={m.association?.avatar_url || ""} />
+                              <AvatarFallback className="text-xs">
+                                {m.association?.first_name?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-gray-500">
+                              Par {m.association?.first_name}
+                            </span>
+                          </div>
+                          {getStatusBadge(m.participant_status || 'completed')}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
 
-export default DashboardBenevole; 
+export default DashboardBenevole;
