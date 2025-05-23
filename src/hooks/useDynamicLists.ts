@@ -1,131 +1,151 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 
-export interface Category {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-}
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
-export interface City {
+export type City = {
   id: string;
   name: string;
   postal_code: string;
-}
+  created_at: string;
+  updated_at: string;
+};
 
-export interface Skill {
+export type Category = {
   id: string;
   name: string;
-  description: string;
   icon: string;
-}
-
-const CACHE_DURATION = 1000 * 60 * 60; // 1 heure
-const CACHE_KEYS = {
-  categories: 'mb_categories_cache',
-  cities: 'mb_cities_cache',
-  skills: 'mb_skills_cache',
+  description: string;
+  created_at: string;
 };
 
-interface CacheData<T> {
-  data: T[];
-  timestamp: number;
-}
-
-const getCachedData = <T>(key: string): T[] | null => {
-  const cached = localStorage.getItem(key);
-  if (!cached) return null;
-
-  const { data, timestamp }: CacheData<T> = JSON.parse(cached);
-  if (Date.now() - timestamp > CACHE_DURATION) {
-    localStorage.removeItem(key);
-    return null;
-  }
-
-  return data;
+export type Badge = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  created_at: string;
 };
 
-const setCachedData = <T>(key: string, data: T[]): void => {
-  const cacheData: CacheData<T> = {
-    data,
-    timestamp: Date.now(),
-  };
-  localStorage.setItem(key, JSON.stringify(cacheData));
-};
-
-export const useDynamicLists = () => {
+export function useCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchLists = async (forceRefresh = false) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      // Récupération des catégories
-      let categoriesData = !forceRefresh ? getCachedData<Category>(CACHE_KEYS.categories) : null;
-      if (!categoriesData) {
-        const { data, error: categoriesError } = await supabase
-          .from('categories')
-          .select('*')
-          .order('name');
-        if (categoriesError) throw categoriesError;
-        categoriesData = data || [];
-        setCachedData(CACHE_KEYS.categories, categoriesData);
-      }
-      setCategories(categoriesData);
-
-      // Récupération des villes
-      let citiesData = !forceRefresh ? getCachedData<City>(CACHE_KEYS.cities) : null;
-      if (!citiesData) {
-        const { data, error: citiesError } = await supabase
-          .from('cities')
-          .select('id, name, postal_code')
-          .order('name');
-        if (citiesError) throw citiesError;
-        citiesData = (data || []).map(city => ({
-          id: city.id,
-          name: city.name,
-          postal_code: city.postal_code
-        }));
-        setCachedData(CACHE_KEYS.cities, citiesData);
-      }
-      setCities(citiesData);
-
-      // Récupération des compétences
-      let skillsData = !forceRefresh ? getCachedData<Skill>(CACHE_KEYS.skills) : null;
-      if (!skillsData) {
-        const { data, error: skillsError } = await supabase
-          .from('badges')
-          .select('*')
-          .order('name');
-        if (skillsError) throw skillsError;
-        skillsData = data || [];
-        setCachedData(CACHE_KEYS.skills, skillsData);
-      }
-      setSkills(skillsData);
-
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors du chargement des listes');
-      console.error('Erreur de chargement des listes:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    fetchLists();
+    const fetchCategories = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("categories")
+          .select("*")
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setCategories(data as Category[]);
+      } catch (err) {
+        setError(err as Error);
+        console.error("Erreur lors du chargement des catégories:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategories();
   }, []);
 
-  return {
-    categories,
-    cities,
-    skills,
-    isLoading,
-    error,
-    refreshLists: () => fetchLists(true),
-  };
-}; 
+  return { categories, loading, error };
+}
+
+export function useCities() {
+  const [cities, setCities] = useState<City[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchCities = async () => {
+      try {
+        setLoading(true);
+        // Vérifier d'abord si la table cities existe
+        const { data: tableInfo, error: tableError } = await supabase
+          .from('cities')
+          .select('count(*)', { count: 'exact', head: true });
+        
+        // Si la table n'existe pas, nous utiliserons une approche alternative
+        if (tableError || tableInfo === null) {
+          // Alternative: extraire les villes uniques des missions
+          const { data: missionCities, error: missionError } = await supabase
+            .from('missions')
+            .select('city, postal_code')
+            .not('city', 'is', null)
+            .order('city', { ascending: true });
+          
+          if (missionError) throw missionError;
+          
+          // Construire un ensemble de villes uniques
+          const uniqueCities: Record<string, City> = {};
+          missionCities?.forEach((item, index) => {
+            if (item.city && !uniqueCities[item.city]) {
+              uniqueCities[item.city] = {
+                id: `city-${index}`,
+                name: item.city,
+                postal_code: item.postal_code || '',
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+            }
+          });
+          
+          setCities(Object.values(uniqueCities));
+        } else {
+          // Si la table cities existe, l'utiliser normalement
+          const { data, error } = await supabase
+            .from('cities')
+            .select('*')
+            .order('name', { ascending: true });
+          
+          if (error) throw error;
+          setCities(data as City[]);
+        }
+      } catch (err) {
+        setError(err as Error);
+        console.error("Erreur lors du chargement des villes:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCities();
+  }, []);
+
+  return { cities, loading, error };
+}
+
+export function useBadges() {
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("badges")
+          .select("*")
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setBadges(data as Badge[]);
+      } catch (err) {
+        setError(err as Error);
+        console.error("Erreur lors du chargement des badges:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBadges();
+  }, []);
+
+  return { badges, loading, error };
+}

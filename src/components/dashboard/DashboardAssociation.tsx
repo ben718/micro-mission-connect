@@ -11,12 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
 
-// Définition de types simplifiés pour éviter la récursion
+// Types simplifiés pour éviter les références circulaires
 type SimpleProfile = {
   id: string;
   first_name?: string;
   last_name?: string;
   email?: string;
+  avatar_url?: string;
 };
 
 type MissionParticipant = {
@@ -26,8 +27,7 @@ type MissionParticipant = {
   profile?: SimpleProfile;
 };
 
-// Type de mission simplifié avec une structure explicite
-type AssociationMission = {
+type SimpleMission = {
   id: string;
   title: string;
   description: string;
@@ -46,7 +46,7 @@ interface Stats {
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
-  const [missions, setMissions] = useState<AssociationMission[]>([]);
+  const [missions, setMissions] = useState<SimpleMission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("missions");
@@ -63,11 +63,12 @@ const DashboardAssociation = () => {
     }
   }, [user]);
 
+  // Fonction modifiée pour éviter les types récursifs infinis
   const fetchAssociationMissions = async () => {
     setLoading(true);
     setError(null);
     try {
-      // Récupérer les missions sans les participants imbriqués
+      // 1. Récupérer les missions de base sans les participants imbriqués
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select(`
@@ -84,20 +85,23 @@ const DashboardAssociation = () => {
       
       if (missionsError) throw missionsError;
       
-      // Initialiser les missions sans les participants
-      const missionsWithParticipants: AssociationMission[] = missionsData || [];
+      // 2. Initialiser le tableau de missions
+      let missionsWithParticipants: SimpleMission[] = missionsData || [];
       
-      // Récupérer les participants pour chaque mission
+      // 3. Pour chaque mission, récupérer séparément ses participants
       for (const mission of missionsWithParticipants) {
-        // Récupérer les participants de cette mission
+        // Récupérer les participants pour cette mission
         const { data: participantsData, error: participantsError } = await supabase
           .from("mission_participants")
           .select("id, status, user_id")
           .eq("mission_id", mission.id);
           
-        if (participantsError) throw participantsError;
+        if (participantsError) {
+          console.error("Erreur lors de la récupération des participants:", participantsError);
+          continue; // Continuer avec la mission suivante en cas d'erreur
+        }
         
-        // Ajouter les participants à la mission
+        // Initialiser les participants pour cette mission
         mission.participants = participantsData || [];
         
         // Si des participants existent, récupérer leurs profils
@@ -106,10 +110,15 @@ const DashboardAssociation = () => {
           const userIds = participantsData.map(p => p.user_id);
           
           // Récupérer les profils correspondants
-          const { data: profilesData } = await supabase
+          const { data: profilesData, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, first_name, last_name, email")
+            .select("id, first_name, last_name, email, avatar_url")
             .in("id", userIds);
+            
+          if (profilesError) {
+            console.error("Erreur lors de la récupération des profils:", profilesError);
+            continue;
+          }
             
           if (profilesData) {
             // Créer un dictionnaire pour associer les profils aux participants
@@ -119,7 +128,8 @@ const DashboardAssociation = () => {
                 id: profile.id,
                 first_name: profile.first_name,
                 last_name: profile.last_name,
-                email: profile.email
+                email: profile.email,
+                avatar_url: profile.avatar_url
               };
             });
             
@@ -134,7 +144,8 @@ const DashboardAssociation = () => {
       
       setMissions(missionsWithParticipants);
     } catch (err: any) {
-      setError(err.message || "Une erreur est survenue");
+      console.error("Erreur lors du chargement des missions:", err);
+      setError(err.message || "Une erreur est survenue lors du chargement des missions");
     } finally {
       setLoading(false);
     }
@@ -142,25 +153,47 @@ const DashboardAssociation = () => {
 
   const fetchStats = async () => {
     try {
+      if (!user) {
+        console.error("Aucun utilisateur connecté pour récupérer les statistiques");
+        return;
+      }
+
       // Nombre total de bénévoles uniques
-      const { data: participants } = await supabase
+      const { data: participants, error: participantsError } = await supabase
         .from("mission_participants")
         .select("user_id")
-        .eq("association_id", user?.id);
-      const uniqueBenevoles = new Set(participants?.map(p => p.user_id)).size;
+        .eq("mission_id", "in", "(select id from missions where association_id = '" + user.id + "')");
+
+      if (participantsError) {
+        console.error("Erreur lors de la récupération des participants:", participantsError);
+        return;
+      }
+
+      const uniqueBenevoles = new Set(participants?.map(p => p.user_id) || []).size;
+      
       // Heures totales
-      const { data: missionsData } = await supabase
+      const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select("duration_minutes")
-        .eq("association_id", user?.id);
+        .eq("association_id", user.id);
+
+      if (missionsError) {
+        console.error("Erreur lors de la récupération des missions pour les statistiques:", missionsError);
+        return;
+      }
+
       const totalMinutes = missionsData?.reduce((acc, m) => acc + (m.duration_minutes || 0), 0) || 0;
       const totalHeures = Math.round(totalMinutes / 60);
+      
       // Taux de complétion
       const totalMissions = missions.length;
       const completedMissions = missions.filter(m => m.status === "completed").length;
       const tauxCompletion = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
+      
       setStats({ totalBenevoles: uniqueBenevoles, totalHeures, tauxCompletion });
-    } catch (err) {}
+    } catch (err) {
+      console.error("Erreur lors de la récupération des statistiques:", err);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -188,9 +221,10 @@ const DashboardAssociation = () => {
         .from('mission_participants')
         .update({ status })
         .eq('id', participantId);
-      fetchAssociationMissions();
+      fetchAssociationMissions(); // Rafraîchir les données après mise à jour
       toast.success(status === 'confirmed' ? 'Candidature acceptée' : 'Candidature refusée');
     } catch (error) {
+      console.error("Erreur lors du traitement de la candidature:", error);
       toast.error("Une erreur est survenue lors du traitement de la candidature");
     }
   };
@@ -364,7 +398,7 @@ const DashboardAssociation = () => {
                 <p className="text-gray-500">Aucune mission à venir.</p>
               ) : (
                 <div className="space-y-4">
-                  {(upcomingMissions || []).map((mission) => (
+                  {upcomingMissions.map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
@@ -403,7 +437,7 @@ const DashboardAssociation = () => {
                             </div>
                           </div>
                         )}
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
                             <span>{mission.participants?.length || 0}</span>
@@ -422,7 +456,7 @@ const DashboardAssociation = () => {
                 <p className="text-gray-500">Aucune mission passée.</p>
               ) : (
                 <div className="space-y-4">
-                  {(pastMissions || []).map((mission) => (
+                  {pastMissions.map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
                         <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
@@ -436,7 +470,7 @@ const DashboardAssociation = () => {
                           <span>{mission.city}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2">{mission.description}</p>
-                        <div className="flex justify-between items-center">
+                        <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
                             <span>{mission.participants?.length || 0}</span>

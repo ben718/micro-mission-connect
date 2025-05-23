@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
@@ -28,25 +29,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     console.log("[AuthProvider] Initialisation...");
-    
-    // Configurer l'écouteur d'état d'authentification
+
+    // Configurer l'écouteur d'état d'authentification avant tout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, currentSession) => {
+      (event, currentSession) => {
         console.log("[AuthProvider] État d'authentification changé:", event);
+        
+        // Mettre à jour l'état de la session et de l'utilisateur immédiatement
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        
+
+        // Puis récupérer le profil si nécessaire
         if (currentSession?.user) {
           console.log("[AuthProvider] Utilisateur connecté, récupération du profil...");
-          try {
-            await fetchProfile(currentSession.user.id);
-          } catch (error) {
-            console.error("[AuthProvider] Erreur lors de la récupération du profil:", error);
-            setProfile(null);
-          } finally {
-            setLoading(false);
-            setIsLoading(false);
-          }
+          setTimeout(() => { // Utilisation de setTimeout pour éviter les deadlocks
+            fetchProfile(currentSession.user.id).catch(error => {
+              console.error("[AuthProvider] Erreur lors de la récupération du profil:", error);
+            });
+          }, 0);
         } else {
           console.log("[AuthProvider] Aucun utilisateur connecté");
           setProfile(null);
@@ -67,14 +67,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log("[AuthProvider] Session existante, récupération du profil...");
         fetchProfile(currentSession.user.id).catch(error => {
           console.error("[AuthProvider] Erreur lors de la récupération du profil:", error);
-          setProfile(null);
         }).finally(() => {
           setLoading(false);
           setIsLoading(false);
         });
       } else {
-        // Session absente ou invalide, on force la déconnexion
-        signOut();
         setLoading(false);
         setIsLoading(false);
       }
@@ -92,39 +89,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   async function fetchProfile(userId: string) {
     try {
-      console.log("fetchProfile userId:", userId);
+      console.log("[fetchProfile] Récupération du profil pour userId:", userId);
+      
       // Timeout de sécurité sur la récupération du profil
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("La récupération du profil a expiré.")), 10000));
-      const supabasePromise = supabase.from("profiles").select("*").eq("id", userId).single();
-      const { data, error } = await Promise.race([
-        supabasePromise,
-        timeoutPromise
-      ]) as { data: any; error: any };
-      console.log("fetchProfile response:", { data, error });
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("La récupération du profil a expiré.")), 10000)
+      );
+      
+      const profilePromise = supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .single();
+
+      const result = await Promise.race([profilePromise, timeoutPromise]) as any;
+      const { data, error } = result;
+
+      console.log("[fetchProfile] Résultat:", { data, error });
 
       if (error) {
-        console.error("Erreur lors de la récupération du profil:", error);
         if (error.code === "401" || (error.message && error.message.toLowerCase().includes("jwt"))) {
+          console.error("[fetchProfile] Session expirée:", error);
           toast.error("Votre session a expiré. Veuillez vous reconnecter.");
           await signOut();
           return;
         }
+        
+        if (error.code === "PGRST116") {
+          console.error("[fetchProfile] Profil non trouvé pour l'utilisateur:", userId);
+          toast.error("Aucun profil trouvé. Veuillez compléter votre profil.");
+          await signOut();
+          return;
+        }
+
+        console.error("[fetchProfile] Erreur spécifique lors de la récupération du profil:", error);
         toast.error("Erreur lors de la récupération du profil: " + error.message);
         return;
       }
 
-      // Vérification stricte de la cohérence des données
-      if (!data || data.id !== userId) {
-        console.error("Incohérence détectée : le profil récupéré ne correspond pas à l'utilisateur connecté");
-        toast.error("Erreur de cohérence des données. Veuillez vous reconnecter.");
+      if (!data) {
+        console.error("[fetchProfile] Aucun profil trouvé pour l'utilisateur:", userId);
+        toast.error("Aucun profil trouvé. Veuillez vous reconnecter.");
         await signOut();
         return;
       }
 
-      if (!data) {
-        console.error("Aucun profil trouvé pour l'utilisateur:", userId);
-        toast.error("Aucun profil trouvé. Veuillez compléter votre profil.");
-        navigate("/onboarding/profile");
+      // Vérification stricte de la cohérence des données
+      if (data.id !== userId) {
+        console.error("[fetchProfile] Incohérence détectée : le profil récupéré ne correspond pas à l'utilisateur connecté");
+        toast.error("Erreur de cohérence des données. Veuillez vous reconnecter.");
+        await signOut();
         return;
       }
 
@@ -141,6 +155,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         bio: data?.bio ?? '',
         location: data?.location ?? '',
         phone: data?.phone ?? '',
+        website: data?.website ?? '',
         // Propriétés synthétiques
         name: firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '',
         role: data?.is_association ? 'association' : 'benevole',
@@ -151,50 +166,74 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
       
       setProfile(mappedProfile);
+      setLoading(false);
+      setIsLoading(false);
     } catch (error: any) {
-      console.error("Erreur lors de la récupération du profil:", error);
+      console.error("[fetchProfile] Erreur générale lors de la récupération du profil:", error);
       toast.error(error.message || "Erreur lors de la récupération du profil");
-      await signOut(); // Force la déconnexion en cas d'erreur
+      
+      // En cas d'erreur critique, déconnecter l'utilisateur
+      await signOut(); 
+      setLoading(false);
+      setIsLoading(false);
     }
   }
 
   const signIn = async (email: string, password: string) => {
     try {
+      setIsLoading(true);
+      
       if (!supabase) {
         toast.error("Client Supabase non initialisé !");
         throw new Error("Client Supabase non initialisé");
       }
+      
       console.log("[signIn] Tentative de connexion avec:", email);
+      
       // Timeout de sécurité sur la connexion
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("La connexion a expiré. Veuillez réessayer.")), 10000));
-      const supabasePromise = supabase.auth.signInWithPassword({ email, password });
-      const response = await Promise.race([
-        supabasePromise,
-        timeoutPromise
-      ]) as { data: any; error: any };
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("La connexion a expiré. Veuillez réessayer.")), 10000)
+      );
+      
+      const authPromise = supabase.auth.signInWithPassword({ email, password });
+      const response = await Promise.race([authPromise, timeoutPromise]) as any;
+      
       console.log("[signIn] Réponse Supabase:", response);
       const { error, data } = response;
+      
       if (error) {
         toast.error(error.message || "Erreur de connexion Supabase");
         throw error;
       }
+      
       if (!data?.user) {
         toast.error("Aucun utilisateur retourné par Supabase");
         throw new Error("Aucun utilisateur retourné par Supabase");
       }
+      
+      // La session et l'utilisateur seront mis à jour via onAuthStateChange
       toast.success("Connexion réussie");
+      
+      // Navigation vers la page d'accueil
       navigate("/");
     } catch (error: any) {
-      console.error("Erreur de connexion:", error.message, error);
+      console.error("[signIn] Erreur de connexion:", error.message, error);
       toast.error(error.message || "Erreur de connexion inconnue");
+      
       // Nettoyage de l'état en cas d'échec
-      await signOut();
+      setUser(null);
+      setProfile(null);
+      
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signUp = async (email: string, password: string, metadata: any) => {
     try {
+      setIsLoading(true);
+      
       const { error } = await supabase.auth.signUp({
         email,
         password,
@@ -202,28 +241,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           data: metadata,
         },
       });
+      
       if (error) throw error;
+      
       toast.success("Inscription réussie ! Vérifiez votre email pour confirmer votre compte.");
       navigate("/auth/confirmation");
     } catch (error: any) {
-      console.error("Erreur d'inscription:", error.message);
-      toast.error(error.message);
+      console.error("[signUp] Erreur d'inscription:", error.message);
+      toast.error(error.message || "Erreur lors de l'inscription");
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const signOut = async () => {
     try {
+      setIsLoading(true);
+      
       await supabase.auth.signOut();
-    } catch (error: any) {
-      console.error("Erreur de déconnexion Supabase:", error.message);
-    } finally {
+      
       // Nettoyage complet de l'état
       setUser(null);
       setProfile(null);
       setSession(null);
-      setLoading(false);
-      setIsLoading(false);
       
       // Nettoyage du localStorage
       localStorage.removeItem('supabase.auth.token');
@@ -236,6 +277,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       
       toast.success("Déconnexion réussie");
       navigate("/auth/login");
+    } catch (error: any) {
+      console.error("[signOut] Erreur de déconnexion Supabase:", error.message);
+      toast.error("Erreur lors de la déconnexion");
+    } finally {
+      setLoading(false);
+      setIsLoading(false);
     }
   };
 

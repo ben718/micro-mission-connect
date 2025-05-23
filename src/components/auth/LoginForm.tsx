@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "react-router-dom";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
@@ -15,8 +17,26 @@ const LoginForm = () => {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
+    
+    // Vérification basique des champs
+    if (!email || !email.includes('@')) {
+      toast.error("Veuillez entrer une adresse e-mail valide");
+      setIsLoading(false);
+      return;
+    }
+    
+    if (!password || password.length < 6) {
+      toast.error("Le mot de passe doit contenir au moins 6 caractères");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       await signIn(email, password);
+      // La navigation est gérée dans le hook useAuth
+    } catch (error: any) {
+      console.error("[LoginForm] Erreur lors de la connexion:", error);
+      // Les erreurs sont déjà affichées dans useAuth
     } finally {
       setIsLoading(false);
     }
@@ -33,6 +53,8 @@ const LoginForm = () => {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={isLoading}
+          autoComplete="email"
         />
       </div>
       <div className="space-y-2">
@@ -48,6 +70,8 @@ const LoginForm = () => {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          disabled={isLoading}
+          autoComplete="current-password"
         />
       </div>
       <Button
@@ -55,7 +79,14 @@ const LoginForm = () => {
         className="w-full bg-bleu hover:bg-bleu-700"
         disabled={isLoading}
       >
-        {isLoading ? "Connexion en cours..." : "Se connecter"}
+        {isLoading ? (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Connexion en cours...
+          </>
+        ) : (
+          "Se connecter"
+        )}
       </Button>
       <div className="text-center mt-4">
         <span className="text-sm text-gray-500">

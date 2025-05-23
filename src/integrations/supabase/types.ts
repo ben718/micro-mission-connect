@@ -57,6 +57,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cities: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          postal_code: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          postal_code: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          postal_code?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mission_categories: {
         Row: {
           category_id: string

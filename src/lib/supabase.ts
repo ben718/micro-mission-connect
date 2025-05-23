@@ -9,4 +9,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Les variables d\'environnement Supabase sont manquantes');
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: localStorage,
+    persistSession: true,
+    autoRefreshToken: true,
+    debug: false // Mettre à true pour débugger les problèmes d'authentification
+  }
+});
