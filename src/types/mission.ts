@@ -62,7 +62,14 @@ export type MissionFilters = {
     latitude: number;
     longitude: number;
     radius?: number; // Rayon de recherche en kilomètres
-  }
+  };
+  // Nouveaux types de filtres
+  missionTypes?: string[]; // Types de mission (aide alimentaire, soutien scolaire...)
+  associationTypes?: string[]; // Types d'association (enfance, santé...)
+  durations?: string[]; // Durées (15min, 30min, 1h...)
+  requiredSkills?: string[]; // Compétences requises
+  impacts?: string[]; // Impact recherché
+  engagementLevels?: string[]; // Niveaux d'engagement
 };
 
 export interface MissionApplication {
