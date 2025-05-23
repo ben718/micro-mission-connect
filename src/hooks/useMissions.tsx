@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association, MissionStatus } from "@/types/mission";
+import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association, MissionStatus, MissionStats } from "@/types/mission";
 
 export function useMissions(filters?: MissionFilters) {
   const pageSize = filters?.pageSize || 12; // Default page size
@@ -397,7 +397,7 @@ export function useUserMissions(userId: string | undefined) {
             timeSlot: new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
             duration: `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}`,
             participants: mission.spots_taken.toString() + '/' + mission.spots_available.toString(),
-            association: mission.association,
+            associationId: mission.association_id,
           } as unknown as MissionWithDetails;
           
           return transformed;
@@ -537,14 +537,29 @@ export function useMissionActions() {
               }
             }
             
-            // Créer une notification pour les badges
-            await supabase.from("notifications").insert({
-              user_id: participant.user_id,
-              mission_id: participant.mission_id,
-              type: "feedback",
-              message: `Vous avez reçu ${badges.length} badge(s) pour votre participation !`,
-              read: false
-            });
+            // Fix notifications creation to avoid calling non-existent table
+            try {
+              // Check if the notifications table exists first
+              const { error: notifCheckError } = await supabase
+                .from("notifications")
+                .select("count")
+                .limit(1);
+                
+              if (!notifCheckError) {
+                await supabase.from("notifications").insert({
+                  user_id: participant.user_id,
+                  mission_id: participant.mission_id,
+                  type: "feedback",
+                  message: `Vous avez reçu ${badges.length} badge(s) pour votre participation !`,
+                  read: false
+                });
+              } else {
+                console.log("Notifications table doesn't exist - skipping notification creation");
+              }
+            } catch (error) {
+              console.error("Error creating notification (table may not exist):", error);
+              // Continue execution, this is not a critical error
+            }
           }
         }
       }

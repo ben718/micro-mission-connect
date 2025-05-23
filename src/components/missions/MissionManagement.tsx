@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -195,12 +194,12 @@ export default function MissionManagement({ associationId, filterStatus }: Missi
           {expandedMissions[mission.id] && (
             <div className="px-6 pb-6 border-t mt-4 pt-4">
               <h4 className="font-medium mb-2">Participants ({mission.spots_taken}/{mission.spots_available})</h4>
-              {mission.participants_list?.length > 0 ? (
+              {mission.mission_participants && mission.mission_participants.length > 0 ? (
                 <div className="space-y-2">
-                  {mission.participants_list.map((p: any) => (
+                  {mission.mission_participants.map((p: any) => (
                     <div key={p.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                       <span>
-                        {p.profiles.first_name} {p.profiles.last_name}
+                        {p.profiles?.first_name} {p.profiles?.last_name}
                       </span>
                       <Badge variant={
                         p.status === 'completed' ? 'default' : 

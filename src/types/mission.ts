@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 import type { Profile } from './profile';
 
@@ -12,6 +11,8 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   participants?: string; // Pour la compatibilité avec le code existant
   requiredSkills?: string[]; // Pour la compatibilité avec le code existant
   associationId?: string; // Pour la compatibilité avec le code existant
+  participant_status?: string; // Pour la compatibilité avec DashboardBenevole
+  participant_id?: string; // Pour la compatibilité avec DashboardBenevole
 };
 
 export type Category = Database["public"]["Tables"]["categories"]["Row"];
@@ -37,6 +38,9 @@ export type MissionWithDetails = MissionWithAssociation & {
     mission_id?: string;
     category_id: string;
   }[];
+  participant_status?: string; // Pour la compatibilité avec DashboardBenevole
+  participant_id?: string; // Pour la compatibilité avec DashboardBenevole
+  participants_list?: any[]; // Pour la compatibilité avec MissionManagement
 };
 
 // Type for date range selection used in calendar component
@@ -63,6 +67,7 @@ export type MissionFilters = {
     longitude: number;
     radius?: number; // Rayon de recherche en kilomètres
   };
+  status?: MissionStatus | MissionStatus[]; // Ajout du status pour le filtre
   // Nouveaux types de filtres
   missionTypes?: string[]; // Types de mission (aide alimentaire, soutien scolaire...)
   associationTypes?: string[]; // Types d'association (enfance, santé...)
@@ -127,4 +132,3 @@ export interface MissionNotification {
   read: boolean;
   created_at: string;
 }
-
