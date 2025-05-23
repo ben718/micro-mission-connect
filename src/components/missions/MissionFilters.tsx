@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,12 +43,29 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
     });
   };
 
-  const handleDateRangeChange = (range: DateRangeSelection) => {
-    setDateRange(range);
-    handleFilterChange("dateRange", {
-      start: range.from,
-      end: range.to
+  const handleDateRangeChange = (range: DateRangeSelection | undefined) => {
+    // Make sure range is defined before using it
+    if (!range) {
+      setDateRange({ from: undefined, to: undefined });
+      handleFilterChange("dateRange", undefined);
+      return;
+    }
+    
+    setDateRange({
+      from: range.from,
+      to: range.to
     });
+    
+    // Only set the dateRange filter if we actually have dates
+    if (range.from || range.to) {
+      handleFilterChange("dateRange", {
+        start: range.from,
+        end: range.to
+      });
+    } else {
+      // If both dates are undefined, remove the filter
+      handleFilterChange("dateRange", undefined);
+    }
   };
 
   const handleCategoryToggle = (categoryId: string) => {
