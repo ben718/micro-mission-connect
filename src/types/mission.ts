@@ -58,6 +58,11 @@ export type MissionFilters = {
   remote?: boolean;
   page?: number;
   pageSize?: number;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+    radius?: number; // Rayon de recherche en kilomètres
+  }
 };
 
 export interface MissionApplication {

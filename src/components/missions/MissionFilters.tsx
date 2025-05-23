@@ -11,8 +11,9 @@ import { useCategories, useCities } from "@/hooks/useMissions";
 import { MissionFilters as MissionFiltersType, DateRangeSelection } from "@/types/mission";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Calendar as CalendarIcon, X, MapPin } from "lucide-react";
+import { Calendar as CalendarIcon, X, MapPin, Navigation } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { toast } from "sonner";
 
 interface MissionFiltersProps {
   onFilterChange: (filters: MissionFiltersType) => void;
@@ -28,6 +29,8 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
     from: undefined,
     to: undefined
   });
+  const [searchCity, setSearchCity] = useState("");
+  const [filteredCities, setFilteredCities] = useState<string[]>([]);
 
   const handleFilterChange = <T extends keyof MissionFiltersType>(
     key: T,
@@ -44,6 +47,15 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
   };
 
   const handleDateRangeChange = (range: DateRangeSelection | undefined) => {
+    // Si la date sélectionnée est la même que celle déjà sélectionnée, la désélectionner
+    if (range && dateRange.from && 
+        range.from && dateRange.from.getTime() === range.from.getTime() && 
+        !range.to && !dateRange.to) {
+      setDateRange({ from: undefined, to: undefined });
+      handleFilterChange("dateRange", undefined);
+      return;
+    }
+    
     // Make sure range is defined before using it
     if (!range) {
       setDateRange({ from: undefined, to: undefined });
@@ -90,6 +102,41 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
     onFilterChange({});
   };
 
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      toast.info("Recherche de votre position en cours...");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          // On a la position, maintenant cherchons la ville la plus proche
+          // Dans une vraie application, vous feriez une requête API vers un service de géocodage inverse
+          handleFilterChange("coordinates", {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude
+          });
+          toast.success("Position trouvée ! Recherche des missions à proximité");
+        },
+        (error) => {
+          console.error("Erreur de géolocalisation :", error);
+          toast.error("Impossible de récupérer votre position. Vérifiez vos paramètres de confidentialité.");
+        }
+      );
+    } else {
+      toast.error("La géolocalisation n'est pas prise en charge par votre navigateur");
+    }
+  };
+
+  useEffect(() => {
+    // Filtrer les villes en fonction de la recherche
+    if (searchCity.trim()) {
+      const filtered = cities.filter(city => 
+        city.toLowerCase().includes(searchCity.toLowerCase())
+      );
+      setFilteredCities(filtered);
+    } else {
+      setFilteredCities(cities);
+    }
+  }, [searchCity, cities]);
+
   useEffect(() => {
     // Lire les paramètres de l'URL au chargement initial
     const params = new URLSearchParams(location.search);
@@ -134,23 +181,60 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
 
         <div className="space-y-2">
           <Label htmlFor="city">Ville</Label>
-          <Select
-            value={filters.city || "all"}
-            onValueChange={(value) => handleFilterChange("city", value)}
-          >
-            <SelectTrigger id="city">
-              <SelectValue placeholder="Toutes les villes" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Toutes les villes</SelectItem>
-              {cities.map((city) => (
-                <SelectItem key={city} value={city}>
-                  {city}
-                </SelectItem>
-              ))}
-              <SelectItem value="remote">À distance</SelectItem>
-            </SelectContent>
-          </Select>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                role="combobox"
+                className="w-full justify-between"
+              >
+                {filters.city || "Toutes les villes"}
+                <MapPin className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0" align="start">
+              <div className="p-2">
+                <Input
+                  placeholder="Rechercher une ville..."
+                  value={searchCity}
+                  onChange={(e) => setSearchCity(e.target.value)}
+                  className="mb-2"
+                />
+                <div className="max-h-60 overflow-y-auto">
+                  <div 
+                    className="px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => {
+                      handleFilterChange("city", "all");
+                      setSearchCity("");
+                    }}
+                  >
+                    Toutes les villes
+                  </div>
+                  <div 
+                    className="px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                    onClick={() => {
+                      handleFilterChange("city", "remote");
+                      setSearchCity("");
+                    }}
+                  >
+                    À distance
+                  </div>
+                  {filteredCities.map((city) => (
+                    <div
+                      key={city}
+                      className="px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                      onClick={() => {
+                        handleFilterChange("city", city);
+                        setSearchCity("");
+                      }}
+                    >
+                      {city}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="space-y-2">
@@ -211,15 +295,25 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
         </div>
       </div>
 
-      <div className="flex items-center mt-4">
+      <div className="flex flex-wrap items-center gap-3 mt-4">
         <Button
           variant="outline"
           size="sm"
           onClick={() => handleFilterChange("remote", !filters.remote)}
-          className={`flex items-center mr-4 ${filters.remote ? "bg-bleu text-white hover:bg-bleu-700" : ""}`}
+          className={`flex items-center ${filters.remote ? "bg-bleu text-white hover:bg-bleu-700" : ""}`}
         >
           <MapPin className="mr-1 h-4 w-4" />
           À distance
+        </Button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGetLocation}
+          className="flex items-center"
+        >
+          <Navigation className="mr-1 h-4 w-4" />
+          Missions à proximité
         </Button>
 
         <Button
