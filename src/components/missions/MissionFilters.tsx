@@ -47,17 +47,17 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
   };
 
   const handleDateRangeChange = (range: DateRangeSelection | undefined) => {
-    // Si la date sélectionnée est la même que celle déjà sélectionnée, la désélectionner
-    if (range && dateRange.from && 
-        range.from && dateRange.from.getTime() === range.from.getTime() && 
-        !range.to && !dateRange.to) {
+    // Make sure range is defined before using it
+    if (!range) {
       setDateRange({ from: undefined, to: undefined });
       handleFilterChange("dateRange", undefined);
       return;
     }
     
-    // Make sure range is defined before using it
-    if (!range) {
+    // Si la date sélectionnée est la même que celle déjà sélectionnée, la désélectionner
+    if (range.from && dateRange.from && 
+        range.from.getTime() === dateRange.from.getTime() && 
+        !range.to && !dateRange.to) {
       setDateRange({ from: undefined, to: undefined });
       handleFilterChange("dateRange", undefined);
       return;
@@ -133,7 +133,8 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
       );
       setFilteredCities(filtered);
     } else {
-      setFilteredCities(cities);
+      // Ensure we're not passing undefined to any components expecting arrays
+      setFilteredCities(cities || []);
     }
   }, [searchCity, cities]);
 
@@ -219,7 +220,7 @@ const MissionFilters = ({ onFilterChange }: MissionFiltersProps) => {
                   >
                     À distance
                   </div>
-                  {filteredCities.map((city) => (
+                  {(filteredCities || []).map((city) => (
                     <div
                       key={city}
                       className="px-2 py-1.5 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground"

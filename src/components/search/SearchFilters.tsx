@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -71,6 +72,8 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
       .then(({ data }) => {
         if (data) {
           setCategories(data.map((cat: any) => ({ value: cat.name, label: cat.name })));
+        } else {
+          setCategories([]);
         }
       });
 
@@ -83,6 +86,8 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
         if (data) {
           const unique = Array.from(new Set(data.map((m: any) => m.city)));
           setVilles(unique.filter(Boolean).sort());
+        } else {
+          setVilles([]);
         }
       });
 
@@ -94,6 +99,8 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
       .then(({ data }) => {
         if (data) {
           setSkills(data.map((b: any) => b.name));
+        } else {
+          setSkills([]);
         }
       });
   }, []);
@@ -149,7 +156,7 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
           <Tag className="h-4 w-4" /> Catégories
         </div>
         <div className="flex flex-wrap gap-2">
-          {categories.map(cat => (
+          {(categories || []).map(cat => (
             <Button
               key={cat.value}
               type="button"
@@ -171,7 +178,7 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
           <Tag className="h-4 w-4" /> Compétences
         </div>
         <div className="flex flex-wrap gap-2">
-          {skills.map(skill => (
+          {(skills || []).map(skill => (
             <Button
               key={skill}
               type="button"
@@ -260,7 +267,7 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
                       />
                       <CommandEmpty>Aucune ville trouvée</CommandEmpty>
                       <CommandGroup>
-                        {suggestedCities.map((ville) => (
+                        {(suggestedCities || []).map((ville) => (
                           <CommandItem
                             key={ville}
                             value={ville}
@@ -343,7 +350,7 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
                             />
                             <CommandEmpty>Aucune ville trouvée</CommandEmpty>
                             <CommandGroup>
-                              {suggestedCities.map((ville) => (
+                              {(suggestedCities || []).map((ville) => (
                                 <CommandItem
                                   key={ville}
                                   value={ville}
@@ -436,4 +443,4 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
       </CardContent>
     </Card>
   );
-} 
+}
