@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 import type { Profile } from './profile';
 
@@ -41,6 +42,12 @@ export type MissionWithDetails = MissionWithAssociation & {
   participant_status?: string; // Pour la compatibilité avec DashboardBenevole
   participant_id?: string; // Pour la compatibilité avec DashboardBenevole
   participants_list?: any[]; // Pour la compatibilité avec MissionManagement
+  mission_participants?: MissionParticipantWithProfiles[]; // Pour la compatibilité avec MissionManagement
+};
+
+// Type for mission participants with profiles information
+export type MissionParticipantWithProfiles = MissionParticipant & {
+  profiles?: Profile;
 };
 
 // Type for date range selection used in calendar component

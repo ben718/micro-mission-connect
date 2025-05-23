@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -196,7 +197,7 @@ export default function MissionManagement({ associationId, filterStatus }: Missi
               <h4 className="font-medium mb-2">Participants ({mission.spots_taken}/{mission.spots_available})</h4>
               {mission.mission_participants && mission.mission_participants.length > 0 ? (
                 <div className="space-y-2">
-                  {mission.mission_participants.map((p: any) => (
+                  {mission.mission_participants.map((p) => (
                     <div key={p.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                       <span>
                         {p.profiles?.first_name} {p.profiles?.last_name}

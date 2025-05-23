@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association, MissionStatus, MissionStats } from "@/types/mission";
@@ -537,7 +538,11 @@ export function useMissionActions() {
               }
             }
             
-            // Fix notifications creation to avoid calling non-existent table
+            // Fix notifications creation - comment out the code that tries to access a non-existent table
+            // We'll remove the references to the non-existent "notifications" table
+            console.log(`Badges attribués pour la participation de ${participant.user_id}`);
+            
+            /* Commented out the code that accesses a non-existent table
             try {
               // Check if the notifications table exists first
               const { error: notifCheckError } = await supabase
@@ -560,6 +565,7 @@ export function useMissionActions() {
               console.error("Error creating notification (table may not exist):", error);
               // Continue execution, this is not a critical error
             }
+            */
           }
         }
       }
