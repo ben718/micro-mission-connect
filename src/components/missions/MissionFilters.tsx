@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +26,14 @@ const MissionFiltersComponent = ({ filters, onFilterChange }: MissionFiltersProp
   const { data: sectors = [] } = useOrganizationSectors();
   const { data: missionTypes = [] } = useMissionTypes();
 
+  // Ajout des hooks nécessaires
+  const [searchCity, setSearchCity] = useState("");
+  const [filteredCities, setFilteredCities] = useState<string[]>([]);
+  // cities doit être fourni par un hook ou une prop, par exemple :
+  // const { data: cities = [] } = useCities();
+  // Ici, on laisse cities vide si non fourni
+  // const cities: string[] = [];
+
   const updateFilter = (key: keyof MissionFilters, value: any) => {
     onFilterChange({
       ...filters,
@@ -38,16 +45,79 @@ const MissionFiltersComponent = ({ filters, onFilterChange }: MissionFiltersProp
     onFilterChange({});
   };
 
+  useEffect(() => {
+    // Filtrer les villes en fonction de la recherche
+    if (searchCity.trim()) {
+      const filtered = cities.filter(city => 
+        city.toLowerCase().includes(searchCity.toLowerCase())
+      );
+      setFilteredCities(filtered);
+    } else {
+      // Ensure we're not passing undefined to any components expecting arrays
+      setFilteredCities(cities || []);
+    }
+  }, [searchCity, cities]);
+
+  useEffect(() => {
+    // Lire les paramètres de l'URL au chargement initial
+    const params = new URLSearchParams(location.search);
+    const initialFilters: MissionFilters = {};
+
+    const query = params.get('query');
+    if (query) initialFilters.query = query;
+
+    const city = params.get('city');
+    if (city) initialFilters.city = city;
+
+    const remote = params.get('remote');
+    if (remote === 'true') initialFilters.remote = true;
+
+    const categoryIds = params.getAll('category');
+    if (categoryIds.length > 0) initialFilters.categoryIds = categoryIds;
+
+    // Nouveaux filtre ajoutés
+    const missionTypes = params.getAll('missionType');
+    if (missionTypes.length > 0) initialFilters.missionTypes = missionTypes;
+
+    const associationTypes = params.getAll('associationType');
+    if (associationTypes.length > 0) initialFilters.associationTypes = associationTypes;
+
+    const durations = params.getAll('duration');
+    if (durations.length > 0) initialFilters.durations = durations;
+
+    const requiredSkills = params.getAll('requiredSkill');
+    if (requiredSkills.length > 0) initialFilters.requiredSkills = requiredSkills;
+
+    const impacts = params.getAll('impact');
+    if (impacts.length > 0) initialFilters.impacts = impacts;
+
+    const engagementLevels = params.getAll('engagementLevel');
+    if (engagementLevels.length > 0) initialFilters.engagementLevels = engagementLevels;
+
+    setFilters(initialFilters);
+
+  }, [location.search]); 
+
+  useEffect(() => {
+    onFilterChange(filters);
+  }, [filters, onFilterChange]);
+
+  // Fonction pour compter les filtres actifs (version robuste)
   const getActiveFiltersCount = () => {
+    if (!filters) return 0;
     let count = 0;
     if (filters.query) count++;
-    if (filters.sector_id) count++;
-    if (filters.mission_type_id) count++;
-    if (filters.format) count++;
-    if (filters.difficulty_level) count++;
-    if (filters.engagement_level) count++;
     if (filters.city) count++;
-    if (filters.available_only) count++;
+    if (filters.remote) count++;
+    if (filters.dateRange) count++;
+    if (filters.categoryIds?.length) count += filters.categoryIds.length;
+    if (filters.coordinates) count++;
+    if (filters.missionTypes?.length) count += filters.missionTypes.length;
+    if (filters.associationTypes?.length) count += filters.associationTypes.length;
+    if (filters.durations?.length) count += filters.durations.length;
+    if (filters.requiredSkills?.length) count += filters.requiredSkills.length;
+    if (filters.impacts?.length) count += filters.impacts.length;
+    if (filters.engagementLevels?.length) count += filters.engagementLevels.length;
     return count;
   };
 

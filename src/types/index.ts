@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 
 // Types de base Supabase
@@ -58,17 +57,26 @@ export type ExtendedProfile = Profile & {
 };
 
 // Types pour les filtres
-export type MissionFilters = {
+export interface MissionFilters {
   query?: string;
+  city?: string;
+  remote?: boolean;
+  dateRange?: { from?: string | Date; to?: string | Date };
+  categoryIds?: string[];
+  coordinates?: any;
+  missionTypes?: string[];
+  associationTypes?: string[];
+  durations?: string[];
+  requiredSkills?: string[];
+  impacts?: string[];
+  engagementLevels?: string[];
   sector_id?: string;
   mission_type_id?: string;
   format?: string;
   difficulty_level?: string;
   engagement_level?: string;
-  city?: string;
-  skills?: string[];
   available_only?: boolean;
-};
+}
 
 // Types pour les inscriptions
 export type RegistrationData = {
