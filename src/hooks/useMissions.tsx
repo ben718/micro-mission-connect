@@ -1,7 +1,7 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { MissionWithDetails, MissionFilters } from "@/types/mission";
+import type { MissionWithDetails, MissionFilters, MissionRegistration } from "@/types/mission";
+import { useAuth } from "@/hooks/useAuth";
 
 export const useMissions = (filters?: MissionFilters & { page?: number; pageSize?: number }) => {
   return useQuery({
@@ -243,5 +243,57 @@ export const useMissionTypes = () => {
 
       return data || [];
     },
+  });
+};
+
+export const useMission = (missionId: string) => {
+  const { user } = useAuth();
+  const userId = user?.id;
+
+  return useQuery({
+    queryKey: ['mission', missionId],
+    queryFn: async () => {
+      const { data: mission, error } = await supabase
+        .from('missions')
+        .select(`
+          *,
+          organization_profiles!organization_id (
+            *,
+            users!user_id (
+              first_name,
+              last_name
+            )
+          ),
+          mission_registrations (*)
+        `)
+        .eq('id', missionId)
+        .single();
+
+      if (error) throw error;
+
+      const spots_taken = mission.mission_registrations?.length || 0;
+      const available_spots_remaining = (mission.available_spots || 0) - spots_taken;
+      const is_registered = mission.mission_registrations?.some(
+        (registration) => registration.user_id === userId
+      );
+
+      const association = mission.organization_profiles ? {
+        ...mission.organization_profiles,
+        first_name: mission.organization_profiles.users?.first_name,
+        last_name: mission.organization_profiles.users?.last_name
+      } : undefined;
+
+      return {
+        ...mission,
+        organization_profiles: mission.organization_profiles,
+        mission_registrations: mission.mission_registrations,
+        association,
+        spots_taken,
+        available_spots_remaining,
+        participants_count: spots_taken,
+        is_registered
+      } as MissionWithDetails;
+    },
+    enabled: !!missionId
   });
 };

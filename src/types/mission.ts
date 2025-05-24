@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 
 // Types dérivés de la base de données Supabase
@@ -10,6 +9,8 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Association = Database["public"]["Tables"]["organization_profiles"]["Row"] & {
   first_name?: string;
   last_name?: string;
+  avatar_url?: string;
+  bio?: string;
 };
 
 // Types pour l'interface utilisateur
@@ -19,15 +20,20 @@ export type MissionWithAssociation = Mission & {
   mission_registrations?: MissionRegistration[];
   spots_taken?: number;
   available_spots_remaining?: number;
+  location?: string;
+  postal_code?: string;
+  address?: string;
+  categories?: Array<{ id: string; name: string }>;
+  skills_required?: string[];
 };
 
 export type MissionWithDetails = MissionWithAssociation & {
-  participants_count: number;
+  participants_count?: number;
   is_registered?: boolean;
 };
 
 // Statuts possibles d'une mission
-export type MissionStatus = 'draft' | 'active' | 'in_progress' | 'completed' | 'cancelled';
+export type MissionStatus = 'active' | 'terminée' | 'annulée';
 
 // Statuts possibles pour une participation
 export type ParticipationStatus = 'inscrit' | 'confirmé' | 'terminé' | 'annulé';
@@ -35,7 +41,7 @@ export type ParticipationStatus = 'inscrit' | 'confirmé' | 'terminé' | 'annul�
 // Types pour les filtres de recherche
 export type MissionFilters = {
   query?: string;
-  city?: string;
+  location?: string;
   categoryIds?: string[];
   dateRange?: {
     start?: Date;
@@ -52,8 +58,8 @@ export type MissionFilters = {
   status?: MissionStatus | MissionStatus[];
   sector_id?: string;
   mission_type_id?: string;
-  format?: string;
-  difficulty_level?: string;
-  engagement_level?: string;
+  format?: 'Présentiel' | 'À distance' | 'Hybride';
+  difficulty_level?: 'débutant' | 'intermédiaire' | 'expert';
+  engagement_level?: 'Ultra-rapide' | 'Petit coup de main' | 'Mission avec suivi' | 'Projet long';
   available_only?: boolean;
 };
