@@ -112,7 +112,7 @@ export const useMission = (id: string) => {
             id,
             status,
             registration_date,
-            profiles(id, first_name, last_name)
+            user_id
           )
         `)
         .eq("id", id)
@@ -131,6 +131,139 @@ export const useMission = (id: string) => {
           (data.available_spots || 0) - (data.mission_registrations?.length || 0)
         ),
       };
+    },
+  });
+};
+
+export const useUserMissions = (userId?: string) => {
+  return useQuery({
+    queryKey: ["user-missions", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+
+      const { data, error } = await supabase
+        .from("mission_registrations")
+        .select(`
+          *,
+          missions(
+            id,
+            title,
+            description,
+            start_date,
+            duration_minutes,
+            location,
+            organization_profiles(organization_name, logo_url)
+          )
+        `)
+        .eq("user_id", userId)
+        .order("registration_date", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching user missions:", error);
+        throw error;
+      }
+
+      return data?.map(registration => ({
+        ...registration.missions,
+        participant_status: registration.status,
+        registration_date: registration.registration_date,
+        organization: registration.missions?.organization_profiles
+      })) || [];
+    },
+    enabled: !!userId,
+  });
+};
+
+export const useMissionStats = (userId?: string, isAssociation?: boolean) => {
+  return useQuery({
+    queryKey: ["mission-stats", userId, isAssociation],
+    queryFn: async () => {
+      if (!userId) return { totalHours: 0, totalMissions: 0 };
+
+      if (isAssociation) {
+        // Stats pour les associations
+        const { data, error } = await supabase
+          .from("missions")
+          .select("duration_minutes")
+          .eq("organization_id", userId);
+
+        if (error) throw error;
+
+        const totalHours = data?.reduce((sum, mission) => sum + (mission.duration_minutes || 0), 0) || 0;
+        return { totalHours: totalHours / 60, totalMissions: data?.length || 0 };
+      } else {
+        // Stats pour les bénévoles
+        const { data, error } = await supabase
+          .from("mission_registrations")
+          .select(`
+            missions(duration_minutes)
+          `)
+          .eq("user_id", userId)
+          .eq("status", "terminé");
+
+        if (error) throw error;
+
+        const totalHours = data?.reduce((sum, reg) => sum + (reg.missions?.duration_minutes || 0), 0) || 0;
+        return { totalHours: totalHours / 60, totalMissions: data?.length || 0 };
+      }
+    },
+    enabled: !!userId,
+  });
+};
+
+export const useOrganizationSectors = () => {
+  return useQuery({
+    queryKey: ["organization-sectors"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("organization_sectors")
+        .select("*")
+        .order("name");
+
+      if (error) {
+        console.error("Error fetching organization sectors:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+};
+
+export const useMissionTypes = () => {
+  return useQuery({
+    queryKey: ["mission-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mission_types")
+        .select("*")
+        .order("name");
+
+      if (error) {
+        console.error("Error fetching mission types:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+  });
+};
+
+export const useSkills = () => {
+  return useQuery({
+    queryKey: ["skills"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skills")
+        .select("*")
+        .order("name");
+
+      if (error) {
+        console.error("Error fetching skills:", error);
+        throw error;
+      }
+
+      return data || [];
     },
   });
 };

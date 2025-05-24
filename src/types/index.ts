@@ -15,6 +15,7 @@ export type UserBadge = Database['public']['Tables']['user_badges']['Row'];
 export type UserSkill = Database['public']['Tables']['user_skills']['Row'];
 export type Testimonial = Database['public']['Tables']['testimonials']['Row'];
 export type Notification = Database['public']['Tables']['notifications']['Row'];
+export type User = Database['public']['Tables']['users']['Row'];
 
 // Types étendus pour l'interface
 export type MissionWithDetails = Mission & {
@@ -40,6 +41,9 @@ export type ProfileWithDetails = Profile & {
   user_badges?: (UserBadge & {
     badges?: Badge;
   })[];
+  // Propriétés calculées pour compatibilité
+  avatar_url?: string;
+  is_association?: boolean;
 };
 
 // Types pour les filtres

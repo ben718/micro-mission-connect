@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/lib/supabase";
@@ -7,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search } from "lucide-react";
-import { useUserMissions, useMissionStats } from "@/hooks/useMissions";
+import { useMissions, useUserMissions, useMissionStats } from "@/hooks/useMissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -30,10 +31,10 @@ const DashboardBenevole = () => {
   // Séparer missions à venir et passées
   const now = new Date();
   const missionsAVenir = missions?.filter(
-    (m) => new Date(m.starts_at) >= now && ["registered", "confirmed"].includes(m.participant_status || '')
+    (m) => new Date(m.start_date) >= now && ["inscrit", "confirmé"].includes(m.participant_status || '')
   ) || [];
   const missionsPassees = missions?.filter(
-    (m) => new Date(m.starts_at) < now || m.participant_status === "completed"
+    (m) => new Date(m.start_date) < now || m.participant_status === "terminé"
   ) || [];
 
   // Statistiques
@@ -59,16 +60,14 @@ const DashboardBenevole = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "registered":
+      case "inscrit":
         return <Badge className="bg-blue-100 text-blue-800">Inscrit</Badge>;
-      case "confirmed":
+      case "confirmé":
         return <Badge className="bg-green-100 text-green-800">Confirmé</Badge>;
-      case "completed":
+      case "terminé":
         return <Badge className="bg-purple-100 text-purple-800">Validé</Badge>;
-      case "cancelled":
+      case "annulé":
         return <Badge className="bg-red-100 text-red-800">Annulé</Badge>;
-      case "no_show":
-        return <Badge className="bg-red-100 text-red-800">Absence</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -76,16 +75,16 @@ const DashboardBenevole = () => {
   
   const getIcon = (missionType: string | undefined) => {
     // Logique pour retourner l'icône appropriée selon le type de mission
-    return <Calendar className="h-4 w-4 text-bleu" />;
+    return <Calendar className="h-4 w-4 text-blue-600" />;
   };
 
   return (
-    <div className="container-custom py-10">
+    <div className="container mx-auto py-10">
       {/* En-tête */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={profile?.avatar_url || ""} />
+            <AvatarImage src={profile?.profile_picture_url || ""} />
             <AvatarFallback className="text-2xl">
               {getInitials(profile?.first_name, profile?.last_name)}
             </AvatarFallback>
@@ -101,7 +100,7 @@ const DashboardBenevole = () => {
           </div>
         </div>
         <div className="flex flex-col gap-2 items-end">
-          <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3">
+          <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-6 py-3">
             <Link to="/missions">
               <Search className="w-5 h-5 mr-2" />
               Trouver une mission
@@ -112,38 +111,38 @@ const DashboardBenevole = () => {
 
       {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border-blue-600/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Calendar className="w-6 h-6 text-bleu" />
+            <Calendar className="w-6 h-6 text-blue-600" />
             <CardTitle className="text-base font-semibold text-gray-500">Missions à venir</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{nbMissionsAVenir}</span>
+            <span className="text-3xl font-bold text-blue-600">{nbMissionsAVenir}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border-blue-600/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <CheckCircle2 className="w-6 h-6 text-bleu" />
+            <CheckCircle2 className="w-6 h-6 text-blue-600" />
             <CardTitle className="text-base font-semibold text-gray-500">Missions validées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">
-              {missions?.filter(m => m.participant_status === "completed").length || 0}
+            <span className="text-3xl font-bold text-blue-600">
+              {missions?.filter(m => m.participant_status === "terminé").length || 0}
             </span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border-blue-600/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Clock className="w-6 h-6 text-bleu" />
+            <Clock className="w-6 h-6 text-blue-600" />
             <CardTitle className="text-base font-semibold text-gray-500">Heures bénévolat</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{Math.round(heuresTotal)}</span>
+            <span className="text-3xl font-bold text-blue-600">{Math.round(heuresTotal)}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border-bleu/20">
+        <Card className="shadow-sm border-blue-600/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Star className="w-6 h-6 text-bleu" />
+            <Star className="w-6 h-6 text-blue-600" />
             <CardTitle className="text-base font-semibold text-gray-500">Badges</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
@@ -151,7 +150,7 @@ const DashboardBenevole = () => {
               <span className="text-gray-400">Aucun badge</span>
             ) : (
               badges.map((b, i) => (
-                <Badge key={i} className="flex items-center gap-1 bg-bleu/10 text-bleu font-medium">
+                <Badge key={i} className="flex items-center gap-1 bg-blue-600/10 text-blue-600 font-medium">
                   {b.icon}
                   {b.label}
                 </Badge>
@@ -187,41 +186,41 @@ const DashboardBenevole = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center mb-3">
-                          <div className="h-8 w-8 rounded-full bg-bleu/10 flex items-center justify-center mr-2">
+                          <div className="h-8 w-8 rounded-full bg-blue-600/10 flex items-center justify-center mr-2">
                             {getIcon(m.category)}
                           </div>
-                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-bleu hover:underline">
+                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-blue-600 hover:underline">
                             {m.title}
                           </Link>
                         </div>
                         <div className="flex flex-col space-y-1.5 text-gray-500 text-sm mb-3">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4 text-gray-400" />
-                            <span>{formatDate(m.starts_at)}</span>
+                            <span>{formatDate(m.start_date)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="w-4 h-4 text-gray-400" />
-                            <span>{m.city}</span>
+                            <span>{m.location}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4 text-gray-400" />
-                            <span>Durée: {m.duration}</span>
+                            <span>Durée: {m.duration_minutes}min</span>
                           </div>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-3">{m.description}</p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <Avatar className="h-5 w-5">
-                              <AvatarImage src={m.association?.avatar_url || ""} />
+                              <AvatarImage src={m.organization?.logo_url || ""} />
                               <AvatarFallback className="text-xs">
-                                {m.association?.first_name?.[0]}
+                                {m.organization?.organization_name?.[0]}
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-xs text-gray-500">
-                              Par {m.association?.first_name}
+                              Par {m.organization?.organization_name}
                             </span>
                           </div>
-                          {getStatusBadge(m.participant_status || 'registered')}
+                          {getStatusBadge(m.participant_status || 'inscrit')}
                         </div>
                       </div>
                     </div>
@@ -251,40 +250,40 @@ const DashboardBenevole = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center mb-3">
-                          <div className="h-8 w-8 rounded-full bg-bleu/10 flex items-center justify-center mr-2">
+                          <div className="h-8 w-8 rounded-full bg-blue-600/10 flex items-center justify-center mr-2">
                             {getIcon(m.category)}
                           </div>
-                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-bleu hover:underline">
+                          <Link to={`/missions/${m.id}`} className="font-medium text-lg text-blue-600 hover:underline">
                             {m.title}
                           </Link>
                         </div>
                         <div className="flex flex-col space-y-1.5 text-gray-500 text-sm mb-3">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-4 h-4 text-gray-400" />
-                            <span>{formatDate(m.starts_at)}</span>
+                            <span>{formatDate(m.start_date)}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <MapPin className="w-4 h-4 text-gray-400" />
-                            <span>{m.city}</span>
+                            <span>{m.location}</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4 text-gray-400" />
-                            <span>Durée: {m.duration}</span>
+                            <span>Durée: {m.duration_minutes}min</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
                             <Avatar className="h-5 w-5">
-                              <AvatarImage src={m.association?.avatar_url || ""} />
+                              <AvatarImage src={m.organization?.logo_url || ""} />
                               <AvatarFallback className="text-xs">
-                                {m.association?.first_name?.[0]}
+                                {m.organization?.organization_name?.[0]}
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-xs text-gray-500">
-                              Par {m.association?.first_name}
+                              Par {m.organization?.organization_name}
                             </span>
                           </div>
-                          {getStatusBadge(m.participant_status || 'completed')}
+                          {getStatusBadge(m.participant_status || 'terminé')}
                         </div>
                       </div>
                     </div>
