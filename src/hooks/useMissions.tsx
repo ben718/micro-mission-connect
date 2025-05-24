@@ -267,3 +267,56 @@ export const useSkills = () => {
     },
   });
 };
+
+export const useAssociationMissions = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["association-missions", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+
+      const { data, error } = await supabase
+        .from("missions")
+        .select(`
+          *,
+          mission_registrations(
+            id,
+            status,
+            user_id,
+            profiles(id, first_name, last_name, profile_picture_url)
+          )
+        `)
+        .eq("organization_id", organizationId)
+        .order("start_date", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching association missions:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+};
+
+export const useMissionActions = () => {
+  // Hook pour les actions sur les missions (accepter/refuser inscriptions, etc.)
+  return {
+    acceptRegistration: async (registrationId: string) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status: "confirmé" })
+        .eq("id", registrationId);
+      
+      if (error) throw error;
+    },
+    rejectRegistration: async (registrationId: string) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status: "annulé" })
+        .eq("id", registrationId);
+      
+      if (error) throw error;
+    },
+  };
+};

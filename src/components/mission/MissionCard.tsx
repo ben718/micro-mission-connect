@@ -19,8 +19,8 @@ export function MissionCard({ mission }: MissionCardProps) {
   
   const categoryName = mission.category || 'Général';
   
-  const formattedDate = mission.starts_at ? 
-    new Date(mission.starts_at).toLocaleDateString('fr-FR', {
+  const formattedDate = mission.start_date ? 
+    new Date(mission.start_date).toLocaleDateString('fr-FR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -29,7 +29,7 @@ export function MissionCard({ mission }: MissionCardProps) {
     mission.date || 'Date non spécifiée';
   
   const formattedTimeSlot = mission.timeSlot || 
-    (mission.starts_at ? new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+    (mission.start_date ? new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
   
   const formattedDuration = mission.duration || 
     (mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '');
@@ -37,8 +37,10 @@ export function MissionCard({ mission }: MissionCardProps) {
   const formattedLocation = mission.location || 
     (mission.address ? mission.address : `${mission.city || ''}, ${mission.postal_code || ''}`.trim());
   
+  const registrationCount = mission.mission_registrations?.length || 0;
+  const availableSpots = mission.available_spots || 0;
   const formattedParticipants = mission.participants || 
-    `${mission.spots_taken || 0}/${mission.spots_available || 0}`;
+    `${registrationCount}/${availableSpots}`;
   
   const skills = mission.requiredSkills || mission.skills_required || [];
 
@@ -90,8 +92,8 @@ export function MissionCard({ mission }: MissionCardProps) {
             <div className="flex items-start text-sm text-muted-foreground">
               <Tag className="h-4 w-4 mr-2 mt-1" />
               <div className="flex flex-wrap gap-1">
-                {skills.map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-xs">
+                {skills.map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
                     {skill}
                   </Badge>
                 ))}

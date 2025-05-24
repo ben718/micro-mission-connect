@@ -24,7 +24,7 @@ type MissionRegistration = {
   id: string;
   status: string;
   user_id: string;
-  profile?: SimpleProfile;
+  profiles?: SimpleProfile;
 };
 
 type SimpleMission = {
@@ -45,7 +45,7 @@ interface Stats {
 }
 
 const DashboardAssociation = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [missions, setMissions] = useState<SimpleMission[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +67,15 @@ const DashboardAssociation = () => {
     setLoading(true);
     setError(null);
     try {
+      // D'abord récupérer l'ID de l'organisation
+      const { data: orgData, error: orgError } = await supabase
+        .from("organization_profiles")
+        .select("id")
+        .eq("user_id", user?.id)
+        .single();
+
+      if (orgError) throw orgError;
+
       // Récupérer les missions de l'organisation
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
@@ -79,22 +88,21 @@ const DashboardAssociation = () => {
           status,
           duration_minutes
         `)
-        .eq("organization_id", user?.id)
+        .eq("organization_id", orgData.id)
         .order("start_date", { ascending: true });
       
       if (missionsError) throw missionsError;
       
       let missionsWithRegistrations: SimpleMission[] = missionsData || [];
       
-      // Pour chaque mission, récupérer ses inscriptions
+      // Pour chaque mission, récupérer ses inscriptions avec les profils
       for (const mission of missionsWithRegistrations) {
         const { data: registrationsData, error: registrationsError } = await supabase
           .from("mission_registrations")
           .select(`
             id, 
             status, 
-            user_id,
-            profiles(id, first_name, last_name, profile_picture_url)
+            user_id
           `)
           .eq("mission_id", mission.id);
           
@@ -103,17 +111,29 @@ const DashboardAssociation = () => {
           continue;
         }
         
-        mission.registrations = registrationsData?.map(reg => ({
-          id: reg.id,
-          status: reg.status,
-          user_id: reg.user_id,
-          profile: reg.profiles ? {
-            id: reg.profiles.id,
-            first_name: reg.profiles.first_name,
-            last_name: reg.profiles.last_name,
-            profile_picture_url: reg.profiles.profile_picture_url
-          } : undefined
-        })) || [];
+        // Pour chaque inscription, récupérer le profil
+        const registrationsWithProfiles = [];
+        for (const reg of registrationsData || []) {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, profile_picture_url")
+            .eq("id", reg.user_id)
+            .single();
+            
+          registrationsWithProfiles.push({
+            id: reg.id,
+            status: reg.status,
+            user_id: reg.user_id,
+            profiles: profileData ? {
+              id: profileData.id,
+              first_name: profileData.first_name,
+              last_name: profileData.last_name,
+              profile_picture_url: profileData.profile_picture_url
+            } : undefined
+          });
+        }
+        
+        mission.registrations = registrationsWithProfiles;
       }
       
       setMissions(missionsWithRegistrations);
@@ -132,11 +152,23 @@ const DashboardAssociation = () => {
         return;
       }
 
+      // Récupérer l'ID de l'organisation
+      const { data: orgData, error: orgError } = await supabase
+        .from("organization_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (orgError) {
+        console.error("Erreur lors de la récupération de l'organisation:", orgError);
+        return;
+      }
+
       // Nombre total de bénévoles uniques
       const { data: registrations, error: registrationsError } = await supabase
         .from("mission_registrations")
         .select("user_id, missions!inner(organization_id)")
-        .eq("missions.organization_id", user.id);
+        .eq("missions.organization_id", orgData.id);
       
       if (registrationsError) {
         console.error("Erreur lors de la récupération des inscriptions:", registrationsError);
@@ -149,7 +181,7 @@ const DashboardAssociation = () => {
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select("duration_minutes")
-        .eq("organization_id", user.id);
+        .eq("organization_id", orgData.id);
 
       if (missionsError) {
         console.error("Erreur lors de la récupération des missions pour les statistiques:", missionsError);
@@ -263,7 +295,7 @@ const DashboardAssociation = () => {
             <p className="text-gray-600">Bienvenue sur votre espace association !</p>
             <div className="flex items-center text-gray-500 mt-1">
               <MapPin className="w-4 h-4 mr-1 text-blue-600" />
-              <span>{user?.city || "Non renseigné"}</span>
+              <span>{profile?.city || "Non renseigné"}</span>
             </div>
           </div>
         </div>
@@ -359,11 +391,11 @@ const DashboardAssociation = () => {
                                 <div key={registration.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
-                                      <AvatarImage src={registration.profile?.profile_picture_url} />
-                                      <AvatarFallback>{registration.profile?.first_name?.[0] || '?'}</AvatarFallback>
+                                      <AvatarImage src={registration.profiles?.profile_picture_url} />
+                                      <AvatarFallback>{registration.profiles?.first_name?.[0] || '?'}</AvatarFallback>
                                     </Avatar>
                                     <span className="font-medium">
-                                      {registration.profile?.first_name} {registration.profile?.last_name}
+                                      {registration.profiles?.first_name} {registration.profiles?.last_name}
                                     </span>
                                   </div>
                                   <div className="flex gap-2">

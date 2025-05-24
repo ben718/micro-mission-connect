@@ -8,17 +8,21 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   date?: string; // Pour la compatibilité avec le code existant
   timeSlot?: string; // Pour la compatibilité avec le code existant
   duration?: string; // Pour la compatibilité avec le code existant
-  location?: string; // Pour la compatibilité avec le code existant
   participants?: string; // Pour la compatibilité avec le code existant
   requiredSkills?: string[]; // Pour la compatibilité avec le code existant
   associationId?: string; // Pour la compatibilité avec le code existant
   participant_status?: string; // Pour la compatibilité avec DashboardBenevole
   participant_id?: string; // Pour la compatibilité avec DashboardBenevole
+  // Nouvelles propriétés pour correspondre aux colonnes de la base
+  starts_at?: string; // Alias pour start_date
+  spots_taken?: number; // Calculé à partir des inscriptions
+  spots_available?: number; // Alias pour available_spots
+  skills_required?: string[]; // Calculé à partir des mission_skills
+  city?: string; // Calculé à partir de l'adresse
 };
 
-export type Category = Database["public"]["Tables"]["categories"]["Row"];
-export type MissionCategory = Database["public"]["Tables"]["mission_categories"]["Row"];
-export type MissionParticipant = Database["public"]["Tables"]["mission_participants"]["Row"];
+export type Category = Database["public"]["Tables"]["organization_sectors"]["Row"];
+export type MissionRegistration = Database["public"]["Tables"]["mission_registrations"]["Row"];
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
 
@@ -46,7 +50,7 @@ export type MissionWithDetails = MissionWithAssociation & {
 };
 
 // Type for mission participants with profiles information
-export type MissionParticipantWithProfiles = MissionParticipant & {
+export type MissionParticipantWithProfiles = MissionRegistration & {
   profiles?: Profile;
 };
 

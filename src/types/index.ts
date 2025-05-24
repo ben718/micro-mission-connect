@@ -46,6 +46,17 @@ export type ProfileWithDetails = Profile & {
   is_association?: boolean;
 };
 
+// Types étendus pour les utilisateurs avec les propriétés manquantes
+export type ExtendedUser = User & {
+  is_organization?: boolean;
+  avatar_url?: string;
+};
+
+export type ExtendedProfile = Profile & {
+  is_association?: boolean;
+  avatar_url?: string;
+};
+
 // Types pour les filtres
 export type MissionFilters = {
   query?: string;

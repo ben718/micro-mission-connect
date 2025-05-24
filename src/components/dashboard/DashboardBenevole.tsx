@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search } from "lucide-react";
-import { useMissions, useUserMissions, useMissionStats } from "@/hooks/useMissions";
+import { useUserMissions, useMissionStats } from "@/hooks/useMissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -187,7 +187,7 @@ const DashboardBenevole = () => {
                       <div className="flex-1">
                         <div className="flex items-center mb-3">
                           <div className="h-8 w-8 rounded-full bg-blue-600/10 flex items-center justify-center mr-2">
-                            {getIcon(m.category)}
+                            {getIcon("mission")}
                           </div>
                           <Link to={`/missions/${m.id}`} className="font-medium text-lg text-blue-600 hover:underline">
                             {m.title}
@@ -251,7 +251,7 @@ const DashboardBenevole = () => {
                       <div className="flex-1">
                         <div className="flex items-center mb-3">
                           <div className="h-8 w-8 rounded-full bg-blue-600/10 flex items-center justify-center mr-2">
-                            {getIcon(m.category)}
+                            {getIcon("mission")}
                           </div>
                           <Link to={`/missions/${m.id}`} className="font-medium text-lg text-blue-600 hover:underline">
                             {m.title}

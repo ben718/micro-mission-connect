@@ -1,9 +1,14 @@
-import { useState, useEffect } from "react";
+
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, User, LogOut } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,159 +17,214 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
+import { User, Settings, LogOut, Heart, Calendar, BarChart3, Users } from "lucide-react";
 
 const Header = () => {
-  const [isOpen, setIsOpen] = useState(false);
   const { user, profile, signOut } = useAuth();
-  const location = useLocation();
 
-  // Fermer le menu mobile lors du changement de route
-  useEffect(() => {
-    setIsOpen(false);
-  }, [location.pathname]);
+  const getNavigationItems = () => {
+    const isOrganization = user?.is_organization;
+    
+    if (isOrganization) {
+      return [
+        { 
+          title: "Mes missions", 
+          href: "/missions/management",
+          description: "Gérer vos missions et participants"
+        },
+        { 
+          title: "Créer une mission", 
+          href: "/missions/create",
+          description: "Publier une nouvelle mission"
+        },
+        { 
+          title: "Statistiques", 
+          href: "/dashboard",
+          description: "Voir vos statistiques d'organisation"
+        }
+      ];
+    } else {
+      return [
+        { 
+          title: "Missions", 
+          href: "/missions",
+          description: "Découvrir toutes les missions disponibles"
+        },
+        { 
+          title: "Mon tableau de bord", 
+          href: "/dashboard",
+          description: "Voir mes missions et statistiques"
+        }
+      ];
+    }
+  };
 
-  // Détermination du rôle et de la couleur associée
-  const roleLabel = profile?.is_association ? 'Association' : 'Bénévole';
-  const roleColor = profile?.is_association ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800';
+  const getProfileItems = () => {
+    const isOrganization = user?.is_organization;
+    
+    if (isOrganization) {
+      return [
+        {
+          label: "Tableau de bord",
+          href: "/dashboard",
+          icon: BarChart3
+        },
+        {
+          label: "Gestion des missions",
+          href: "/missions/management",
+          icon: Calendar
+        },
+        {
+          label: "Profil organisation",
+          href: "/profile",
+          icon: User
+        }
+      ];
+    } else {
+      return [
+        {
+          label: "Mon tableau de bord",
+          href: "/dashboard",
+          icon: BarChart3
+        },
+        {
+          label: "Mes missions",
+          href: "/missions/my",
+          icon: Heart
+        },
+        {
+          label: "Mon profil",
+          href: "/profile",
+          icon: User
+        }
+      ];
+    }
+  };
 
-  // Fonction pour savoir si un lien est actif
-  const isActive = (path: string) => location.pathname === path;
+  const getInitials = (firstName?: string, lastName?: string) => {
+    if (!firstName && !lastName) return "?";
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`;
+  };
 
   return (
-    <header className="py-4 bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-      <div className="container-custom">
-        <div className="flex items-center justify-between">
-          {/* Logo */}
-          <div className="flex items-center">
-            <Link to="/" className="flex items-center">
-              <span className="sr-only">MicroBénévole</span>
-              <div className="flex items-center space-x-2">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-r from-bleu to-bleu-400 flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">M</span>
-                </div>
-                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-bleu to-bleu-400">
-                  MicroBénévole
-                </span>
-              </div>
-            </Link>
-          </div>
-
-          {/* Navigation - Desktop */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <Link to="/" className={`nav-link ${isActive("/") ? "text-bleu font-bold underline" : ""}`}>Accueil</Link>
-            <Link to="/missions" className={`nav-link ${isActive("/missions") ? "text-bleu font-bold underline" : ""}`}>Trouver une mission</Link>
-            {user && profile?.is_association && (
-              <Link to="/missions/new" className={`nav-link ${isActive("/missions/new") ? "text-bleu font-bold underline" : ""}`}>Proposer une mission</Link>
-            )}
-            {user && !profile?.is_association && (
-              <Link to="/profile/benevole" className={`nav-link ${isActive("/profile/benevole") ? "text-bleu font-bold underline" : ""}`}>Mon espace bénévole</Link>
-            )}
-            {user && profile?.is_association && (
-              <Link to="/profile/association" className={`nav-link ${isActive("/profile/association") ? "text-bleu font-bold underline" : ""}`}>Mon espace asso</Link>
-            )}
-            <Link to="#" className="nav-link">À propos</Link>
-          </nav>
-
-          {/* Buttons - Desktop */}
-          <div className="hidden md:flex items-center space-x-4">
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar>
-                      <AvatarImage src={profile?.avatar_url || ''} />
-                      <AvatarFallback>
-                        {profile ? (profile.first_name?.[0] || '') + (profile.last_name?.[0] || '') : '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    {/* Badge rôle */}
-                    {roleLabel && (
-                      <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-xs ${roleColor} border border-white shadow`}>{roleLabel}</span>
-                    )}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Mon compte</DropdownMenuLabel>
-                  <DropdownMenuItem asChild>
-                    <Link to="/profile" className="cursor-pointer">
-                      <User className="mr-2 h-4 w-4" />
-                      Profil
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer">
-                      Tableau de bord
-                    </Link>
-                  </DropdownMenuItem>
-                  {profile?.is_association && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/missions/new" className="cursor-pointer">
-                        Créer une mission
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="cursor-pointer">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Déconnexion
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <>
-                <Button variant="outline" className="rounded-full" asChild>
-                  <Link to="/auth/login">Se connecter</Link>
-                </Button>
-                <Button className="bg-bleu hover:bg-bleu-700 text-white rounded-full" asChild>
-                  <Link to="/auth/register">S'inscrire</Link>
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Mobile menu button */}
-          <div className="md:hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsOpen(!isOpen)}
-              aria-label="Toggle menu"
-            >
-              {isOpen ? <X size={24} /> : <Menu size={24} />}
-            </Button>
-          </div>
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center">
+        {/* Logo */}
+        <div className="mr-8">
+          <Link to="/" className="flex items-center space-x-2">
+            <Heart className="h-6 w-6 text-blue-600" />
+            <span className="font-bold text-xl">BénévolApp</span>
+          </Link>
         </div>
 
-        {/* Mobile menu */}
-        {isOpen && (
-          <div className="md:hidden pt-4 pb-3 animate-fade-in">
-            <nav className="flex flex-col space-y-4 py-4">
-              <Link to="/" className={`px-4 py-2 rounded-md ${isActive("/") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Accueil</Link>
-              <Link to="/missions" className={`px-4 py-2 rounded-md ${isActive("/missions") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Trouver une mission</Link>
-              {user && profile?.is_association && (
-                <Link to="/missions/new" className={`px-4 py-2 rounded-md ${isActive("/missions/new") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Proposer une mission</Link>
-              )}
-              {user && !profile?.is_association && (
-                <Link to="/profile/benevole" className={`px-4 py-2 rounded-md ${isActive("/profile/benevole") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace bénévole</Link>
-              )}
-              {user && profile?.is_association && (
-                <Link to="/profile/association" className={`px-4 py-2 rounded-md ${isActive("/profile/association") ? "bg-bleu text-white" : "text-foreground hover:bg-bleu-50"}`} onClick={() => setIsOpen(false)}>Mon espace asso</Link>
-              )}
-              <Link to="#" className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md" onClick={() => setIsOpen(false)}>À propos</Link>
-              {user ? (
-                <>
-                  <Link to="/profile" className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center" onClick={() => setIsOpen(false)}><User className="h-4 w-4 mr-2" />Mon profil</Link>
-                  <button onClick={() => { signOut(); setIsOpen(false); }} className="px-4 py-2 text-foreground hover:bg-bleu-50 rounded-md flex items-center w-full text-left"><LogOut className="h-4 w-4 mr-2" />Déconnexion</button>
-                </>
-              ) : (
-                <div className="pt-2 space-y-3">
-                  <Button variant="outline" className="w-full rounded-full" asChild onClick={() => setIsOpen(false)}><Link to="/auth/login">Se connecter</Link></Button>
-                  <Button className="w-full bg-bleu hover:bg-bleu-700 text-white rounded-full" asChild onClick={() => setIsOpen(false)}><Link to="/auth/register">S'inscrire</Link></Button>
-                </div>
-              )}
-            </nav>
-          </div>
-        )}
+        {/* Navigation principale */}
+        <NavigationMenu className="hidden md:flex">
+          <NavigationMenuList>
+            <NavigationMenuItem>
+              <NavigationMenuTrigger>Missions</NavigationMenuTrigger>
+              <NavigationMenuContent>
+                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                  {getNavigationItems().map((item) => (
+                    <li key={item.href}>
+                      <NavigationMenuLink asChild>
+                        <Link
+                          to={item.href}
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none">
+                            {item.title}
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            {item.description}
+                          </p>
+                        </Link>
+                      </NavigationMenuLink>
+                    </li>
+                  ))}
+                </ul>
+              </NavigationMenuContent>
+            </NavigationMenuItem>
+            
+            <NavigationMenuItem>
+              <NavigationMenuLink asChild>
+                <Link
+                  to="/about"
+                  className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-accent/50 data-[state=open]:bg-accent/50"
+                >
+                  À propos
+                </Link>
+              </NavigationMenuLink>
+            </NavigationMenuItem>
+          </NavigationMenuList>
+        </NavigationMenu>
+
+        <div className="flex flex-1 items-center justify-end space-x-4">
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={profile?.profile_picture_url || ""} alt="Avatar" />
+                    <AvatarFallback>
+                      {getInitials(profile?.first_name, profile?.last_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {profile?.first_name} {profile?.last_name}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {user.email}
+                    </p>
+                    {user.is_organization && (
+                      <Badge variant="secondary" className="w-fit">
+                        Organisation
+                      </Badge>
+                    )}
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                
+                {getProfileItems().map((item) => (
+                  <DropdownMenuItem key={item.href} asChild>
+                    <Link to={item.href} className="flex items-center">
+                      <item.icon className="mr-2 h-4 w-4" />
+                      <span>{item.label}</span>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Paramètres</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={signOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Se déconnecter</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" asChild>
+                <Link to="/auth/login">Se connecter</Link>
+              </Button>
+              <Button asChild>
+                <Link to="/auth/register">S'inscrire</Link>
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
