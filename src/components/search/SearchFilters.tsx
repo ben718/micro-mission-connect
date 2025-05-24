@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { X, Search, MapPin, Calendar, Tag, RefreshCw, Globe, Filter } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/lib/supabase";
 import {
   Popover,
   PopoverContent,
@@ -54,68 +53,27 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
 
   const [isFiltersOpen, setIsFiltersOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [suggestedCities, setSuggestedCities] = React.useState<string[]>([]);
 
-  // Catégories dynamiques
-  const [categories, setCategories] = React.useState<{ value: string; label: string; icon?: string }[]>([]);
-  // Villes dynamiques
-  const [villes, setVilles] = React.useState<string[]>([]);
-  // Compétences dynamiques
-  const [skills, setSkills] = React.useState<string[]>([]);
+  // Static data for categories and skills
+  const categories = [
+    { value: "education", label: "Éducation" },
+    { value: "environnement", label: "Environnement" },
+    { value: "social", label: "Social" },
+    { value: "sante", label: "Santé" },
+    { value: "culture", label: "Culture" },
+    { value: "sport", label: "Sport" },
+  ];
 
-  React.useEffect(() => {
-    // Charger les catégories dynamiquement
-    supabase
-      .from('categories')
-      .select('id, name')
-      .order('name')
-      .then(({ data }) => {
-        if (data) {
-          setCategories(data.map((cat: any) => ({ value: cat.name, label: cat.name })));
-        } else {
-          setCategories([]);
-        }
-      });
-
-    // Charger les villes dynamiquement
-    supabase
-      .from('missions')
-      .select('city')
-      .neq('city', '')
-      .then(({ data }) => {
-        if (data) {
-          const unique = Array.from(new Set(data.map((m: any) => m.city)));
-          setVilles(unique.filter(Boolean).sort());
-        } else {
-          setVilles([]);
-        }
-      });
-
-    // Charger les compétences dynamiquement (badges comme skills)
-    supabase
-      .from('badges')
-      .select('name')
-      .order('name')
-      .then(({ data }) => {
-        if (data) {
-          setSkills(data.map((b: any) => b.name));
-        } else {
-          setSkills([]);
-        }
-      });
-  }, []);
-
-  // Gestion de l'autocomplétion des villes
-  React.useEffect(() => {
-    if (searchQuery.length >= 2) {
-      const filtered = villes.filter(ville =>
-        ville.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSuggestedCities(filtered);
-    } else {
-      setSuggestedCities([]);
-    }
-  }, [searchQuery, villes]);
+  const skills = [
+    "Communication",
+    "Organisation",
+    "Informatique",
+    "Cuisine",
+    "Bricolage",
+    "Enseignement",
+    "Premiers secours",
+    "Langues étrangères"
+  ];
 
   const handleFilterChange = (key: keyof SearchFilters, value: any) => {
     const newFilters = { ...filters, [key]: value };
@@ -147,7 +105,7 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
     handleFilterChange("date", e.target.value);
   };
 
-  // Composant pour les filtres avancés (utilisé dans le popover et le sheet)
+  // Composant pour les filtres avancés
   const AdvancedFilters = () => (
     <div className="space-y-4 transition-all duration-300 ease-in-out animate-fade-in">
       {/* Catégories */}
@@ -156,15 +114,13 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
           <Tag className="h-4 w-4" /> Catégories
         </div>
         <div className="flex flex-wrap gap-2">
-          {(categories || []).map(cat => (
+          {categories.map(cat => (
             <Button
               key={cat.value}
               type="button"
               variant={filters.category.includes(cat.value) ? "default" : "outline"}
-              className={filters.category.includes(cat.value) ? "bg-bleu text-white transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" : "transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"}
+              className={filters.category.includes(cat.value) ? "bg-blue-600 text-white" : ""}
               onClick={() => handleCategoryToggle(cat.value)}
-              aria-pressed={filters.category.includes(cat.value)}
-              aria-label={`Filtrer par catégorie ${cat.label}`}
             >
               {cat.label}
             </Button>
@@ -178,15 +134,13 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
           <Tag className="h-4 w-4" /> Compétences
         </div>
         <div className="flex flex-wrap gap-2">
-          {(skills || []).map(skill => (
+          {skills.map(skill => (
             <Button
               key={skill}
               type="button"
               variant={filters.skills.includes(skill) ? "default" : "outline"}
-              className={filters.skills.includes(skill) ? "bg-bleu text-white transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" : "transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"}
+              className={filters.skills.includes(skill) ? "bg-blue-600 text-white" : ""}
               onClick={() => handleSkillToggle(skill)}
-              aria-pressed={filters.skills.includes(skill)}
-              aria-label={`Filtrer par compétence ${skill}`}
             >
               {skill}
             </Button>
@@ -199,10 +153,8 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
         <Button
           type="button"
           variant={filters.remote ? "default" : "outline"}
-          className={`w-full ${filters.remote ? "bg-bleu text-white" : ""} transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]`}
+          className={`w-full ${filters.remote ? "bg-blue-600 text-white" : ""}`}
           onClick={() => handleFilterChange("remote", !filters.remote)}
-          aria-pressed={filters.remote}
-          aria-label="Filtrer par missions à distance"
         >
           <Globe className="h-4 w-4 mr-2" /> À distance
         </Button>
@@ -242,47 +194,15 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
 
             {/* Filtres secondaires sur desktop */}
             <div className="hidden sm:flex gap-4">
-              {/* Autocomplétion ville */}
-              <div className="relative w-64 transition-all duration-300 ease-in-out">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-haspopup="listbox"
-                      aria-expanded={!!filters.location}
-                      aria-label="Choisir une ville"
-                      className="w-full justify-between h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"
-                    >
-                      <MapPin className="mr-2 h-4 w-4" />
-                      {filters.location || "Choisir une ville"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[200px] p-0 animate-fade-in transition-all duration-300">
-                    <Command>
-                      <CommandInput 
-                        placeholder="Rechercher une ville..."
-                        value={searchQuery}
-                        onValueChange={setSearchQuery}
-                      />
-                      <CommandEmpty>Aucune ville trouvée</CommandEmpty>
-                      <CommandGroup>
-                        {(suggestedCities || []).map((ville) => (
-                          <CommandItem
-                            key={ville}
-                            value={ville}
-                            onSelect={() => {
-                              handleFilterChange("location", ville);
-                              setSearchQuery("");
-                            }}
-                          >
-                            {ville}
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+              {/* Ville */}
+              <div className="relative w-64">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
+                <Input
+                  placeholder="Ville..."
+                  value={filters.location}
+                  onChange={e => handleFilterChange("location", e.target.value)}
+                  className="pl-10 h-12 text-base"
+                />
               </div>
 
               {/* Date */}
@@ -299,12 +219,12 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
               {/* Filtres avancés (desktop) */}
               <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" className="h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" aria-expanded={isFiltersOpen} aria-controls="advanced-filters-popover" aria-label="Ouvrir les filtres avancés">
+                  <Button variant="outline" className="h-12">
                     <Filter className="mr-2 h-4 w-4" />
                     Filtres avancés
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4 animate-fade-in transition-all duration-300" id="advanced-filters-popover">
+                <PopoverContent className="w-80 p-4">
                   <AdvancedFilters />
                 </PopoverContent>
               </Popover>
@@ -314,12 +234,12 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
             <div className="flex sm:hidden gap-2">
               <Sheet>
                 <SheetTrigger asChild>
-                  <Button variant="outline" className="flex-1 h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]" aria-expanded={isFiltersOpen} aria-controls="mobile-filters-sheet" aria-label="Ouvrir les filtres sur mobile">
+                  <Button variant="outline" className="flex-1 h-12">
                     <Filter className="mr-2 h-4 w-4" />
                     Filtres
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="bottom" className="h-[80vh] animate-fade-in transition-all duration-300" id="mobile-filters-sheet">
+                <SheetContent side="bottom" className="h-[80vh]">
                   <SheetHeader>
                     <SheetTitle>Filtres</SheetTitle>
                   </SheetHeader>
@@ -327,45 +247,12 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
                     {/* Ville */}
                     <div>
                       <div className="mb-2 font-medium">Ville</div>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            variant="outline"
-                            role="combobox"
-                            aria-haspopup="listbox"
-                            aria-expanded={!!filters.location}
-                            aria-label="Choisir une ville"
-                            className="w-full justify-between h-12 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-bleu min-h-[44px]"
-                          >
-                            <MapPin className="mr-2 h-4 w-4" />
-                            {filters.location || "Choisir une ville"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[200px] p-0">
-                          <Command>
-                            <CommandInput 
-                              placeholder="Rechercher une ville..."
-                              value={searchQuery}
-                              onValueChange={setSearchQuery}
-                            />
-                            <CommandEmpty>Aucune ville trouvée</CommandEmpty>
-                            <CommandGroup>
-                              {(suggestedCities || []).map((ville) => (
-                                <CommandItem
-                                  key={ville}
-                                  value={ville}
-                                  onSelect={() => {
-                                    handleFilterChange("location", ville);
-                                    setSearchQuery("");
-                                  }}
-                                >
-                                  {ville}
-                                </CommandItem>
-                              ))}
-                            </CommandGroup>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                      <Input
+                        placeholder="Ville..."
+                        value={filters.location}
+                        onChange={e => handleFilterChange("location", e.target.value)}
+                        className="w-full"
+                      />
                     </div>
 
                     {/* Date */}
@@ -390,16 +277,16 @@ export function SearchFilters({ onSearch, initialFilters, totalResults }: Search
           </div>
 
           {/* Compteur de résultats et filtres actifs */}
-          <div className="flex flex-wrap items-center justify-between gap-2 mt-2 transition-all duration-300">
+          <div className="flex flex-wrap items-center justify-between gap-2 mt-2">
             {totalResults !== undefined && (
-              <div className="text-sm text-muted-foreground animate-fade-in transition-all duration-300">
+              <div className="text-sm text-muted-foreground">
                 {totalResults} {totalResults > 1 ? 'missions trouvées' : 'mission trouvée'}
               </div>
             )}
             
             {/* Filtres actifs */}
             {(filters.query || filters.location || filters.date || filters.category.length > 0 || filters.remote || filters.skills.length > 0) && (
-              <div className="flex flex-wrap gap-2 items-center animate-fade-in transition-all duration-300">
+              <div className="flex flex-wrap gap-2 items-center">
                 {filters.query && (
                   <Badge variant="secondary" className="flex items-center gap-1">
                     <Search className="h-3 w-3" /> {filters.query}

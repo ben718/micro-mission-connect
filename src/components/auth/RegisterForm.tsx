@@ -48,7 +48,6 @@ export default function RegisterForm() {
           .from('profiles')
           .insert({
             id: authData.user.id,
-            email: data.email,
             first_name: data.first_name,
             last_name: data.last_name,
             role: 'volunteer',

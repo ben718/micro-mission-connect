@@ -1,172 +1,85 @@
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { supabase } from '@/lib/supabase';
-import type { ExtendedUser, ExtendedProfile } from '@/types';
+import type { User } from '@supabase/supabase-js';
+import type { Profile } from '@/types/mission';
 
 interface AuthContextType {
-  user: ExtendedUser | null;
-  profile: ExtendedProfile | null;
-  session: Session | null;
+  user: User | null;
+  profile: (Profile & { is_association?: boolean; avatar_url?: string }) | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, userData: any) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<ExtendedUser | null>(null);
-  const [profile, setProfile] = useState<ExtendedProfile | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<(Profile & { is_association?: boolean; avatar_url?: string }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Récupérer la session initiale
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
+      setUser(session?.user ?? null);
       if (session?.user) {
-        loadUserProfile(session.user);
+        fetchProfile(session.user.id);
       } else {
         setLoading(false);
       }
     });
 
-    // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        if (session?.user) {
-          await loadUserProfile(session.user);
-        } else {
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
-        }
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setProfile(null);
+        setLoading(false);
       }
-    );
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadUserProfile = async (authUser: User) => {
+  const fetchProfile = async (userId: string) => {
     try {
-      // Charger le profil utilisateur
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', authUser.id)
+        .eq('id', userId)
         .single();
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        console.error('Error loading profile:', profileError);
-        throw profileError;
-      }
+      if (profileError) throw profileError;
 
-      // Vérifier s'il s'agit d'une organisation
+      // Check if user is an organization
       const { data: orgData } = await supabase
         .from('organization_profiles')
         .select('id')
-        .eq('user_id', authUser.id)
+        .eq('user_id', userId)
         .single();
 
-      const isOrganization = !!orgData;
-
-      // Construire l'objet utilisateur étendu
-      const extendedUser: ExtendedUser = {
-        ...authUser,
-        first_name: profileData?.first_name || '',
-        last_name: profileData?.last_name || '',
-        city: profileData?.city || '',
-        is_organization: isOrganization,
-        avatar_url: profileData?.profile_picture_url || '',
-      } as ExtendedUser;
-
-      const extendedProfile: ExtendedProfile = {
+      const enrichedProfile = {
         ...profileData,
-        is_association: isOrganization,
-        avatar_url: profileData?.profile_picture_url || '',
+        is_association: !!orgData,
+        avatar_url: profileData.profile_picture_url,
       };
 
-      setUser(extendedUser);
-      setProfile(extendedProfile);
+      setProfile(enrichedProfile);
     } catch (error) {
-      console.error('Error in loadUserProfile:', error);
+      console.error('Error fetching profile:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-  };
-
-  const signUp = async (email: string, password: string, userData: any) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-
-    if (data.user) {
-      // Créer le profil utilisateur
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          id: data.user.id,
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          city: userData.city,
-        });
-
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        throw profileError;
-      }
-
-      // Si c'est une organisation, créer le profil organisation
-      if (userData.role === 'organization') {
-        const { error: orgError } = await supabase
-          .from('organization_profiles')
-          .insert({
-            user_id: data.user.id,
-            organization_name: userData.organization_name,
-            description: userData.organization_description,
-            sector_id: userData.sector_id,
-          });
-
-        if (orgError) {
-          console.error('Error creating organization profile:', orgError);
-          throw orgError;
-        }
-      }
-    }
-  };
-
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
-  };
-
-  const value = {
-    user,
-    profile,
-    session,
-    loading,
-    signIn,
-    signUp,
-    signOut,
+    await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );

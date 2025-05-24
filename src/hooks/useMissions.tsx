@@ -1,7 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import type { MissionWithDetails, MissionFilters } from "@/types";
+import type { MissionWithDetails, MissionFilters } from "@/types/mission";
 
 export const useMissions = (filters?: MissionFilters & { page?: number; pageSize?: number }) => {
   return useQuery({
@@ -12,17 +12,11 @@ export const useMissions = (filters?: MissionFilters & { page?: number; pageSize
         .select(`
           *,
           mission_type:mission_types(id, name, description),
-          organization_profile:organization_profiles!inner(
+          organization_profiles!inner(
             id,
             organization_name,
             logo_url,
             organization_sectors(id, name)
-          ),
-          mission_skills(
-            id,
-            required_level,
-            is_required,
-            skills(id, name, category)
           ),
           mission_registrations(id, status)
         `)
@@ -30,7 +24,7 @@ export const useMissions = (filters?: MissionFilters & { page?: number; pageSize
         .gte("start_date", new Date().toISOString())
         .order("start_date", { ascending: true });
 
-      // Appliquer les filtres
+      // Apply filters
       if (filters?.query) {
         query = query.or(`title.ilike.%${filters.query}%,description.ilike.%${filters.query}%`);
       }
@@ -41,14 +35,6 @@ export const useMissions = (filters?: MissionFilters & { page?: number; pageSize
 
       if (filters?.format) {
         query = query.eq("format", filters.format);
-      }
-
-      if (filters?.difficulty_level) {
-        query = query.eq("difficulty_level", filters.difficulty_level);
-      }
-
-      if (filters?.engagement_level) {
-        query = query.eq("engagement_level", filters.engagement_level);
       }
 
       if (filters?.city) {
@@ -69,67 +55,18 @@ export const useMissions = (filters?: MissionFilters & { page?: number; pageSize
         throw error;
       }
 
-      // Calculer les places restantes et enrichir les données
+      // Enrich data
       const enrichedData: MissionWithDetails[] = (data || []).map(mission => ({
         ...mission,
         available_spots_remaining: Math.max(0, 
           (mission.available_spots || 0) - (mission.mission_registrations?.length || 0)
         ),
+        participants_count: mission.mission_registrations?.length || 0,
       }));
 
       return {
         data: enrichedData,
         count: count || 0,
-      };
-    },
-  });
-};
-
-export const useMission = (id: string) => {
-  return useQuery({
-    queryKey: ["mission", id],
-    queryFn: async (): Promise<MissionWithDetails | null> => {
-      const { data, error } = await supabase
-        .from("missions")
-        .select(`
-          *,
-          mission_type:mission_types(id, name, description),
-          organization_profile:organization_profiles!inner(
-            id,
-            organization_name,
-            description,
-            logo_url,
-            website_url,
-            organization_sectors(id, name)
-          ),
-          mission_skills(
-            id,
-            required_level,
-            is_required,
-            skills(id, name, category, description)
-          ),
-          mission_registrations(
-            id,
-            status,
-            registration_date,
-            user_id
-          )
-        `)
-        .eq("id", id)
-        .single();
-
-      if (error) {
-        console.error("Error fetching mission:", error);
-        throw error;
-      }
-
-      if (!data) return null;
-
-      return {
-        ...data,
-        available_spots_remaining: Math.max(0, 
-          (data.available_spots || 0) - (data.mission_registrations?.length || 0)
-        ),
       };
     },
   });
@@ -182,10 +119,18 @@ export const useMissionStats = (userId?: string, isAssociation?: boolean) => {
 
       if (isAssociation) {
         // Stats pour les associations
+        const { data: orgProfile } = await supabase
+          .from("organization_profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .single();
+
+        if (!orgProfile) return { totalHours: 0, totalMissions: 0 };
+
         const { data, error } = await supabase
           .from("missions")
           .select("duration_minutes")
-          .eq("organization_id", userId);
+          .eq("organization_id", orgProfile.id);
 
         if (error) throw error;
 
@@ -209,6 +154,58 @@ export const useMissionStats = (userId?: string, isAssociation?: boolean) => {
     },
     enabled: !!userId,
   });
+};
+
+export const useAssociationMissions = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["association-missions", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+
+      const { data, error } = await supabase
+        .from("missions")
+        .select(`
+          *,
+          mission_registrations(
+            id,
+            status,
+            user_id,
+            profiles(id, first_name, last_name, profile_picture_url)
+          )
+        `)
+        .eq("organization_id", organizationId)
+        .order("start_date", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching association missions:", error);
+        throw error;
+      }
+
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+};
+
+export const useMissionActions = () => {
+  return {
+    acceptRegistration: async (registrationId: string) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status: "confirmé" })
+        .eq("id", registrationId);
+      
+      if (error) throw error;
+    },
+    rejectRegistration: async (registrationId: string) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status: "annulé" })
+        .eq("id", registrationId);
+      
+      if (error) throw error;
+    },
+  };
 };
 
 export const useOrganizationSectors = () => {
@@ -247,76 +244,4 @@ export const useMissionTypes = () => {
       return data || [];
     },
   });
-};
-
-export const useSkills = () => {
-  return useQuery({
-    queryKey: ["skills"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("skills")
-        .select("*")
-        .order("name");
-
-      if (error) {
-        console.error("Error fetching skills:", error);
-        throw error;
-      }
-
-      return data || [];
-    },
-  });
-};
-
-export const useAssociationMissions = (organizationId?: string) => {
-  return useQuery({
-    queryKey: ["association-missions", organizationId],
-    queryFn: async () => {
-      if (!organizationId) return [];
-
-      const { data, error } = await supabase
-        .from("missions")
-        .select(`
-          *,
-          mission_registrations(
-            id,
-            status,
-            user_id,
-            profiles(id, first_name, last_name, profile_picture_url)
-          )
-        `)
-        .eq("organization_id", organizationId)
-        .order("start_date", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching association missions:", error);
-        throw error;
-      }
-
-      return data || [];
-    },
-    enabled: !!organizationId,
-  });
-};
-
-export const useMissionActions = () => {
-  // Hook pour les actions sur les missions (accepter/refuser inscriptions, etc.)
-  return {
-    acceptRegistration: async (registrationId: string) => {
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status: "confirmé" })
-        .eq("id", registrationId);
-      
-      if (error) throw error;
-    },
-    rejectRegistration: async (registrationId: string) => {
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status: "annulé" })
-        .eq("id", registrationId);
-      
-      if (error) throw error;
-    },
-  };
 };

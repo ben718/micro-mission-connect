@@ -15,6 +15,7 @@ const Index = () => {
     <div className="min-h-screen flex flex-col bg-white">
       <Helmet>
         <title>MicroBénévole - Offrez votre temps, même 15 minutes comptent</title>
+        <meta name="description" content="Rejoignez notre communauté et transformez des moments libres en actions concrètes pour les associations qui ont besoin de vous." />
       </Helmet>
       <main className="flex-grow">
         <HeroSection />
