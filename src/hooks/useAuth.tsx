@@ -1,15 +1,14 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useNavigate } from "react-router-dom";
 import { User, Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import type { Profile } from "@/types/profile";
+import type { CompleteProfile, Profile, OrganizationProfile } from "@/types/profile";
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
-  profile: Profile | null;
+  profile: CompleteProfile | null;
   loading: boolean;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -22,7 +21,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [profile, setProfile] = useState<CompleteProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
@@ -96,6 +95,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setTimeout(() => reject(new Error("La récupération du profil a expiré.")), 10000)
       );
       
+      // Récupérer le profil de base
       const profilePromise = supabase
         .from("profiles")
         .select("*")
@@ -103,31 +103,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       const result = await Promise.race([profilePromise, timeoutPromise]) as any;
-      const { data, error } = result;
+      const { data: profileData, error: profileError } = result;
 
-      console.log("[fetchProfile] Résultat:", { data, error });
+      console.log("[fetchProfile] Résultat profil:", { profileData, profileError });
 
-      if (error) {
-        if (error.code === "401" || (error.message && error.message.toLowerCase().includes("jwt"))) {
-          console.error("[fetchProfile] Session expirée:", error);
+      if (profileError) {
+        if (profileError.code === "401" || (profileError.message && profileError.message.toLowerCase().includes("jwt"))) {
+          console.error("[fetchProfile] Session expirée:", profileError);
           toast.error("Votre session a expiré. Veuillez vous reconnecter.");
           await signOut();
           return;
         }
         
-        if (error.code === "PGRST116") {
+        if (profileError.code === "PGRST116") {
           console.error("[fetchProfile] Profil non trouvé pour l'utilisateur:", userId);
           toast.error("Aucun profil trouvé. Veuillez compléter votre profil.");
           await signOut();
           return;
         }
 
-        console.error("[fetchProfile] Erreur spécifique lors de la récupération du profil:", error);
-        toast.error("Erreur lors de la récupération du profil: " + error.message);
+        console.error("[fetchProfile] Erreur spécifique lors de la récupération du profil:", profileError);
+        toast.error("Erreur lors de la récupération du profil: " + profileError.message);
         return;
       }
 
-      if (!data) {
+      if (!profileData) {
         console.error("[fetchProfile] Aucun profil trouvé pour l'utilisateur:", userId);
         toast.error("Aucun profil trouvé. Veuillez vous reconnecter.");
         await signOut();
@@ -135,35 +135,106 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Vérification stricte de la cohérence des données
-      if (data.id !== userId) {
+      if (profileData.id !== userId) {
         console.error("[fetchProfile] Incohérence détectée : le profil récupéré ne correspond pas à l'utilisateur connecté");
         toast.error("Erreur de cohérence des données. Veuillez vous reconnecter.");
         await signOut();
         return;
       }
 
-      // Mapping vers l'interface Profile locale
-      const firstName = data?.first_name ?? '';
-      const lastName = data?.last_name ?? '';
+      // Vérifier si c'est un profil d'organisation
+      let organizationData = null;
+      const isOrganization = user?.user_metadata?.is_organization === true;
       
-      const mappedProfile: Profile = {
-        id: data?.id ?? '',
+      if (isOrganization) {
+        // Récupérer les données de l'organisation
+        const { data: orgData, error: orgError } = await supabase
+          .from("organization_profiles")
+          .select("*, sector_id(*)")
+          .eq("user_id", userId)
+          .single();
+          
+        if (orgError && orgError.code !== "PGRST116") {
+          console.error("[fetchProfile] Erreur lors de la récupération du profil d'organisation:", orgError);
+          toast.error("Erreur lors de la récupération du profil d'organisation");
+        } else if (orgData) {
+          organizationData = orgData;
+        }
+      }
+
+      // Récupérer les compétences de l'utilisateur
+      const { data: skillsData } = await supabase
+        .from("user_skills")
+        .select("skill_id")
+        .eq("user_id", userId);
+        
+      const skills = skillsData ? skillsData.map(item => item.skill_id) : [];
+      
+      // Récupérer les badges de l'utilisateur
+      const { data: badgesData } = await supabase
+        .from("user_badges")
+        .select("badge_id")
+        .eq("user_id", userId);
+        
+      const badges = badgesData ? badgesData.map(item => item.badge_id) : [];
+
+      // Mapping vers l'interface CompleteProfile
+      const firstName = profileData?.first_name ?? '';
+      const lastName = profileData?.last_name ?? '';
+      const city = profileData?.city ?? '';
+      const postalCode = profileData?.postal_code ?? '';
+      
+      const mappedProfile: CompleteProfile = {
+        id: profileData?.id ?? '',
         first_name: firstName,
         last_name: lastName,
-        is_association: data?.is_association ?? false,
-        avatar_url: data?.avatar_url ?? undefined,
-        bio: data?.bio ?? '',
-        location: data?.location ?? '',
-        phone: data?.phone ?? '',
-        website: data?.website ?? '',
+        profile_picture_url: profileData?.profile_picture_url ?? undefined,
+        bio: profileData?.bio ?? '',
+        phone: profileData?.phone ?? '',
+        address: profileData?.address ?? '',
+        city: city,
+        postal_code: postalCode,
+        latitude: profileData?.latitude ?? null,
+        longitude: profileData?.longitude ?? null,
+        created_at: profileData?.created_at ?? '',
+        updated_at: profileData?.updated_at ?? '',
+        last_login: profileData?.last_login ?? null,
+        is_organization: isOrganization,
+        skills: skills,
+        badges: badges,
+        
         // Propriétés synthétiques
         name: firstName && lastName ? `${firstName} ${lastName}` : firstName || lastName || '',
-        role: data?.is_association ? 'association' : 'benevole',
-        avatar: data?.avatar_url ?? undefined,
-        email: data?.email ?? user?.email ?? '',
-        created_at: data?.created_at ?? '',
-        updated_at: data?.updated_at ?? '',
+        avatar: profileData?.profile_picture_url ?? undefined,
+        location: city && postalCode ? `${city} (${postalCode})` : city || postalCode || '',
+        email: user?.email ?? '',
+        role: isOrganization ? 'organization' : 'volunteer',
       };
+      
+      // Ajouter les données d'organisation si disponibles
+      if (organizationData) {
+        mappedProfile.organization = {
+          id: organizationData.id,
+          user_id: organizationData.user_id,
+          organization_name: organizationData.organization_name,
+          description: organizationData.description,
+          logo_url: organizationData.logo_url,
+          website_url: organizationData.website_url,
+          address: organizationData.address,
+          latitude: organizationData.latitude,
+          longitude: organizationData.longitude,
+          sector_id: organizationData.sector_id,
+          siret_number: organizationData.siret_number,
+          creation_date: organizationData.creation_date,
+          created_at: organizationData.created_at,
+          updated_at: organizationData.updated_at,
+          sector: organizationData.sector_id
+        };
+        
+        // Propriétés synthétiques pour la compatibilité
+        mappedProfile.association_description = organizationData.description;
+        mappedProfile.website = organizationData.website_url;
+      }
       
       setProfile(mappedProfile);
       setLoading(false);

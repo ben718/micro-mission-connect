@@ -1,7 +1,6 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
-import { Mission, MissionFilters, MissionWithAssociation, MissionWithDetails, Association, MissionStatus, MissionStats } from "@/types/mission";
+import { Mission, MissionFilters, MissionWithOrganization, MissionWithDetails, Organization, MissionStatus, MissionStats, MissionType, Skill } from "@/types/mission";
 
 export function useMissions(filters?: MissionFilters) {
   const pageSize = filters?.pageSize || 12; // Default page size
@@ -11,17 +10,17 @@ export function useMissions(filters?: MissionFilters) {
 
   return useQuery({
     queryKey: ["missions", filters],
-    queryFn: async (): Promise<{ data: MissionWithAssociation[] | null, count: number | null }> => {
+    queryFn: async (): Promise<{ data: MissionWithOrganization[] | null, count: number | null }> => {
       let query = supabase
         .from("missions")
         .select(`
           *,
-          association:association_id(*)
+          organization:organization_id(*)
         `, { count: 'exact' });
       
-      // Par défaut, on ne filtre que les missions ouvertes
+      // Par défaut, on ne filtre que les missions actives
       if (!filters?.status) {
-        query = query.in("status", ["open", "in_progress", "filled"]);
+        query = query.eq("status", "active");
       } else if (Array.isArray(filters.status)) {
         query = query.in("status", filters.status);
       } else if (typeof filters?.status === 'string') {
@@ -35,94 +34,50 @@ export function useMissions(filters?: MissionFilters) {
           query = query.or(`title.ilike.%${filters.query}%,description.ilike.%${filters.query}%`);
         }
         
-        // Filtre par ville
-        if (filters.city) {
-          query = query.ilike("city", `%${filters.city}%`);
+        // Filtre par localisation
+        if (filters.location) {
+          query = query.ilike("location", `%${filters.location}%`);
         }
         
-        // Filtre par mission à distance
-        if (filters.remote) {
-          query = query.is("lat", null).is("lng", null);
+        // Filtre par format (présentiel, à distance, hybride)
+        if (filters.format) {
+          if (Array.isArray(filters.format)) {
+            query = query.in("format", filters.format);
+          } else {
+            query = query.eq("format", filters.format);
+          }
         }
         
         // Filtre par plage de dates
         if (filters.dateRange) {
           if (filters.dateRange.start) {
-            query = query.gte("starts_at", filters.dateRange.start.toISOString());
+            query = query.gte("start_date", filters.dateRange.start.toISOString());
           }
           if (filters.dateRange.end) {
-            query = query.lte("ends_at", filters.dateRange.end.toISOString());
+            query = query.lte("end_date", filters.dateRange.end.toISOString());
           }
         }
         
-        // Filtre par catégories
-        if (filters.categoryIds && filters.categoryIds.length > 0) {
-          query = query.filter('mission_categories.category_id', 'in', filters.categoryIds);
+        // Filtre par types de mission
+        if (filters.missionTypeIds && filters.missionTypeIds.length > 0) {
+          query = query.in("mission_type_id", filters.missionTypeIds);
         }
         
-        // Nouveaux filtres
-        if (filters.missionTypes && filters.missionTypes.length > 0) {
-          // Supposons que mission_type est stocké dans un champ ou une relation
-          query = query.filter('mission_type', 'in', filters.missionTypes);
-        }
-        
-        if (filters.associationTypes && filters.associationTypes.length > 0) {
-          // Filtre sur les types d'association (pourrait nécessiter une jointure)
-          query = query.filter('association.types', 'cs', `{${filters.associationTypes.join(',')}}`);
-        }
-        
-        if (filters.durations && filters.durations.length > 0) {
-          // Convertir les durées textuelles en minutes pour le filtre
-          const durationRanges = filters.durations.map(d => {
-            switch (d) {
-              case '15min': return [1, 15];
-              case '30min': return [16, 30];
-              case '1h': return [31, 60];
-              case 'demi-journée': return [61, 240];
-              default: return [0, 999]; // À définir librement
-            }
-          });
-          
-          // Construire une condition OR pour les différentes plages de durée
-          let durationConditions = durationRanges.map(([min, max]) => 
-            `duration_minutes.gte.${min},duration_minutes.lte.${max}`
-          ).join(',');
-          
-          query = query.or(`${durationConditions}`);
-        }
-        
-        // Filtre par compétences requises
-        if (filters.requiredSkills && filters.requiredSkills.length > 0) {
-          // Filtrer sur le champ skills_required qui est un tableau
-          query = query.filter('skills_required', 'cs', `{${filters.requiredSkills.join(',')}}`);
-        }
-        
-        // Filtre par impact recherché
-        if (filters.impacts && filters.impacts.length > 0) {
-          // Supposons qu'il y a un champ impact ou une relation
-          query = query.filter('impact', 'in', filters.impacts);
+        // Filtre par niveau de difficulté
+        if (filters.difficulty_level) {
+          if (Array.isArray(filters.difficulty_level)) {
+            query = query.in("difficulty_level", filters.difficulty_level);
+          } else {
+            query = query.eq("difficulty_level", filters.difficulty_level);
+          }
         }
         
         // Filtre par niveau d'engagement
-        if (filters.engagementLevels && filters.engagementLevels.length > 0) {
-          // Mapper les niveaux d'engagement à des durées ou d'autres critères
-          let engagementConditions: string[] = [];
-          
-          if (filters.engagementLevels.includes('ultra-rapide')) {
-            engagementConditions.push('duration_minutes.lte.30');
-          }
-          if (filters.engagementLevels.includes('petit-coup-de-main')) {
-            engagementConditions.push('duration_minutes.gt.30,duration_minutes.lte.120');
-          }
-          if (filters.engagementLevels.includes('mission-avec-suivi')) {
-            engagementConditions.push('duration_minutes.gt.120,duration_minutes.lte.240');
-          }
-          if (filters.engagementLevels.includes('projet-long')) {
-            engagementConditions.push('duration_minutes.gt.240');
-          }
-          
-          if (engagementConditions.length > 0) {
-            query = query.or(`${engagementConditions.join(',')}`);
+        if (filters.engagement_level) {
+          if (Array.isArray(filters.engagement_level)) {
+            query = query.in("engagement_level", filters.engagement_level);
+          } else {
+            query = query.eq("engagement_level", filters.engagement_level);
           }
         }
         
@@ -135,10 +90,10 @@ export function useMissions(filters?: MissionFilters) {
           const lngDelta = radius / (111 * Math.cos(latitude * Math.PI / 180));
           
           query = query
-            .gte('lat', latitude - latDelta)
-            .lte('lat', latitude + latDelta)
-            .gte('lng', longitude - lngDelta)
-            .lte('lng', longitude + lngDelta);
+            .gte('latitude', latitude - latDelta)
+            .lte('latitude', latitude + latDelta)
+            .gte('longitude', longitude - lngDelta)
+            .lte('longitude', longitude + lngDelta);
         }
       }
       
@@ -149,27 +104,36 @@ export function useMissions(filters?: MissionFilters) {
       
       if (error) throw error;
       
-      // Transformer les données pour correspondre à l'interface MissionWithAssociation
+      // Transformer les données pour correspondre à l'interface MissionWithOrganization
       if (data) {
         const transformedData = data.map(mission => {
-          const transformed = mission as unknown as MissionWithAssociation;
-          // Ajout des propriétés compatibles avec l'ancien code
-          transformed.category = mission.skills_required?.[0] || 'Général';
-          transformed.date = new Date(mission.starts_at).toLocaleDateString('fr-FR');
-          transformed.location = mission.address || `${mission.city}, ${mission.postal_code}`;
-          transformed.timeSlot = new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-          transformed.duration = `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}`;
-          transformed.participants = mission.spots_taken.toString() + '/' + mission.spots_available.toString();
-          transformed.requiredSkills = mission.skills_required || [];
-          transformed.associationId = mission.association_id;
+          const transformed = mission as unknown as MissionWithOrganization;
           
-          // Si l'association existe, ajouter la propriété name
-          if (transformed.association) {
-            transformed.association.name = `${transformed.association.first_name || ''} ${transformed.association.last_name || ''}`.trim();
-          }
+          // Ajout des propriétés compatibles avec l'ancien code
+          transformed.category = ""; // Sera rempli plus tard avec les compétences
+          transformed.date = new Date(mission.start_date).toLocaleDateString('fr-FR');
+          transformed.timeSlot = new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          transformed.duration = `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 ? mission.duration_minutes % 60 : ''}`;
+          transformed.participants = mission.available_spots.toString();
+          transformed.associationId = mission.organization_id;
           
           return transformed;
         });
+        
+        // Récupérer les compétences requises pour chaque mission
+        for (const mission of transformedData) {
+          const { data: skillsData } = await supabase
+            .from("mission_skills")
+            .select("skill_id(id, name)")
+            .eq("mission_id", mission.id);
+            
+          if (skillsData && skillsData.length > 0) {
+            mission.requiredSkills = skillsData.map((item: any) => item.skill_id.name);
+            mission.category = skillsData[0].skill_id.name; // Utiliser la première compétence comme catégorie
+          } else {
+            mission.requiredSkills = [];
+          }
+        }
         
         return { data: transformedData, count };
       }
@@ -190,8 +154,8 @@ export function useMission(id: string | undefined) {
         .from("missions")
         .select(`
           *,
-          association:association_id(*),
-          mission_categories(category_id)
+          organization:organization_id(*),
+          mission_type:mission_type_id(*)
         `)
         .eq("id", id)
         .single();
@@ -199,58 +163,59 @@ export function useMission(id: string | undefined) {
       if (error) throw error;
       if (!data) return null;
       
-      // Récupérer les catégories associées
-      const categoryIds = data.mission_categories.map((mc: any) => mc.category_id);
-      const { data: categories } = await supabase
-        .from("categories")
-        .select("*")
-        .in("id", categoryIds);
+      // Récupérer les compétences requises
+      const { data: skillsData } = await supabase
+        .from("mission_skills")
+        .select("*, skill:skill_id(*)")
+        .eq("mission_id", id);
       
       // Récupérer le nombre de participants
       const { count } = await supabase
-        .from("mission_participants")
+        .from("mission_registrations")
         .select("*", { count: "exact", head: true })
         .eq("mission_id", id)
-        .eq("status", "registered");
+        .eq("status", "inscrit");
       
       // Vérifier si l'utilisateur actuel est inscrit
       const user = supabase.auth.getSession();
       let isRegistered = false;
+      let participantId = null;
+      let participantStatus = null;
       
       if ((await user).data.session?.user) {
-        const { data: participation } = await supabase
-          .from("mission_participants")
+        const { data: registration } = await supabase
+          .from("mission_registrations")
           .select("*")
           .eq("mission_id", id)
           .eq("user_id", (await user).data.session!.user.id)
-          .eq("status", "registered")
           .maybeSingle();
         
-        isRegistered = !!participation;
+        isRegistered = !!registration;
+        if (registration) {
+          participantId = registration.id;
+          participantStatus = registration.status;
+        }
       }
       
       // Transformer les données pour correspondre à l'interface MissionWithDetails
       if (data) {
         const transformedData = {
           ...data,
-          categories: categories || [],
+          mission_skills: skillsData || [],
+          required_skills: skillsData ? skillsData.map((s: any) => s.skill.name) : [],
           participants_count: count || 0,
           is_registered: isRegistered,
+          participant_id: participantId,
+          participant_status: participantStatus,
+          
           // Ajout des propriétés compatibles avec l'ancien code
-          category: data.skills_required?.[0] || 'Général',
-          date: new Date(data.starts_at).toLocaleDateString('fr-FR'),
-          location: data.address || `${data.city}, ${data.postal_code}`,
-          timeSlot: new Date(data.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-          duration: `${Math.round(data.duration_minutes / 60)}h${data.duration_minutes % 60 || ''}`,
-          participants: data.spots_taken.toString() + '/' + data.spots_available.toString(),
-          requiredSkills: data.skills_required || [],
-          associationId: data.association_id,
+          category: skillsData && skillsData.length > 0 ? skillsData[0].skill.name : 'Général',
+          date: new Date(data.start_date).toLocaleDateString('fr-FR'),
+          timeSlot: new Date(data.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+          duration: `${Math.round(data.duration_minutes / 60)}h${data.duration_minutes % 60 ? data.duration_minutes % 60 : ''}`,
+          participants: data.available_spots.toString(),
+          associationId: data.organization_id,
         } as unknown as MissionWithDetails;
-        
-        // Si l'association existe, ajouter la propriété name
-        if (transformedData.association) {
-          transformedData.association.name = `${transformedData.association.first_name || ''} ${transformedData.association.last_name || ''}`.trim();
-        }
         
         return transformedData;
       }
@@ -261,12 +226,12 @@ export function useMission(id: string | undefined) {
   });
 }
 
-export function useCategories() {
+export function useMissionTypes() {
   return useQuery({
-    queryKey: ["categories"],
-    queryFn: async () => {
+    queryKey: ["mission-types"],
+    queryFn: async (): Promise<MissionType[]> => {
       const { data, error } = await supabase
-        .from("categories")
+        .from("mission_types")
         .select("*");
       
       if (error) throw error;
@@ -275,47 +240,53 @@ export function useCategories() {
   });
 }
 
-export function useCities() {
+export function useSkills() {
   return useQuery({
-    queryKey: ["cities"],
-    queryFn: async () => {
+    queryKey: ["skills"],
+    queryFn: async (): Promise<Skill[]> => {
       const { data, error } = await supabase
-        .from("missions")
-        .select("city")
-        .eq("status", "open")
-        .not("city", "is", null);
+        .from("skills")
+        .select("*");
       
       if (error) throw error;
-      
-      // Extraire et dédupliquer les villes
-      const cities = [...new Set(data.map(item => item.city))];
-      return cities.filter(Boolean).sort();
+      return data || [];
     },
   });
 }
 
-// Nouvelles fonctions pour la gestion des missions
-
-// Hook pour récupérer les missions d'une association
-export function useAssociationMissions(associationId: string | undefined, status?: MissionStatus | MissionStatus[]) {
+export function useLocations() {
   return useQuery({
-    queryKey: ["association-missions", associationId, status],
+    queryKey: ["locations"],
+    queryFn: async (): Promise<string[]> => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("location")
+        .eq("status", "active")
+        .not("location", "is", null);
+      
+      if (error) throw error;
+      
+      // Extraire et dédupliquer les localisations
+      const locations = [...new Set(data.map(item => item.location))];
+      return locations.filter(Boolean).sort();
+    },
+  });
+}
+
+// Hook pour récupérer les missions d'une organisation
+export function useOrganizationMissions(organizationId: string | undefined, status?: MissionStatus | MissionStatus[]) {
+  return useQuery({
+    queryKey: ["organization-missions", organizationId, status],
     queryFn: async (): Promise<MissionWithDetails[] | null> => {
-      if (!associationId) return null;
+      if (!organizationId) return null;
       
       let query = supabase
         .from("missions")
         .select(`
           *,
-          mission_categories(category_id),
-          mission_participants(
-            id, 
-            user_id,
-            status,
-            profiles:user_id(*)
-          )
+          mission_type:mission_type_id(*)
         `)
-        .eq("association_id", associationId);
+        .eq("organization_id", organizationId);
       
       // Filtrer par statut si spécifié
       if (status) {
@@ -332,31 +303,49 @@ export function useAssociationMissions(associationId: string | undefined, status
       
       // Transformer les données pour correspondre à l'interface MissionWithDetails
       if (data) {
-        const transformedData = data.map(mission => {
-          const participants = mission.mission_participants || [];
-          const participantsCount = participants.length;
+        const transformedData = await Promise.all(data.map(async (mission) => {
+          // Récupérer les inscriptions pour cette mission
+          const { data: registrations, error: regError } = await supabase
+            .from("mission_registrations")
+            .select(`
+              *,
+              profile:user_id(*)
+            `)
+            .eq("mission_id", mission.id);
+            
+          if (regError) console.error("Erreur lors de la récupération des inscriptions:", regError);
+          
+          // Récupérer les compétences requises
+          const { data: skillsData } = await supabase
+            .from("mission_skills")
+            .select("*, skill:skill_id(*)")
+            .eq("mission_id", mission.id);
           
           const transformed = {
             ...mission,
-            participants_count: participantsCount,
-            category: mission.skills_required?.[0] || 'Général',
-            date: new Date(mission.starts_at).toLocaleDateString('fr-FR'),
-            location: mission.address || `${mission.city}, ${mission.postal_code}`,
-            timeSlot: new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-            duration: `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}`,
-            participants: mission.spots_taken.toString() + '/' + mission.spots_available.toString(),
-            participants_list: participants,
+            registrations: registrations || [],
+            participants_count: registrations ? registrations.length : 0,
+            mission_skills: skillsData || [],
+            required_skills: skillsData ? skillsData.map((s: any) => s.skill.name) : [],
+            
+            // Propriétés synthétiques pour la compatibilité
+            category: skillsData && skillsData.length > 0 ? skillsData[0].skill.name : 'Général',
+            date: new Date(mission.start_date).toLocaleDateString('fr-FR'),
+            timeSlot: new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            duration: `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 ? mission.duration_minutes % 60 : ''}`,
+            participants: mission.available_spots.toString(),
+            associationId: mission.organization_id,
           } as unknown as MissionWithDetails;
           
           return transformed;
-        });
+        }));
         
         return transformedData;
       }
       
       return null;
     },
-    enabled: !!associationId
+    enabled: !!organizationId
   });
 }
 
@@ -367,42 +356,52 @@ export function useUserMissions(userId: string | undefined) {
     queryFn: async (): Promise<MissionWithDetails[] | null> => {
       if (!userId) return null;
       
-      const { data: participations, error } = await supabase
-        .from("mission_participants")
+      const { data: registrations, error } = await supabase
+        .from("mission_registrations")
         .select(`
           id,
           status,
           mission_id,
           mission:mission_id(
             *,
-            association:association_id(*)
+            organization:organization_id(*),
+            mission_type:mission_type_id(*)
           )
         `)
         .eq("user_id", userId);
       
       if (error) throw error;
       
-      if (participations) {
+      if (registrations) {
         // Extraire et transformer les missions
-        const missions = participations.map(participation => {
-          const mission = participation.mission as Mission;
+        const missions = await Promise.all(registrations.map(async (registration) => {
+          const mission = registration.mission as Mission;
+          
+          // Récupérer les compétences requises
+          const { data: skillsData } = await supabase
+            .from("mission_skills")
+            .select("*, skill:skill_id(*)")
+            .eq("mission_id", mission.id);
           
           const transformed = {
             ...mission,
-            participant_status: participation.status,
-            participant_id: participation.id,
+            participant_status: registration.status,
+            participant_id: registration.id,
             is_registered: true,
-            category: mission.skills_required?.[0] || 'Général',
-            date: new Date(mission.starts_at).toLocaleDateString('fr-FR'),
-            location: mission.address || `${mission.city}, ${mission.postal_code}`,
-            timeSlot: new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-            duration: `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}`,
-            participants: mission.spots_taken.toString() + '/' + mission.spots_available.toString(),
-            associationId: mission.association_id,
+            mission_skills: skillsData || [],
+            required_skills: skillsData ? skillsData.map((s: any) => s.skill.name) : [],
+            
+            // Propriétés synthétiques pour la compatibilité
+            category: skillsData && skillsData.length > 0 ? skillsData[0].skill.name : 'Général',
+            date: new Date(mission.start_date).toLocaleDateString('fr-FR'),
+            timeSlot: new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+            duration: `${Math.round(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 ? mission.duration_minutes % 60 : ''}`,
+            participants: mission.available_spots.toString(),
+            associationId: mission.organization_id,
           } as unknown as MissionWithDetails;
           
           return transformed;
-        });
+        }));
         
         return missions;
       }
@@ -414,236 +413,98 @@ export function useUserMissions(userId: string | undefined) {
 }
 
 // Hook pour récupérer les statistiques des missions pour le tableau de bord
-export function useMissionStats(userId: string | undefined, isAssociation: boolean) {
+export function useMissionStats(userId: string | undefined, isOrganization: boolean) {
   return useQuery({
-    queryKey: ["mission-stats", userId, isAssociation],
+    queryKey: ["mission-stats", userId, isOrganization],
     queryFn: async (): Promise<MissionStats | null> => {
       if (!userId) return null;
       
-      if (isAssociation) {
-        // Statistiques pour les associations
-        const { data, error } = await supabase
-          .from("missions")
-          .select(`
-            id,
-            status,
-            spots_taken,
-            duration_minutes,
-            mission_participants(id, status)
-          `)
-          .eq("association_id", userId);
+      if (isOrganization) {
+        // Récupérer l'ID de l'organisation
+        const { data: orgData } = await supabase
+          .from("organization_profiles")
+          .select("id")
+          .eq("user_id", userId)
+          .single();
           
-        if (error) throw error;
+        if (!orgData) return null;
         
-        if (data) {
-          const stats: MissionStats = {
-            total: data.length,
-            active: data.filter(m => ["open", "in_progress", "filled"].includes(m.status)).length,
-            completed: data.filter(m => m.status === "completed").length,
-            cancelled: data.filter(m => m.status === "cancelled").length,
-            totalVolunteers: data.reduce((sum, m) => sum + (m.spots_taken || 0), 0),
-            totalHours: data.reduce((sum, m) => sum + (m.duration_minutes || 0) / 60, 0)
-          };
+        const organizationId = orgData.id;
+        
+        // Statistiques pour les organisations
+        const { data: missions } = await supabase
+          .from("missions")
+          .select("*")
+          .eq("organization_id", organizationId);
           
-          return stats;
+        if (!missions) return null;
+        
+        // Calculer les statistiques
+        const total = missions.length;
+        const active = missions.filter(m => m.status === 'active').length;
+        const completed = missions.filter(m => m.status === 'terminée').length;
+        const cancelled = missions.filter(m => m.status === 'annulée').length;
+        
+        // Calculer le nombre total de bénévoles et d'heures
+        let totalVolunteers = 0;
+        let totalHours = 0;
+        
+        for (const mission of missions) {
+          // Compter les inscriptions confirmées ou terminées
+          const { count } = await supabase
+            .from("mission_registrations")
+            .select("*", { count: "exact", head: true })
+            .eq("mission_id", mission.id)
+            .in("status", ["confirmé", "terminé"]);
+            
+          totalVolunteers += count || 0;
+          
+          // Calculer les heures (durée en minutes / 60 * nombre de participants)
+          totalHours += (mission.duration_minutes / 60) * (count || 0);
         }
+        
+        return {
+          total,
+          active,
+          completed,
+          cancelled,
+          totalVolunteers,
+          totalHours: Math.round(totalHours)
+        };
       } else {
         // Statistiques pour les bénévoles
-        const { data, error } = await supabase
-          .from("mission_participants")
-          .select(`
-            id,
-            status,
-            mission:mission_id(duration_minutes)
-          `)
+        const { data: registrations } = await supabase
+          .from("mission_registrations")
+          .select("*, mission:mission_id(*)")
           .eq("user_id", userId);
           
-        if (error) throw error;
+        if (!registrations) return null;
         
-        if (data) {
-          const stats: MissionStats = {
-            total: data.length,
-            active: data.filter(p => ["registered", "confirmed"].includes(p.status)).length,
-            completed: data.filter(p => p.status === "completed").length,
-            cancelled: data.filter(p => p.status === "cancelled").length,
-            totalVolunteers: 0, // Non applicable pour les bénévoles
-            totalHours: data.reduce((sum, p) => {
-              if (p.status === "completed" && p.mission) {
-                return sum + (p.mission.duration_minutes || 0) / 60;
-              }
-              return sum;
-            }, 0)
-          };
-          
-          return stats;
+        // Calculer les statistiques
+        const total = registrations.length;
+        const active = registrations.filter(r => r.status === 'inscrit' || r.status === 'confirmé').length;
+        const completed = registrations.filter(r => r.status === 'terminé').length;
+        const cancelled = registrations.filter(r => r.status === 'annulé').length;
+        
+        // Calculer le nombre total d'heures
+        let totalHours = 0;
+        
+        for (const registration of registrations) {
+          if (registration.status === 'terminé') {
+            totalHours += (registration.mission.duration_minutes / 60);
+          }
         }
+        
+        return {
+          total,
+          active,
+          completed,
+          cancelled,
+          totalVolunteers: 0, // Non applicable pour les bénévoles
+          totalHours: Math.round(totalHours)
+        };
       }
-      
-      return null;
     },
     enabled: !!userId
   });
-}
-
-// Hook pour gérer les actions sur les missions (validation de participation, etc.)
-export function useMissionActions() {
-  const validateParticipation = async (participantId: string, attendance: boolean, feedback?: string, badges?: string[]) => {
-    try {
-      // 1. Mettre à jour le statut du participant
-      const { error: participantError } = await supabase
-        .from("mission_participants")
-        .update({ 
-          status: attendance ? "completed" : "no_show",
-          feedback
-        })
-        .eq("id", participantId);
-        
-      if (participantError) throw participantError;
-      
-      // 2. Si présence validée et badges spécifiés, attribuer les badges
-      if (attendance && badges && badges.length > 0) {
-        // Récupérer l'ID du bénévole
-        const { data: participant } = await supabase
-          .from("mission_participants")
-          .select("user_id, mission_id")
-          .eq("id", participantId)
-          .single();
-          
-        if (participant) {
-          // Récupérer les IDs des badges par nom
-          const { data: badgesData } = await supabase
-            .from("badges")
-            .select("id, name")
-            .in("name", badges);
-            
-          if (badgesData) {
-            // Préparer les données pour l'insertion des badges utilisateur
-            const userBadges = badgesData.map(badge => ({
-              user_id: participant.user_id,
-              badge_id: badge.id
-            }));
-            
-            // Vérifier si les badges existent déjà pour éviter les doublons
-            for (const userBadge of userBadges) {
-              const { count } = await supabase
-                .from("user_badges")
-                .select("*", { count: "exact", head: true })
-                .eq("user_id", userBadge.user_id)
-                .eq("badge_id", userBadge.badge_id);
-                
-              if (count === 0) {
-                await supabase
-                  .from("user_badges")
-                  .insert(userBadge);
-              }
-            }
-            
-            // Fix notifications creation - comment out the code that tries to access a non-existent table
-            // We'll remove the references to the non-existent "notifications" table
-            console.log(`Badges attribués pour la participation de ${participant.user_id}`);
-            
-            /* Commented out the code that accesses a non-existent table
-            try {
-              // Check if the notifications table exists first
-              const { error: notifCheckError } = await supabase
-                .from("notifications")
-                .select("count")
-                .limit(1);
-                
-              if (!notifCheckError) {
-                await supabase.from("notifications").insert({
-                  user_id: participant.user_id,
-                  mission_id: participant.mission_id,
-                  type: "feedback",
-                  message: `Vous avez reçu ${badges.length} badge(s) pour votre participation !`,
-                  read: false
-                });
-              } else {
-                console.log("Notifications table doesn't exist - skipping notification creation");
-              }
-            } catch (error) {
-              console.error("Error creating notification (table may not exist):", error);
-              // Continue execution, this is not a critical error
-            }
-            */
-          }
-        }
-      }
-      
-      return { success: true };
-    } catch (error) {
-      console.error("Erreur lors de la validation :", error);
-      return { success: false, error };
-    }
-  };
-  
-  const changeMissionStatus = async (missionId: string, status: MissionStatus) => {
-    try {
-      const { error } = await supabase
-        .from("missions")
-        .update({ status })
-        .eq("id", missionId);
-        
-      if (error) throw error;
-      
-      return { success: true };
-    } catch (error) {
-      console.error("Erreur lors du changement de statut :", error);
-      return { success: false, error };
-    }
-  };
-  
-  const duplicateMission = async (missionId: string) => {
-    try {
-      // 1. Récupérer les détails de la mission
-      const { data: mission, error: missionError } = await supabase
-        .from("missions")
-        .select("*, mission_categories(category_id)")
-        .eq("id", missionId)
-        .single();
-        
-      if (missionError) throw missionError;
-      
-      if (mission) {
-        // 2. Créer une copie de la mission
-        const { id, created_at, updated_at, mission_categories, ...missionData } = mission;
-        
-        // Mettre à jour certains champs
-        const newMissionData = {
-          ...missionData,
-          title: `Copie de ${missionData.title}`,
-          status: "draft",
-          spots_taken: 0
-        };
-        
-        const { data: newMission, error: insertError } = await supabase
-          .from("missions")
-          .insert(newMissionData)
-          .select();
-          
-        if (insertError) throw insertError;
-        
-        if (newMission && mission_categories) {
-          // 3. Copier les catégories associées
-          const newCategories = mission_categories.map((mc: any) => ({
-            mission_id: newMission[0].id,
-            category_id: mc.category_id
-          }));
-          
-          await supabase
-            .from("mission_categories")
-            .insert(newCategories);
-        }
-        
-        return { success: true, missionId: newMission[0].id };
-      }
-      
-      return { success: false, error: "Mission introuvable" };
-    } catch (error) {
-      console.error("Erreur lors de la duplication :", error);
-      return { success: false, error };
-    }
-  };
-  
-  return { validateParticipation, changeMissionStatus, duplicateMission };
 }
