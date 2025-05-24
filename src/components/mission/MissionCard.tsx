@@ -1,104 +1,112 @@
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { MissionWithAssociation } from '@/types/mission';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
-import { Calendar, Clock, Users, MapPin } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock, MapPin, Users, Tag } from "lucide-react";
+import { Link } from "react-router-dom";
+import type { MissionWithAssociation } from "@/types/mission";
 
 interface MissionCardProps {
   mission: MissionWithAssociation;
-  onRegister?: () => void;
-  isRegistered?: boolean;
 }
 
-export default function MissionCard({ mission, onRegister, isRegistered }: MissionCardProps) {
-  const navigate = useNavigate();
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'draft':
-        return <Badge variant="outline">Brouillon</Badge>;
-      case 'active':
-        return <Badge className="bg-green-100 text-green-800">Publiée</Badge>;
-      case 'in_progress':
-        return <Badge className="bg-blue-100 text-blue-800">En cours</Badge>;
-      case 'completed':
-        return <Badge className="bg-purple-100 text-purple-800">Clôturée</Badge>;
-      case 'cancelled':
-        return <Badge className="bg-red-100 text-red-800">Annulée</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
-
-  const availableSpots = mission.available_spots_remaining || 
-    Math.max(0, (mission.available_spots || 0) - (mission.mission_registrations?.length || 0));
+export function MissionCard({ mission }: MissionCardProps) {
+  // Préparer les valeurs à afficher
+  const associationName = mission.association ? 
+    `${mission.association.first_name || ''} ${mission.association.last_name || ''}`.trim() : 
+    'Association';
+  
+  const categoryName = mission.category || 'Général';
+  
+  const formattedDate = mission.starts_at ? 
+    new Date(mission.starts_at).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }) : 
+    mission.date || 'Date non spécifiée';
+  
+  const formattedTimeSlot = mission.timeSlot || 
+    (mission.starts_at ? new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+  
+  const formattedDuration = mission.duration || 
+    (mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '');
+  
+  const formattedLocation = mission.location || 
+    (mission.address ? mission.address : `${mission.city || ''}, ${mission.postal_code || ''}`.trim());
+  
+  const formattedParticipants = mission.participants || 
+    `${mission.spots_taken || 0}/${mission.spots_available || 0}`;
+  
+  const skills = mission.requiredSkills || mission.skills_required || [];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-start">
+        <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-semibold">{mission.title}</h3>
-            <div className="flex items-center gap-2 mt-1">
-              {getStatusBadge(mission.status)}
-              {mission.organization_profiles && (
-                <Badge variant="secondary">
-                  {mission.organization_profiles.organization_name}
-                </Badge>
-              )}
-            </div>
+            <h3 className="text-lg font-semibold line-clamp-2">
+              <Link to={`/missions/${mission.id}`} className="hover:underline">
+                {mission.title}
+              </Link>
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              {associationName}
+            </p>
           </div>
+          <Badge variant="outline">{categoryName}</Badge>
         </div>
       </CardHeader>
-      
-      <CardContent className="pb-2">
-        <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm mb-2">
-          <div className="flex items-center">
-            <Calendar className="h-4 w-4 mr-1" />
-            <span>{format(new Date(mission.start_date), 'Pp', { locale: fr })}</span>
+
+      <CardContent className="flex-1">
+        <p className="text-sm text-muted-foreground line-clamp-3 mb-4">
+          {mission.description}
+        </p>
+
+        <div className="space-y-2">
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Calendar className="h-4 w-4 mr-2" />
+            {formattedDate}
           </div>
-          <div className="flex items-center">
-            <Clock className="h-4 w-4 mr-1" />
-            <span>Durée: {mission.duration_minutes} minutes</span>
+
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Clock className="h-4 w-4 mr-2" />
+            {formattedTimeSlot} - {formattedDuration}
           </div>
-          <div className="flex items-center">
-            <Users className="h-4 w-4 mr-1" />
-            <span>
-              {(mission.mission_registrations?.length || 0)}/{mission.available_spots} participants
-            </span>
+
+          <div className="flex items-center text-sm text-muted-foreground">
+            <MapPin className="h-4 w-4 mr-2" />
+            {formattedLocation}
           </div>
-          {mission.location && (
-            <div className="flex items-center">
-              <MapPin className="h-4 w-4 mr-1" />
-              <span>{mission.location}</span>
+
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Users className="h-4 w-4 mr-2" />
+            {formattedParticipants} participants
+          </div>
+
+          {skills.length > 0 && (
+            <div className="flex items-start text-sm text-muted-foreground">
+              <Tag className="h-4 w-4 mr-2 mt-1" />
+              <div className="flex flex-wrap gap-1">
+                {skills.map((skill) => (
+                  <Badge key={skill} variant="secondary" className="text-xs">
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
             </div>
           )}
         </div>
-        <p className="text-gray-600 line-clamp-2">{mission.description}</p>
       </CardContent>
-      
-      <CardFooter className="pt-0 flex justify-between">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => navigate(`/missions/${mission.id}`)}
-        >
-          Voir les détails
+
+      <CardFooter className="pt-4">
+        <Button asChild className="w-full">
+          <Link to={`/missions/${mission.id}`}>
+            Voir les détails
+          </Link>
         </Button>
-        {onRegister && mission.status === 'active' && !isRegistered && (
-          <Button 
-            size="sm" 
-            onClick={onRegister}
-            disabled={availableSpots <= 0}
-          >
-            S'inscrire
-          </Button>
-        )}
       </CardFooter>
     </Card>
   );

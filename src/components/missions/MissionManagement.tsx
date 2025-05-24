@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -9,8 +10,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MissionWithAssociation, MissionStatus } from '@/types/mission';
-import { useAssociationMissions } from '@/hooks/useMissions';
+import { MissionWithDetails, MissionStatus } from '@/types/mission';
+import { useAssociationMissions, useMissionActions } from '@/hooks/useMissions';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -26,52 +27,27 @@ interface MissionManagementProps {
 
 export default function MissionManagement({ associationId, filterStatus }: MissionManagementProps) {
   const navigate = useNavigate();
-  const { data: missions, isLoading, refetch } = useAssociationMissions(associationId);
+  const { data: missions, isLoading, refetch } = useAssociationMissions(associationId, filterStatus);
+  const { changeMissionStatus, duplicateMission } = useMissionActions();
   const [expandedMissions, setExpandedMissions] = useState<Record<string, boolean>>({});
   
   const handleStatusChange = async (missionId: string, newStatus: MissionStatus) => {
-    try {
-      const { error } = await supabase
-        .from('missions')
-        .update({ status: newStatus })
-        .eq('id', missionId);
-      
-      if (error) throw error;
-      
+    const result = await changeMissionStatus(missionId, newStatus);
+    if (result.success) {
       toast.success(`Statut de la mission mis à jour avec succès`);
       refetch();
-    } catch (error: any) {
-      toast.error(`Erreur lors de la mise à jour du statut: ${error.message}`);
+    } else {
+      toast.error(`Erreur lors de la mise à jour du statut: ${result.error}`);
     }
   };
   
   const handleDuplicate = async (missionId: string) => {
-    try {
-      const { data: mission, error: fetchError } = await supabase
-        .from('missions')
-        .select('*')
-        .eq('id', missionId)
-        .single();
-      
-      if (fetchError) throw fetchError;
-      
-      const { error: insertError } = await supabase
-        .from('missions')
-        .insert({
-          ...mission,
-          id: undefined,
-          title: `${mission.title} (copie)`,
-          status: 'draft',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        });
-      
-      if (insertError) throw insertError;
-      
+    const result = await duplicateMission(missionId);
+    if (result.success) {
       toast.success(`Mission dupliquée avec succès`);
       refetch();
-    } catch (error: any) {
-      toast.error(`Erreur lors de la duplication: ${error.message}`);
+    } else {
+      toast.error(`Erreur lors de la duplication: ${result.error}`);
     }
   };
   
@@ -127,15 +103,19 @@ export default function MissionManagement({ associationId, filterStatus }: Missi
       </Card>
     );
   }
-
+  
   return (
     <div className="space-y-4">
       {missions.map(mission => (
         <Card key={mission.id} className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xl font-bold">{mission.title}</CardTitle>
-            <div className="flex items-center space-x-2">
-              {getStatusBadge(mission.status)}
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-start">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  {mission.title}
+                  {getStatusBadge(mission.status)}
+                </CardTitle>
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -144,7 +124,7 @@ export default function MissionManagement({ associationId, filterStatus }: Missi
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => navigate(`/missions/${mission.id}/edit`)}>
+                  <DropdownMenuItem onClick={() => navigate(`/missions/edit/${mission.id}`)}>
                     <Edit className="mr-2 h-4 w-4" />
                     Modifier
                   </DropdownMenuItem>
@@ -153,78 +133,118 @@ export default function MissionManagement({ associationId, filterStatus }: Missi
                     Dupliquer
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem 
-                    onClick={() => handleStatusChange(mission.id, 'cancelled')}
-                    className="text-red-600"
-                  >
-                    <XCircle className="mr-2 h-4 w-4" />
-                    Annuler
-                  </DropdownMenuItem>
+                  <DropdownMenuLabel>Changer le statut</DropdownMenuLabel>
+                  {mission.status !== 'open' && (
+                    <DropdownMenuItem onClick={() => handleStatusChange(mission.id, 'open')}>
+                      <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                      Publier
+                    </DropdownMenuItem>
+                  )}
+                  {mission.status !== 'completed' && mission.status !== 'cancelled' && (
+                    <DropdownMenuItem onClick={() => handleStatusChange(mission.id, 'completed')}>
+                      <CheckCircle className="mr-2 h-4 w-4 text-purple-600" />
+                      Marquer comme clôturée
+                    </DropdownMenuItem>
+                  )}
+                  {mission.status !== 'cancelled' && (
+                    <DropdownMenuItem onClick={() => handleStatusChange(mission.id, 'cancelled')}>
+                      <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                      Annuler la mission
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center space-x-2">
-                <Calendar className="h-4 w-4 text-gray-500" />
-                <span>{format(new Date(mission.starts_at || mission.start_date), 'PPP', { locale: fr })}</span>
+          <CardContent className="pb-2">
+            <div className="flex flex-wrap items-center gap-4 text-gray-500 text-sm mb-2">
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-1" />
+                <span>{format(new Date(mission.starts_at), 'Pp', { locale: fr })}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-gray-500" />
-                <span>{mission.duration_minutes} minutes</span>
+              <div className="flex items-center">
+                <Clock className="h-4 w-4 mr-1" />
+                <span>Durée: {mission.duration}</span>
               </div>
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-gray-500" />
-                <span>{mission.spots_taken || 0}/{mission.spots_available || mission.available_spots} participants</span>
+              <div className="flex items-center">
+                <Users className="h-4 w-4 mr-1" />
+                <span>
+                  {mission.spots_taken}/{mission.spots_available} participants
+                </span>
               </div>
             </div>
-            
-            {expandedMissions[mission.id] && (
-              <div className="mt-4 space-y-4">
-                <div className="text-sm text-gray-600">
-                  {mission.description}
-                </div>
-                
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-2">Participants</h4>
-                  {mission.mission_participants && mission.mission_participants.length > 0 ? (
-                    <div className="space-y-2">
-                      {mission.mission_participants.map((p) => (
-                        <div key={p.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
-                          <span>
-                            {p.profiles?.first_name} {p.profiles?.last_name}
-                          </span>
-                          <Badge variant={
-                            p.status === 'completed' ? 'default' : 
-                            p.status === 'registered' ? 'secondary' : 
-                            p.status === 'cancelled' ? 'destructive' : 
-                            'outline'
-                          }>
-                            {p.status === 'completed' ? 'Validé' : 
-                             p.status === 'registered' ? 'Inscrit' : 
-                             p.status === 'cancelled' ? 'Annulé' : 
-                             p.status}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 text-sm">Aucun participant inscrit pour le moment.</p>
-                  )}
-                </div>
-              </div>
-            )}
+            <p className="text-gray-600 line-clamp-2">{mission.description}</p>
           </CardContent>
-          <CardFooter className="border-t pt-4">
+          <CardFooter className="pt-0 flex justify-between">
             <Button 
-              variant="ghost" 
+              variant="outline" 
+              size="sm" 
               onClick={() => toggleMissionDetails(mission.id)}
-              className="w-full"
             >
-              {expandedMissions[mission.id] ? 'Réduire' : 'Voir les détails'}
+              {expandedMissions[mission.id] ? 'Masquer les détails' : 'Voir les détails'}
+            </Button>
+            <Button 
+              size="sm" 
+              onClick={() => navigate(`/missions/${mission.id}`)}
+            >
+              Gérer les participants
             </Button>
           </CardFooter>
+          
+          {/* Détails supplémentaires si développé */}
+          {expandedMissions[mission.id] && (
+            <div className="px-6 pb-6 border-t mt-4 pt-4">
+              <h4 className="font-medium mb-2">Participants ({mission.spots_taken}/{mission.spots_available})</h4>
+              {mission.mission_participants && mission.mission_participants.length > 0 ? (
+                <div className="space-y-2">
+                  {mission.mission_participants.map((p) => (
+                    <div key={p.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                      <span>
+                        {p.profiles?.first_name} {p.profiles?.last_name}
+                      </span>
+                      <Badge variant={
+                        p.status === 'completed' ? 'default' : 
+                        p.status === 'registered' ? 'secondary' : 
+                        p.status === 'cancelled' ? 'destructive' : 
+                        'outline'
+                      }>
+                        {p.status === 'completed' ? 'Validé' : 
+                         p.status === 'registered' ? 'Inscrit' : 
+                         p.status === 'cancelled' ? 'Annulé' : 
+                         p.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">Aucun participant inscrit pour le moment.</p>
+              )}
+              
+              {/* Actions spécifiques selon le statut */}
+              {mission.status === 'completed' ? (
+                <div className="mt-4 p-3 bg-purple-50 rounded border border-purple-100 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5 text-purple-600" />
+                  <span className="text-sm text-purple-700">
+                    Cette mission est clôturée. Vous pouvez encore consulter les participants et leurs validations.
+                  </span>
+                </div>
+              ) : mission.status === 'cancelled' ? (
+                <div className="mt-4 p-3 bg-red-50 rounded border border-red-100 flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                  <span className="text-sm text-red-700">
+                    Cette mission a été annulée. Les participants en ont été informés automatiquement.
+                  </span>
+                </div>
+              ) : mission.status === 'draft' ? (
+                <Button 
+                  className="mt-4 w-full" 
+                  onClick={() => handleStatusChange(mission.id, 'open')}
+                >
+                  Publier cette mission
+                </Button>
+              ) : null}
+            </div>
+          )}
         </Card>
       ))}
     </div>

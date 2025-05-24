@@ -10,7 +10,6 @@ import { format, formatDistance } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
-import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
 
 const MissionDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -90,19 +89,18 @@ const MissionDetail = () => {
       return;
     }
 
-    if (mission.spots_taken >= mission.available_spots) {
+    if (mission.spots_taken >= mission.spots_available) {
       toast.error("Il n'y a plus de places disponibles pour cette mission");
       return;
     }
 
     try {
       const { error } = await supabase
-        .from("mission_registrations")
+        .from("mission_participants")
         .insert({
           mission_id: mission.id,
           user_id: user.id,
-          status: "inscrit" as ParticipationStatus,
-          registration_date: new Date().toISOString()
+          status: "registered"
         });
 
       if (error) throw error;
@@ -120,8 +118,8 @@ const MissionDetail = () => {
 
     try {
       const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status: "annulé" as ParticipationStatus })
+        .from("mission_participants")
+        .delete()
         .eq("mission_id", mission.id)
         .eq("user_id", user.id);
 
@@ -156,11 +154,11 @@ const MissionDetail = () => {
             <div className="flex flex-wrap items-center gap-4 text-gray-500 mb-2">
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-1" />
-                <span>{mission.location}</span>
+                <span>{mission.city}</span>
               </div>
               <div className="flex items-center">
                 <Calendar className="h-4 w-4 mr-1" />
-                <span>{formatDate(mission.start_date)}</span>
+                <span>{formatDate(mission.starts_at)}</span>
               </div>
               <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-1" />
@@ -169,7 +167,7 @@ const MissionDetail = () => {
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
                 <span>
-                  {mission.spots_taken}/{mission.available_spots} participants
+                  {mission.spots_taken}/{mission.spots_available} participants
                 </span>
               </div>
             </div>
@@ -207,7 +205,7 @@ const MissionDetail = () => {
               <p className="text-gray-700">
                 {mission.address ? (
                   <>
-                    {mission.address}, {mission.postal_code} {mission.location}
+                    {mission.address}, {mission.postal_code} {mission.city}
                   </>
                 ) : (
                   "Mission à distance"
@@ -256,7 +254,7 @@ const MissionDetail = () => {
                   <div className="p-3 bg-yellow-50 text-yellow-700 rounded-md">
                     Les associations ne peuvent pas participer aux missions
                   </div>
-                ) : mission.spots_taken >= mission.available_spots ? (
+                ) : mission.spots_taken >= mission.spots_available ? (
                   <div className="p-3 bg-orange-50 text-orange-700 rounded-md">
                     Cette mission est complète
                   </div>

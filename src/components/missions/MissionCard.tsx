@@ -1,16 +1,14 @@
-
+import { MissionWithAssociation } from "@/types/mission";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { MapPin, Calendar, Clock, Users, Building } from "lucide-react";
+import { MapPin, Calendar, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
-import { format } from "date-fns";
+import { format, formatDistance } from "date-fns";
 import { fr } from "date-fns/locale";
-import type { MissionWithDetails } from "@/types";
 
 interface MissionCardProps {
-  mission: MissionWithDetails;
+  mission: MissionWithAssociation;
 }
 
 const MissionCard = ({ mission }: MissionCardProps) => {
@@ -19,153 +17,97 @@ const MissionCard = ({ mission }: MissionCardProps) => {
   };
 
   const formatTime = (dateString: string) => {
-    return format(new Date(dateString), "HH:mm", { locale: fr });
+    return format(new Date(dateString), "HH'h'mm", { locale: fr });
+  };
+
+  const getTimeUntil = (dateString: string) => {
+    return formatDistance(new Date(dateString), new Date(), { 
+      addSuffix: true,
+      locale: fr 
+    });
   };
 
   const getDurationText = (minutes: number) => {
     if (minutes < 60) {
-      return `${minutes}min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    return remainingMinutes > 0 ? `${hours}h${remainingMinutes}` : `${hours}h`;
-  };
-
-  const getFormatBadgeColor = (format?: string) => {
-    switch (format) {
-      case 'Présentiel':
-        return 'bg-blue-100 text-blue-800';
-      case 'À distance':
-        return 'bg-green-100 text-green-800';
-      case 'Hybride':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+      return `${minutes} minutes`;
+    } else if (minutes === 60) {
+      return "1 heure";
+    } else if (minutes % 60 === 0) {
+      return `${minutes / 60} heures`;
+    } else {
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      return `${hours}h${remainingMinutes}`;
     }
   };
 
-  const getDifficultyBadgeColor = (difficulty?: string) => {
-    switch (difficulty) {
-      case 'débutant':
-        return 'bg-green-100 text-green-800';
-      case 'intermédiaire':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'expert':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const getInitials = (firstName?: string, lastName?: string) => {
+    if (!firstName && !lastName) return "?";
+    return `${firstName?.[0] || ""}${lastName?.[0] || ""}`;
   };
+
+  const isRemote = !mission.lat && !mission.lng;
 
   return (
     <Card className="h-full hover:shadow-lg transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex justify-between items-start gap-2">
-          <h3 className="text-lg font-semibold line-clamp-2 flex-1">
-            {mission.title}
-          </h3>
-          <Badge variant="outline" className="shrink-0">
-            <Users className="h-3 w-3 mr-1" />
-            {mission.available_spots_remaining || 0}
-          </Badge>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start">
+          <h3 className="text-lg font-bold truncate">{mission.title}</h3>
+          <Badge variant="outline">{mission.spots_available - mission.spots_taken} places</Badge>
         </div>
-        
-        <div className="flex flex-wrap gap-2">
-          {mission.format && (
-            <Badge className={getFormatBadgeColor(mission.format)}>
-              {mission.format}
-            </Badge>
-          )}
-          {mission.difficulty_level && (
-            <Badge className={getDifficultyBadgeColor(mission.difficulty_level)}>
-              {mission.difficulty_level}
-            </Badge>
-          )}
-          {mission.mission_type && (
-            <Badge variant="secondary">
-              {mission.mission_type.name}
-            </Badge>
-          )}
+        <div className="flex items-center text-gray-500 text-sm">
+          <div className="flex items-center mr-4">
+            <MapPin className="w-3 h-3 mr-1" />
+            <span>{isRemote ? "À distance" : mission.city}</span>
+          </div>
+          <div className="flex items-center">
+            <Calendar className="w-3 h-3 mr-1" />
+            <span>{formatDate(mission.starts_at)}</span>
+          </div>
         </div>
       </CardHeader>
-
-      <CardContent className="pb-3">
-        <p className="text-sm text-gray-600 line-clamp-3 mb-4">
-          {mission.description}
-        </p>
-
-        <div className="space-y-2 text-sm text-gray-500">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            <span>{formatDate(mission.start_date)} à {formatTime(mission.start_date)}</span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
+      <CardContent>
+        <p className="text-sm text-gray-600 line-clamp-2 mb-4">{mission.description}</p>
+        <div className="flex flex-col space-y-2 mb-4">
+          <div className="flex items-center text-sm text-gray-500">
+            <Clock className="w-3 h-3 mr-2" />
             <span>Durée: {getDurationText(mission.duration_minutes)}</span>
           </div>
-
-          {mission.location && (
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              <span>{mission.location}</span>
-            </div>
-          )}
-
-          {mission.engagement_level && (
-            <div className="text-xs text-blue-600 font-medium">
-              {mission.engagement_level}
-            </div>
+          <div className="text-sm text-gray-500">
+            {getTimeUntil(mission.starts_at)}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {(mission.skills_required || []).slice(0, 3).map((skill, index) => (
+            <Badge key={index} variant="secondary" className="bg-gray-100">
+              {skill}
+            </Badge>
+          ))}
+          {mission.skills_required && mission.skills_required.length > 3 && (
+            <Badge variant="secondary" className="bg-gray-100">
+              +{mission.skills_required.length - 3}
+            </Badge>
           )}
         </div>
-
-        {mission.mission_skills && mission.mission_skills.length > 0 && (
-          <div className="mt-3">
-            <div className="flex flex-wrap gap-1">
-              {mission.mission_skills.slice(0, 3).map((missionSkill) => (
-                <Badge 
-                  key={missionSkill.id} 
-                  variant="outline" 
-                  className="text-xs"
-                >
-                  {missionSkill.skills?.name}
-                </Badge>
-              ))}
-              {mission.mission_skills.length > 3 && (
-                <Badge variant="outline" className="text-xs">
-                  +{mission.mission_skills.length - 3}
-                </Badge>
-              )}
-            </div>
-          </div>
-        )}
       </CardContent>
-
       <CardFooter className="flex items-center justify-between border-t pt-4">
-        <div className="flex items-center gap-2">
-          <Avatar className="h-8 w-8">
-            <AvatarImage src={mission.organization_profile?.logo_url || ""} />
+        <div className="flex items-center">
+          <Avatar className="h-8 w-8 mr-2">
+            <AvatarImage src={mission.association?.avatar_url || ""} />
             <AvatarFallback>
-              <Building className="h-4 w-4" />
+              {getInitials(mission.association?.first_name, mission.association?.last_name)}
             </AvatarFallback>
           </Avatar>
-          <div className="flex flex-col">
-            <span className="text-sm font-medium line-clamp-1">
-              {mission.organization_profile?.organization_name}
-            </span>
-            {mission.organization_profile?.organization_sectors && (
-              <span className="text-xs text-gray-500">
-                {mission.organization_profile.organization_sectors.name}
-              </span>
-            )}
-          </div>
-        </div>
-        
-        <Button asChild size="sm">
-          <Link to={`/missions/${mission.id}`}>
-            Voir plus
+          <Link 
+            to={`/association/${mission.association?.id}`} 
+            className="text-sm font-medium hover:underline"
+          >
+            {mission.association?.first_name} {mission.association?.last_name}
           </Link>
-        </Button>
+        </div>
+        <Link to={`/missions/${mission.id}`} className="text-bleu text-sm hover:underline">
+          Voir plus
+        </Link>
       </CardFooter>
     </Card>
   );

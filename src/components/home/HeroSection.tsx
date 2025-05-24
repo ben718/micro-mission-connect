@@ -1,122 +1,98 @@
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, MapPin } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function HeroSection() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [location, setLocation] = useState("");
-  const navigate = useNavigate();
+const HeroSection = () => {
   const { user, profile } = useAuth();
 
-  const handleSearch = () => {
-    const params = new URLSearchParams();
-    if (searchQuery) params.set("query", searchQuery);
-    if (location) params.set("city", location);
-    navigate(`/missions?${params.toString()}`);
-  };
+  let title = (
+    <>
+      <span className="block text-bleu">Offrez votre temps,</span>
+      <span className="bg-clip-text text-transparent bg-gradient-to-r from-bleu to-bleu-400">
+        même 15 minutes comptent
+      </span>
+    </>
+  );
+  let description =
+    "Rejoignez notre communauté et transformez des moments libres en actions concrètes pour les associations qui ont besoin de vous.";
+  let primaryBtn = <Button asChild className="bg-bleu text-white hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions">Trouver une mission</Link></Button>;
+  let secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/auth/register">Créer un compte</Link></Button>;
 
-  const isOrganization = profile?.is_association;
+  if (profile?.is_association) {
+    title = (
+      <>
+        <span className="block">Mobilisez des bénévoles,</span>
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-bleu to-bleu-400">
+          publiez vos missions simplement
+        </span>
+      </>
+    );
+    description = "Publiez vos missions, suivez vos bénévoles et valorisez l'engagement associatif sur MicroBénévole.";
+    primaryBtn = <Button asChild className="text-white bg-bleu hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions/new">Créer une mission</Link></Button>;
+    secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/profile/association">Mon espace asso</Link></Button>;
+  } else if (profile && !profile.is_association) {
+    title = (
+      <>
+        <span className="block">Trouvez votre prochaine mission,</span>
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-bleu to-bleu-400">
+          engagez-vous à votre rythme
+        </span>
+      </>
+    );
+    description = "Découvrez des missions adaptées à vos envies et disponibilités, et suivez votre impact solidaire.";
+    primaryBtn = <Button asChild className="text-white bg-bleu hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions">Trouver une mission</Link></Button>;
+    secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/profile/benevole">Mon espace bénévole</Link></Button>;
+  }
 
   return (
-    <div className="relative min-h-[600px] bg-gradient-to-br from-blue-50 to-white flex items-center">
-      <div className="container mx-auto px-4 py-16">
+    <section className="py-12 lg:py-20 overflow-hidden relative bg-gradient-to-b from-white to-blue-50">
+      <div className="absolute inset-0 bg-grid-bleu-100/40 bg-fixed"></div>
+      <div className="container mx-auto px-4 relative">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left side - Text content */}
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-4xl lg:text-5xl font-bold text-gray-900 leading-tight">
-                Offrez votre temps,{" "}
-                <span className="text-blue-600">même 15 minutes comptent</span>
-              </h1>
-              <p className="text-lg text-gray-600 leading-relaxed">
-                Rejoignez notre communauté et transformez des moments libres en actions concrètes 
-                pour les associations qui ont besoin de vous.
-              </p>
-            </div>
-
-            {!user ? (
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
-                  <Link to="/missions">Trouver une mission</Link>
-                </Button>
-                <Button asChild variant="outline" size="lg">
-                  <Link to="/auth/register">Créer un compte</Link>
-                </Button>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="bg-blue-600 hover:bg-blue-700">
-                  <Link to="/missions">Trouver une mission</Link>
-                </Button>
-                {isOrganization && (
-                  <Button asChild variant="outline" size="lg">
-                    <Link to="/dashboard">Mon tableau de bord</Link>
-                  </Button>
-                )}
-              </div>
-            )}
-
-            {/* Search bar */}
-            <div className="bg-white rounded-lg shadow-lg p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Rechercher des missions près de chez vous
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <Input
-                    placeholder="Rechercher une mission..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <div className="flex-1 relative">
-                  <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
-                  <Input
-                    placeholder="Ville..."
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Button onClick={handleSearch} className="bg-blue-600 hover:bg-blue-700">
-                  Rechercher
-                </Button>
-              </div>
+          <div className="order-2 lg:order-1 animate-fade-in" style={{ animationDelay: "0.2s" }}>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
+              {title}
+            </h1>
+            <p className="mt-6 text-lg text-gray-600 max-w-xl">
+              {description}
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row gap-4">
+              {primaryBtn}
+              {secondaryBtn}
             </div>
           </div>
-
-          {/* Right side - Mission card example */}
-          <div className="flex justify-center lg:justify-end">
-            <div className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                  <span className="text-orange-600 font-bold text-lg">15</span>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-gray-900">Distribution de repas</h4>
-                  <p className="text-sm text-gray-500">Aujourd'hui • 15 minutes • 1.5 km</p>
-                </div>
-              </div>
-              <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-xl h-32 mb-4 flex items-center justify-center">
+          <div className="order-1 lg:order-2 flex justify-center lg:justify-end animate-fade-in" style={{ animationDelay: "0.4s" }}>
+            <div className="relative w-full max-w-md">
+              <div className="absolute -top-6 -left-6 w-24 h-24 bg-yellow-200/20 rounded-full filter blur-xl animate-pulse-light"></div>
+              <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-blue-500/20 rounded-full filter blur-xl animate-pulse-light" style={{ animationDelay: "1s" }}></div>
+              <div className="relative bg-white rounded-2xl shadow-xl overflow-hidden">
                 <img 
-                  src="/lovable-uploads/cd08c8ca-f0ba-4aca-9724-5a1929fb6572.png" 
-                  alt="Illustration mission" 
-                  className="w-full h-full object-cover rounded-xl"
+                  src="https://images.unsplash.com/photo-1540317700647-ec69694d70d0?auto=format&fit=crop&q=80&w=2000" 
+                  alt="Bénévoles engagés dans diverses micro-missions"
+                  className="w-full h-auto object-cover"
                 />
+                <div className="absolute -bottom-1 inset-x-0 h-40 bg-gradient-to-t from-white to-transparent"></div>
+                <div className="absolute bottom-4 left-4 right-4">
+                  <div className="bg-white/90 backdrop-blur-sm rounded-xl p-4 shadow-lg">
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-full bg-yellow-300 flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 text-xl font-bold">15</span>
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-blue-600">Distribution de repas</h3>
+                        <p className="text-sm text-gray-600">Aujourd'hui • 15 minutes • 1,5 km</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                Participer à cette mission
-              </Button>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
-}
+};
+
+export default HeroSection;

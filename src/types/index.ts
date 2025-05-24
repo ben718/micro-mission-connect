@@ -1,100 +1,18 @@
+
 import { Database } from "@/integrations/supabase/types";
 
-// Types de base Supabase
+// Use Supabase generated types as a base
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Mission = Database['public']['Tables']['missions']['Row'];
-export type OrganizationProfile = Database['public']['Tables']['organization_profiles']['Row'];
-export type OrganizationSector = Database['public']['Tables']['organization_sectors']['Row'];
-export type MissionType = Database['public']['Tables']['mission_types']['Row'];
-export type MissionRegistration = Database['public']['Tables']['mission_registrations']['Row'];
-export type MissionSkill = Database['public']['Tables']['mission_skills']['Row'];
-export type Skill = Database['public']['Tables']['skills']['Row'];
+export type Category = Database['public']['Tables']['categories']['Row'];
 export type Badge = Database['public']['Tables']['badges']['Row'];
-export type UserBadge = Database['public']['Tables']['user_badges']['Row'];
-export type UserSkill = Database['public']['Tables']['user_skills']['Row'];
-export type Testimonial = Database['public']['Tables']['testimonials']['Row'];
-export type Notification = Database['public']['Tables']['notifications']['Row'];
-export type User = Database['public']['Tables']['users']['Row'];
+export type MissionParticipant = Database['public']['Tables']['mission_participants']['Row'];
 
-// Types étendus pour l'interface
-export type MissionWithDetails = Mission & {
-  mission_type?: MissionType;
-  organization_profile?: OrganizationProfile & {
-    organization_sectors?: OrganizationSector;
-  };
-  mission_skills?: (MissionSkill & {
-    skills?: Skill;
-  })[];
-  mission_registrations?: MissionRegistration[];
-  available_spots_remaining?: number;
-  is_registered?: boolean;
+// Add any custom types here
+export type MissionWithCategories = Mission & {
+  categories: Category[];
 };
 
-export type ProfileWithDetails = Profile & {
-  organization_profiles?: OrganizationProfile & {
-    organization_sectors?: OrganizationSector;
-  };
-  user_skills?: (UserSkill & {
-    skills?: Skill;
-  })[];
-  user_badges?: (UserBadge & {
-    badges?: Badge;
-  })[];
-  // Propriétés calculées pour compatibilité
-  avatar_url?: string;
-  is_association?: boolean;
-};
-
-// Types étendus pour les utilisateurs avec les propriétés manquantes
-export type ExtendedUser = User & {
-  is_organization?: boolean;
-  avatar_url?: string;
-};
-
-export type ExtendedProfile = Profile & {
-  is_association?: boolean;
-  avatar_url?: string;
-};
-
-// Types pour les filtres
-export interface MissionFilters {
-  query?: string;
-  city?: string;
-  remote?: boolean;
-  dateRange?: { from?: string | Date; to?: string | Date };
-  categoryIds?: string[];
-  coordinates?: any;
-  missionTypes?: string[];
-  associationTypes?: string[];
-  durations?: string[];
-  requiredSkills?: string[];
-  impacts?: string[];
-  engagementLevels?: string[];
-  sector_id?: string;
-  mission_type_id?: string;
-  format?: string;
-  difficulty_level?: string;
-  engagement_level?: string;
-  available_only?: boolean;
-}
-
-// Types pour les inscriptions
-export type RegistrationData = {
-  mission_id: string;
-  user_id: string;
-  status?: 'inscrit' | 'confirmé' | 'terminé' | 'annulé';
-};
-
-// Types pour l'authentification
-export type UserRole = 'volunteer' | 'organization';
-
-export type AuthData = {
-  email: string;
-  password: string;
-  first_name?: string;
-  last_name?: string;
-  role: UserRole;
-  organization_name?: string;
-  organization_description?: string;
-  sector_id?: string;
+export type ProfileWithBadges = Profile & {
+  badges: Badge[];
 };

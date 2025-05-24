@@ -1,5 +1,4 @@
-
-import { MissionWithDetails, MissionFilters } from "@/types";
+import { MissionWithAssociation, MissionFilters } from "@/types/mission";
 import MissionCard from "@/components/missions/MissionCard";
 import { useMissions } from "@/hooks/useMissions";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,8 +11,8 @@ interface MissionsListProps {
 }
 
 const MissionsList = ({ filters }: MissionsListProps) => {
-  const [currentPage, setCurrentPage] = useState(0);
-  const pageSize = 12;
+  const [currentPage, setCurrentPage] = useState(0); // 0-indexed page
+  const pageSize = 12; // Number of missions per page
 
   // Reset page to 0 when filters change
   useEffect(() => {
@@ -38,6 +37,7 @@ const MissionsList = ({ filters }: MissionsListProps) => {
     setCurrentPage(prev => Math.min(totalPages - 1, prev + 1));
   };
 
+  // Hide pagination if less than 2 pages
   const showPagination = totalPages > 1;
 
   if (isLoading) {

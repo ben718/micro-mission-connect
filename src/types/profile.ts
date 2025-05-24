@@ -1,25 +1,24 @@
 
 export interface Profile {
   id?: string;
-  first_name?: string;
-  last_name?: string;
-  profile_picture_url?: string;
-  city?: string;
-  address?: string;
-  postal_code?: string;
-  latitude?: number;
-  longitude?: number;
+  first_name: string;
+  last_name: string;
+  avatar_url?: string;
+  bio?: string;
+  phone?: string;
+  location?: string;
   created_at?: string;
   updated_at?: string;
-  last_login?: string;
+  is_association: boolean;
+  association_description?: string;
+  website?: string;
+  skills?: string[];
+  categories?: string[];
   
-  // Propriétés calculées pour la compatibilité avec le code existant
-  avatar_url?: string; // Alias pour profile_picture_url
-  is_association?: boolean; // Calculé à partir des organization_profiles
-  location?: string; // Calculé à partir de city
-  role?: string; // 'association' ou 'volunteer' calculé à partir de is_association
+  // Propriétés synthétiques pour la compatibilité avec le code existant
+  name?: string; // Calculé à partir de first_name + last_name
+  role?: string; // 'association' ou 'benevole' calculé à partir de is_association
+  avatar?: string; // Alias pour avatar_url
   badges?: string[]; // Pour la compatibilité avec UserProfile
   email?: string; // Pour la compatibilité avec useAuth
-  bio?: string; // Ajouté pour compatibilité
-  skills?: string[]; // Ajouté pour compatibilité
 }

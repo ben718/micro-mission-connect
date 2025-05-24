@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,25 +16,26 @@ type SimpleProfile = {
   id: string;
   first_name?: string;
   last_name?: string;
-  profile_picture_url?: string;
+  email?: string;
+  avatar_url?: string;
 };
 
-type MissionRegistration = {
+type MissionParticipant = {
   id: string;
   status: string;
   user_id: string;
-  profiles?: SimpleProfile;
+  profile?: SimpleProfile;
 };
 
 type SimpleMission = {
   id: string;
   title: string;
   description: string;
-  start_date: string;
-  location: string;
+  starts_at: string;
+  city: string;
   status: string;
   duration_minutes?: number;
-  registrations?: MissionRegistration[];
+  participants?: MissionParticipant[];
 };
 
 interface Stats {
@@ -58,85 +58,91 @@ const DashboardAssociation = () => {
 
   useEffect(() => {
     if (user) {
-      fetchOrganizationMissions();
+      fetchAssociationMissions();
       fetchStats();
     }
   }, [user]);
 
-  const fetchOrganizationMissions = async () => {
+  // Fonction modifiée pour éviter les types récursifs infinis
+  const fetchAssociationMissions = async () => {
     setLoading(true);
     setError(null);
     try {
-      // D'abord récupérer l'ID de l'organisation
-      const { data: orgData, error: orgError } = await supabase
-        .from("organization_profiles")
-        .select("id")
-        .eq("user_id", user?.id)
-        .single();
-
-      if (orgError) throw orgError;
-
-      // Récupérer les missions de l'organisation
+      // 1. Récupérer les missions de base sans les participants imbriqués
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select(`
           id, 
           title, 
           description,
-          start_date,
-          location,
+          starts_at,
+          city,
           status,
           duration_minutes
         `)
-        .eq("organization_id", orgData.id)
-        .order("start_date", { ascending: true });
+        .eq("association_id", user?.id)
+        .order("starts_at", { ascending: true });
       
       if (missionsError) throw missionsError;
       
-      let missionsWithRegistrations: SimpleMission[] = missionsData || [];
+      // 2. Initialiser le tableau de missions
+      let missionsWithParticipants: SimpleMission[] = missionsData || [];
       
-      // Pour chaque mission, récupérer ses inscriptions avec les profils
-      for (const mission of missionsWithRegistrations) {
-        const { data: registrationsData, error: registrationsError } = await supabase
-          .from("mission_registrations")
-          .select(`
-            id, 
-            status, 
-            user_id
-          `)
+      // 3. Pour chaque mission, récupérer séparément ses participants
+      for (const mission of missionsWithParticipants) {
+        // Récupérer les participants pour cette mission
+        const { data: participantsData, error: participantsError } = await supabase
+          .from("mission_participants")
+          .select("id, status, user_id")
           .eq("mission_id", mission.id);
           
-        if (registrationsError) {
-          console.error("Erreur lors de la récupération des inscriptions:", registrationsError);
-          continue;
+        if (participantsError) {
+          console.error("Erreur lors de la récupération des participants:", participantsError);
+          continue; // Continuer avec la mission suivante en cas d'erreur
         }
         
-        // Pour chaque inscription, récupérer le profil
-        const registrationsWithProfiles = [];
-        for (const reg of registrationsData || []) {
-          const { data: profileData } = await supabase
+        // Initialiser les participants pour cette mission
+        mission.participants = participantsData || [];
+        
+        // Si des participants existent, récupérer leurs profils
+        if (participantsData && participantsData.length > 0) {
+          // Extraire les IDs utilisateurs uniques
+          const userIds = participantsData.map(p => p.user_id);
+          
+          // Récupérer les profils correspondants
+          const { data: profilesData, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, first_name, last_name, profile_picture_url")
-            .eq("id", reg.user_id)
-            .single();
+            .select("id, first_name, last_name, email, avatar_url")
+            .in("id", userIds);
             
-          registrationsWithProfiles.push({
-            id: reg.id,
-            status: reg.status,
-            user_id: reg.user_id,
-            profiles: profileData ? {
-              id: profileData.id,
-              first_name: profileData.first_name,
-              last_name: profileData.last_name,
-              profile_picture_url: profileData.profile_picture_url
-            } : undefined
-          });
+          if (profilesError) {
+            console.error("Erreur lors de la récupération des profils:", profilesError);
+            continue;
+          }
+            
+          if (profilesData) {
+            // Créer un dictionnaire pour associer les profils aux participants
+            const profilesMap: Record<string, SimpleProfile> = {};
+            profilesData.forEach(profile => {
+              profilesMap[profile.id] = {
+                id: profile.id,
+                first_name: profile.first_name,
+                last_name: profile.last_name,
+                email: profile.email,
+                avatar_url: profile.avatar_url
+              };
+            });
+            
+            // Associer les profils aux participants
+            mission.participants = mission.participants.map(p => ({
+              ...p,
+              profile: profilesMap[p.user_id]
+            }));
+          }
         }
-        
-        mission.registrations = registrationsWithProfiles;
       }
       
-      setMissions(missionsWithRegistrations);
+      setMissions(missionsWithParticipants);
     } catch (err: any) {
       console.error("Erreur lors du chargement des missions:", err);
       setError(err.message || "Une erreur est survenue lors du chargement des missions");
@@ -152,36 +158,23 @@ const DashboardAssociation = () => {
         return;
       }
 
-      // Récupérer l'ID de l'organisation
-      const { data: orgData, error: orgError } = await supabase
-        .from("organization_profiles")
-        .select("id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (orgError) {
-        console.error("Erreur lors de la récupération de l'organisation:", orgError);
-        return;
-      }
-
       // Nombre total de bénévoles uniques
-      const { data: registrations, error: registrationsError } = await supabase
-        .from("mission_registrations")
-        .select("user_id, missions!inner(organization_id)")
-        .eq("missions.organization_id", orgData.id);
+      const { data: participants, error: participantsError } = await supabase
+        .from("mission_participants")
+        .select("user_id");
       
-      if (registrationsError) {
-        console.error("Erreur lors de la récupération des inscriptions:", registrationsError);
+      if (participantsError) {
+        console.error("Erreur lors de la récupération des participants:", participantsError);
         return;
       }
 
-      const uniqueBenevoles = new Set(registrations?.map(r => r.user_id) || []).size;
+      const uniqueBenevoles = new Set(participants?.map(p => p.user_id) || []).size;
       
       // Heures totales
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select("duration_minutes")
-        .eq("organization_id", orgData.id);
+        .eq("association_id", user.id);
 
       if (missionsError) {
         console.error("Erreur lors de la récupération des missions pour les statistiques:", missionsError);
@@ -210,10 +203,10 @@ const DashboardAssociation = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case "draft":
-        return <Badge className="bg-gray-100 text-gray-800">Brouillon</Badge>;
+      case "open":
+        return <Badge className="bg-green-100 text-green-800">Ouverte</Badge>;
+      case "closed":
+        return <Badge className="bg-red-100 text-red-800">Fermée</Badge>;
       case "completed":
         return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
       default:
@@ -221,28 +214,23 @@ const DashboardAssociation = () => {
     }
   };
 
-  const handleRegistrationAction = async (registrationId: string, action: 'accept' | 'reject') => {
+  const handleCandidature = async (participantId: string, status: 'confirmed' | 'refused') => {
     try {
-      const newStatus = action === 'accept' ? 'confirmé' : 'annulé';
-      
-      const { error } = await supabase
-        .from('mission_registrations')
-        .update({ status: newStatus })
-        .eq('id', registrationId);
-
-      if (error) throw error;
-      
-      fetchOrganizationMissions(); // Rafraîchir les données
-      toast.success(action === 'accept' ? 'Inscription acceptée' : 'Inscription refusée');
+      await supabase
+        .from('mission_participants')
+        .update({ status })
+        .eq('id', participantId);
+      fetchAssociationMissions(); // Rafraîchir les données après mise à jour
+      toast.success(status === 'confirmed' ? 'Candidature acceptée' : 'Candidature refusée');
     } catch (error) {
-      console.error("Erreur lors du traitement de l'inscription:", error);
-      toast.error("Une erreur est survenue lors du traitement de l'inscription");
+      console.error("Erreur lors du traitement de la candidature:", error);
+      toast.error("Une erreur est survenue lors du traitement de la candidature");
     }
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="container-custom py-10">
         <Skeleton className="h-8 w-48 mb-6" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
@@ -261,7 +249,7 @@ const DashboardAssociation = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto py-10">
+      <div className="container-custom py-10">
         <Card>
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Erreur</h2>
@@ -276,31 +264,33 @@ const DashboardAssociation = () => {
   }
 
   const currentDate = new Date();
-  const upcomingMissions = missions.filter((m) => new Date(m.start_date) >= currentDate && m.status === 'active');
-  const pastMissions = missions.filter((m) => new Date(m.start_date) < currentDate || m.status !== 'active');
+  const upcomingMissions = missions.filter((m) => new Date(m.starts_at) >= currentDate && m.status === 'open');
+  const pastMissions = missions.filter((m) => new Date(m.starts_at) < currentDate || m.status !== 'open');
 
   return (
-    <div className="container mx-auto py-10">
-      {/* En-tête organisation */}
+    <div className="container-custom py-10">
+      {/* En-tête association */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src="" />
+            <AvatarImage src={profile?.avatar_url || ""} />
             <AvatarFallback className="text-2xl">
-              {user?.email?.[0]?.toUpperCase() || "A"}
+              {profile?.first_name?.[0] || "A"}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold mb-1 text-blue-600">{user?.email}</h1>
+            <h1 className="text-3xl font-bold mb-1 text-bleu">{profile?.first_name} {profile?.last_name}</h1>
             <p className="text-gray-600">Bienvenue sur votre espace association !</p>
-            <div className="flex items-center text-gray-500 mt-1">
-              <MapPin className="w-4 h-4 mr-1 text-blue-600" />
-              <span>{profile?.city || "Non renseigné"}</span>
-            </div>
+            {profile?.location && (
+              <div className="flex items-center text-gray-500 mt-1">
+                <MapPin className="w-4 h-4 mr-1 text-bleu" />
+                <span>{profile.location}</span>
+              </div>
+            )}
           </div>
         </div>
-        <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white text-lg px-6 py-3 shadow-sm">
-          <Link to="/missions/create">
+        <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
+          <Link to="/missions/new">
             <Plus className="w-5 h-5 mr-2" />
             Créer une mission
           </Link>
@@ -311,41 +301,84 @@ const DashboardAssociation = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Calendar className="w-6 h-6 text-blue-600" />
+            <Calendar className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-blue-600">{missions.length}</span>
+            <span className="text-3xl font-bold text-bleu">{missions.length}</span>
           </CardContent>
         </Card>
-        
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Users className="w-6 h-6 text-blue-600" />
+            <Users className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Bénévoles mobilisés</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-blue-600">{stats.totalBenevoles}</span>
+            <span className="text-3xl font-bold text-bleu">{stats.totalBenevoles}</span>
           </CardContent>
         </Card>
-        
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <Clock className="w-6 h-6 text-blue-600" />
+            <Clock className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Heures bénévolat</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-blue-600">{stats.totalHeures}</span>
+            <span className="text-3xl font-bold text-bleu">{stats.totalHeures}</span>
           </CardContent>
         </Card>
-        
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <BarChart2 className="w-6 h-6 text-blue-600" />
+            <BarChart2 className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Taux de complétion</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-blue-600">{stats.tauxCompletion}%</span>
+            <span className="text-3xl font-bold text-bleu">{stats.tauxCompletion}%</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Actions rapides */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-bleu">
+              <Plus className="w-5 h-5 text-bleu" />
+              Créer une mission
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">Publiez de nouvelles missions pour mobiliser des bénévoles.</p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/missions/new">Créer une mission</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-bleu">
+              <Users className="w-5 h-5 text-bleu" />
+              Voir les inscriptions
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">Consultez la liste des bénévoles inscrits à vos missions.</p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/dashboard/inscriptions">Voir les inscriptions</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-bleu">
+              <BarChart2 className="w-5 h-5 text-bleu" />
+              Statistiques détaillées
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">Analysez l'impact de votre association grâce à des statistiques détaillées.</p>
+            <Button asChild variant="outline" className="w-full">
+              <Link to="/dashboard/statistiques">Voir les statistiques</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -358,7 +391,6 @@ const DashboardAssociation = () => {
               <TabsTrigger value="missions" className="flex-1">Missions à venir ({upcomingMissions.length})</TabsTrigger>
               <TabsTrigger value="past-missions" className="flex-1">Missions passées ({pastMissions.length})</TabsTrigger>
             </TabsList>
-            
             <TabsContent value="missions" className="p-6">
               <h2 className="text-xl font-bold mb-4">Missions à venir</h2>
               {upcomingMissions.length === 0 ? (
@@ -368,63 +400,46 @@ const DashboardAssociation = () => {
                   {upcomingMissions.map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-blue-600 hover:underline">
+                        <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
                           {mission.title}
                         </Link>
                         <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
                           <Calendar className="w-4 h-4 mr-1" />
-                          <span>{formatDate(mission.start_date)}</span>
+                          <span>{formatDate(mission.starts_at)}</span>
                           <span className="mx-2">•</span>
                           <MapPin className="w-4 h-4 mr-1" />
-                          <span>{mission.location}</span>
+                          <span>{mission.city}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-2">{mission.description}</p>
-                        
-                        {mission.registrations && mission.registrations.length > 0 && (
+                        {mission.participants && mission.participants.length > 0 && (
                           <div className="mt-4">
-                            <h4 className="font-semibold mb-2 text-sm text-gray-700">Inscriptions en attente</h4>
+                            <h4 className="font-semibold mb-2 text-sm text-gray-700">Candidatures en attente</h4>
                             <div className="space-y-2">
-                              {mission.registrations.filter((r) => r.status === 'inscrit').length === 0 && (
-                                <span className="text-gray-400 text-sm">Aucune inscription en attente</span>
+                              {mission.participants.filter((p) => p.status === 'pending').length === 0 && (
+                                <span className="text-gray-400 text-sm">Aucune candidature en attente</span>
                               )}
-                              {mission.registrations.filter((r) => r.status === 'inscrit').map((registration) => (
-                                <div key={registration.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
+                              {mission.participants.filter((p) => p.status === 'pending').map((p) => (
+                                <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-8 w-8">
-                                      <AvatarImage src={registration.profiles?.profile_picture_url} />
-                                      <AvatarFallback>{registration.profiles?.first_name?.[0] || '?'}</AvatarFallback>
+                                      <AvatarFallback>{p.profile?.first_name?.[0] || '?'}</AvatarFallback>
                                     </Avatar>
-                                    <span className="font-medium">
-                                      {registration.profiles?.first_name} {registration.profiles?.last_name}
-                                    </span>
+                                    <span className="font-medium">{p.profile?.first_name} {p.profile?.last_name}</span>
+                                    <span className="text-xs text-gray-500">{p.profile?.email}</span>
                                   </div>
                                   <div className="flex gap-2">
-                                    <Button 
-                                      size="sm" 
-                                      className="bg-green-600 hover:bg-green-700 text-white" 
-                                      onClick={() => handleRegistrationAction(registration.id, 'accept')}
-                                    >
-                                      Accepter
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline" 
-                                      className="border-red-400 text-red-600 hover:bg-red-50" 
-                                      onClick={() => handleRegistrationAction(registration.id, 'reject')}
-                                    >
-                                      Refuser
-                                    </Button>
+                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCandidature(p.id, 'confirmed')}>Accepter</Button>
+                                    <Button size="sm" variant="outline" className="border-red-400 text-red-600 hover:bg-red-50" onClick={() => handleCandidature(p.id, 'refused')}>Refuser</Button>
                                   </div>
                                 </div>
                               ))}
                             </div>
                           </div>
                         )}
-                        
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.registrations?.length || 0}</span>
+                            <span>{mission.participants?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
@@ -434,7 +449,6 @@ const DashboardAssociation = () => {
                 </div>
               )}
             </TabsContent>
-            
             <TabsContent value="past-missions" className="p-6">
               <h2 className="text-xl font-bold mb-4">Missions passées</h2>
               {pastMissions.length === 0 ? (
@@ -444,21 +458,21 @@ const DashboardAssociation = () => {
                   {pastMissions.map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-blue-600 hover:underline">
+                        <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
                           {mission.title}
                         </Link>
                         <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
                           <Calendar className="w-4 h-4 mr-1" />
-                          <span>{formatDate(mission.start_date)}</span>
+                          <span>{formatDate(mission.starts_at)}</span>
                           <span className="mx-2">•</span>
                           <MapPin className="w-4 h-4 mr-1" />
-                          <span>{mission.location}</span>
+                          <span>{mission.city}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2">{mission.description}</p>
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.registrations?.length || 0}</span>
+                            <span>{mission.participants?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
