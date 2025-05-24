@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 import type { Profile } from './profile';
 
@@ -33,6 +32,13 @@ export type Association = Profile;
 export type MissionWithAssociation = Mission & {
   association: Association;
   categories?: Category[];
+  mission_registrations?: MissionRegistration[];
+  mission_participants?: MissionParticipantWithProfiles[];
+  spots_taken?: number;
+  spots_available?: number;
+  starts_at?: string;
+  duration?: string;
+  mission_participants_count?: number;
 };
 
 export type MissionWithDetails = MissionWithAssociation & {
