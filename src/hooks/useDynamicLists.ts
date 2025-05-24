@@ -10,14 +10,6 @@ export type City = {
   updated_at: string;
 };
 
-export type Category = {
-  id: string;
-  name: string;
-  icon: string;
-  description: string;
-  created_at: string;
-};
-
 export type Badge = {
   id: string;
   name: string;
@@ -33,36 +25,6 @@ export type Skill = {
   created_at: string;
 }
 
-export function useCategories() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await supabase
-          .from("categories")
-          .select("*")
-          .order("name", { ascending: true });
-
-        if (error) throw error;
-        setCategories(data as Category[]);
-      } catch (err) {
-        setError(err as Error);
-        console.error("Erreur lors du chargement des catégories:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
-
-  return { categories, loading, error };
-}
-
 export function useCities() {
   const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,47 +34,30 @@ export function useCities() {
     const fetchCities = async () => {
       try {
         setLoading(true);
-        // Vérifier d'abord si la table cities existe
-        const { data: tableInfo, error: tableError } = await supabase
-          .from('cities')
-          .select('count(*)', { count: 'exact', head: true });
+        // Extraire les villes uniques des missions
+        const { data: missionCities, error: missionError } = await supabase
+          .from('missions')
+          .select('location, postal_code')
+          .not('location', 'is', null)
+          .order('location', { ascending: true });
         
-        // Si la table n'existe pas, nous utiliserons une approche alternative
-        if (tableError || tableInfo === null) {
-          // Alternative: extraire les villes uniques des missions
-          const { data: missionCities, error: missionError } = await supabase
-            .from('missions')
-            .select('city, postal_code')
-            .not('city', 'is', null)
-            .order('city', { ascending: true });
-          
-          if (missionError) throw missionError;
-          
-          // Construire un ensemble de villes uniques
-          const uniqueCities: Record<string, City> = {};
-          missionCities?.forEach((item, index) => {
-            if (item.city && !uniqueCities[item.city]) {
-              uniqueCities[item.city] = {
-                id: `city-${index}`,
-                name: item.city,
-                postal_code: item.postal_code || '',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              };
-            }
-          });
-          
-          setCities(Object.values(uniqueCities));
-        } else {
-          // Si la table cities existe, l'utiliser normalement
-          const { data, error } = await supabase
-            .from('cities')
-            .select('*')
-            .order('name', { ascending: true });
-          
-          if (error) throw error;
-          setCities(data as City[]);
-        }
+        if (missionError) throw missionError;
+        
+        // Construire un ensemble de villes uniques
+        const uniqueCities: Record<string, City> = {};
+        missionCities?.forEach((item, index) => {
+          if (item.location && !uniqueCities[item.location]) {
+            uniqueCities[item.location] = {
+              id: `city-${index}`,
+              name: item.location,
+              postal_code: item.postal_code || '',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+          }
+        });
+        
+        setCities(Object.values(uniqueCities));
       } catch (err) {
         setError(err as Error);
         console.error("Erreur lors du chargement des villes:", err);
@@ -166,17 +111,13 @@ export function useSkills() {
     const fetchSkills = async () => {
       try {
         setLoading(true);
-        // En réalité, il faudrait avoir une table de compétences
-        // Pour l'instant, retournons quelques compétences par défaut
-        const mockSkills: Skill[] = [
-          { id: "1", name: "Communication", created_at: new Date().toISOString() },
-          { id: "2", name: "Développement web", created_at: new Date().toISOString() },
-          { id: "3", name: "Design graphique", created_at: new Date().toISOString() },
-          { id: "4", name: "Cuisine", created_at: new Date().toISOString() },
-          { id: "5", name: "Jardinage", created_at: new Date().toISOString() },
-          { id: "6", name: "Photographie", created_at: new Date().toISOString() }
-        ];
-        setSkills(mockSkills);
+        const { data, error } = await supabase
+          .from("skills")
+          .select("*")
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setSkills(data as Skill[]);
       } catch (err) {
         setError(err as Error);
         console.error("Erreur lors du chargement des compétences:", err);
@@ -189,23 +130,4 @@ export function useSkills() {
   }, []);
 
   return { skills, loading, error };
-}
-
-export function useDynamicLists() {
-  const { categories, loading: categoriesLoading, error: categoriesError } = useCategories();
-  const { cities, loading: citiesLoading, error: citiesError } = useCities();
-  const { badges, loading: badgesLoading, error: badgesError } = useBadges();
-  const { skills, loading: skillsLoading, error: skillsError } = useSkills();
-  
-  const isLoading = categoriesLoading || citiesLoading || badgesLoading || skillsLoading;
-  const error = categoriesError || citiesError || badgesError || skillsError;
-  
-  return {
-    categories,
-    cities,
-    badges,
-    skills,
-    isLoading,
-    error
-  };
 }

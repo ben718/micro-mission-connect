@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import type { MissionWithDetails, MissionFilters } from "@/types";
 
-export const useMissions = (filters?: MissionFilters) => {
+export const useMissions = (filters?: MissionFilters & { page?: number; pageSize?: number }) => {
   return useQuery({
     queryKey: ["missions", filters],
-    queryFn: async (): Promise<MissionWithDetails[]> => {
+    queryFn: async () => {
       let query = supabase
         .from("missions")
         .select(`
@@ -55,7 +55,14 @@ export const useMissions = (filters?: MissionFilters) => {
         query = query.eq("location", filters.city);
       }
 
-      const { data, error } = await query;
+      // Pagination
+      if (filters?.page !== undefined && filters?.pageSize) {
+        const from = filters.page * filters.pageSize;
+        const to = from + filters.pageSize - 1;
+        query = query.range(from, to);
+      }
+
+      const { data, error, count } = await query;
 
       if (error) {
         console.error("Error fetching missions:", error);
@@ -70,7 +77,10 @@ export const useMissions = (filters?: MissionFilters) => {
         ),
       }));
 
-      return enrichedData;
+      return {
+        data: enrichedData,
+        count: count || 0,
+      };
     },
   });
 };
