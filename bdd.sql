@@ -1,2305 +1,807 @@
--- Début de la transaction pour garantir l'atomicité
-BEGIN;
+-- Script SQL PostgreSQL/Supabase pour MicroBénévole
+-- Version enrichie avec localisation, catégories/filtres détaillés, RLS et données de test
 
--- Suppression des objets existants dans l'ordre inverse de leurs dépendances
-DO $$ 
-DECLARE
-    trigger_record RECORD;
-BEGIN
-    -- Suppression des triggers (uniquement ceux qui existent)
-    FOR trigger_record IN 
-        SELECT trigger_name, event_object_table 
-        FROM information_schema.triggers 
-        WHERE trigger_schema = 'public'
-    LOOP
-        EXECUTE format('DROP TRIGGER IF EXISTS %I ON public.%I', 
-            trigger_record.trigger_name, 
-            trigger_record.event_object_table);
-    END LOOP;
+-- Activation des extensions nécessaires
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "postgis";
 
-    -- Suppression spécifique du trigger sur auth.users
-    DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-
-    -- Suppression des fonctions avec CASCADE pour gérer les dépendances
-    DROP FUNCTION IF EXISTS public.handle_updated_at() CASCADE;
-    DROP FUNCTION IF EXISTS public.handle_new_user() CASCADE;
-    DROP FUNCTION IF EXISTS public.update_mission_spots() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_new_registration() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_mission_reminder() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_volunteer_cancellation() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_mission_validated() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_mission_cancelled() CASCADE;
-    DROP FUNCTION IF EXISTS public.check_and_award_badges() CASCADE;
-    DROP FUNCTION IF EXISTS public.handle_location_update() CASCADE;
-    DROP FUNCTION IF EXISTS public.refresh_suggestions_on_location_change() CASCADE;
-    DROP FUNCTION IF EXISTS public.notify_location_change() CASCADE;
-    DROP FUNCTION IF EXISTS public.calculate_distance() CASCADE;
-    DROP FUNCTION IF EXISTS public.update_user_location() CASCADE;
-    DROP FUNCTION IF EXISTS public.find_nearby_missions() CASCADE;
-    DROP FUNCTION IF EXISTS public.find_nearby_volunteers() CASCADE;
-    DROP FUNCTION IF EXISTS public.cluster_nearby_missions() CASCADE;
-    DROP FUNCTION IF EXISTS public.get_distance_statistics() CASCADE;
-    DROP FUNCTION IF EXISTS public.manage_location_webhook() CASCADE;
-    DROP FUNCTION IF EXISTS public.geocode_address() CASCADE;
-    DROP FUNCTION IF EXISTS public.calculate_travel_time() CASCADE;
-    DROP FUNCTION IF EXISTS public.update_mission_coordinates() CASCADE;
-    DROP FUNCTION IF EXISTS public.get_missions_with_travel_time() CASCADE;
-    DROP FUNCTION IF EXISTS public.optimize_mission_route() CASCADE;
-    DROP FUNCTION IF EXISTS public.get_optimized_route_details() CASCADE;
-    DROP FUNCTION IF EXISTS public.suggest_complementary_missions() CASCADE;
-
-    -- Suppression des vues
-    DROP VIEW IF EXISTS public.user_badges_details;
-    DROP VIEW IF EXISTS public.suggested_missions;
-    DROP VIEW IF EXISTS public.my_suggested_missions;
-
-    -- Suppression des politiques RLS
-    DROP POLICY IF EXISTS cities_select ON public.cities;
-    DROP POLICY IF EXISTS cities_insert ON public.cities;
-    DROP POLICY IF EXISTS cities_update ON public.cities;
-    DROP POLICY IF EXISTS cities_delete ON public.cities;
-
-    -- Suppression des tables dans l'ordre inverse des dépendances
-    DROP TABLE IF EXISTS public.optimized_routes CASCADE;
-    DROP TABLE IF EXISTS public.travel_time_cache CASCADE;
-    DROP TABLE IF EXISTS public.geocoding_cache CASCADE;
-    DROP TABLE IF EXISTS public.location_webhooks CASCADE;
-    DROP TABLE IF EXISTS public.feedbacks CASCADE;
-    DROP TABLE IF EXISTS public.notifications CASCADE;
-    DROP TABLE IF EXISTS public.volunteer_skills CASCADE;
-    DROP TABLE IF EXISTS public.skills CASCADE;
-    DROP TABLE IF EXISTS public.volunteer_preferences CASCADE;
-    DROP TABLE IF EXISTS public.volunteer_availability CASCADE;
-    DROP TABLE IF EXISTS public.mission_type_links CASCADE;
-    DROP TABLE IF EXISTS public.mission_types CASCADE;
-    DROP TABLE IF EXISTS public.profile_categories CASCADE;
-    DROP TABLE IF EXISTS public.association_categories CASCADE;
-    DROP TABLE IF EXISTS public.mission_categories CASCADE;
-    DROP TABLE IF EXISTS public.mission_participants CASCADE;
-    DROP TABLE IF EXISTS public.missions CASCADE;
-    DROP TABLE IF EXISTS public.user_badges CASCADE;
-    DROP TABLE IF EXISTS public.badges CASCADE;
-    DROP TABLE IF EXISTS public.categories CASCADE;
-    DROP TABLE IF EXISTS public.profiles CASCADE;
-    DROP TABLE IF EXISTS public.cities CASCADE;
-
-EXCEPTION WHEN OTHERS THEN
-    RAISE NOTICE 'Erreur lors de la suppression des objets: %', SQLERRM;
-    RAISE;
-END $$;
-
--- Fonction pour mettre à jour automatiquement le timestamp
-CREATE OR REPLACE FUNCTION public.handle_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.updated_at IS NULL OR NEW.updated_at = OLD.updated_at THEN
-    NEW.updated_at = NOW();
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la mise à jour du timestamp: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Table des profils utilisateurs (bénévoles et associations) - créée sans RLS d'abord
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  first_name VARCHAR(100) DEFAULT 'Inconnu',
-  last_name VARCHAR(100) DEFAULT 'Utilisateur',
-  avatar_url VARCHAR(255) DEFAULT '',
-  bio VARCHAR(1000),
-  phone VARCHAR(20),
-  location VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  is_association BOOLEAN DEFAULT false NOT NULL,
-  is_admin BOOLEAN DEFAULT false NOT NULL
+-- Table des secteurs d'action des associations
+CREATE TABLE organization_sectors (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ajout des colonnes de géolocalisation à la table profiles
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8),
-ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8),
-ADD COLUMN IF NOT EXISTS location_updated_at TIMESTAMP WITH TIME ZONE;
-
--- Table des villes
-CREATE TABLE IF NOT EXISTS public.cities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL,
-  postal_code VARCHAR(10) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+-- Table des types de missions
+CREATE TABLE mission_types (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Ajout de la référence à cities après sa création
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS city_id UUID REFERENCES public.cities(id) ON DELETE SET NULL;
-
--- Activation des politiques RLS pour cities
-ALTER TABLE public.cities ENABLE ROW LEVEL SECURITY;
-CREATE POLICY cities_select ON public.cities
-    FOR SELECT USING (true);
-CREATE POLICY cities_insert ON public.cities
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY cities_update ON public.cities
-    FOR UPDATE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY cities_delete ON public.cities
-    FOR DELETE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-
--- Activation des politiques RLS pour profiles
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY profiles_select ON public.profiles
-    FOR SELECT USING (true);
-CREATE POLICY profiles_insert ON public.profiles
-    FOR INSERT WITH CHECK (auth.uid() = id);
-CREATE POLICY profiles_update ON public.profiles
-    FOR UPDATE USING (auth.uid() = id);
-CREATE POLICY profiles_delete ON public.profiles
-    FOR DELETE USING (auth.uid() = id);
-
--- Table des badges
-CREATE TABLE IF NOT EXISTS public.badges (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL,
-  description VARCHAR(500),
-  icon VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  badge_type VARCHAR(50) NOT NULL CHECK (badge_type IN ('reconnaissance', 'competence')),
-  CONSTRAINT check_badge_name CHECK (length(trim(name)) > 0),
-  CONSTRAINT check_badge_description CHECK (length(trim(description)) > 0),
-  CONSTRAINT check_badge_icon CHECK (length(trim(icon)) > 0)
+-- Table des utilisateurs (bénévoles et représentants d'associations)
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    encrypted_password VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    bio TEXT,
+    profile_picture_url TEXT,
+    phone VARCHAR(20),
+    city VARCHAR(100),
+    postal_code VARCHAR(10),
+    address TEXT,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    location GEOGRAPHY(POINT),
+    is_organization BOOLEAN DEFAULT FALSE,
+    last_login TIMESTAMP WITH TIME ZONE,
+    
+    CONSTRAINT email_check CHECK (email ~* '^[A-Za-z0-9._%-]+@[A-Za-z0-9.-]+[.][A-Za-z]+$')
 );
 
--- Correction des fonctions de validation
-DROP FUNCTION IF EXISTS public.check_badge_type() CASCADE;
-CREATE OR REPLACE FUNCTION public.check_badge_type()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.badge_type NOT IN ('reconnaissance', 'competence') THEN
-    RAISE EXCEPTION 'Le type de badge doit être ''reconnaissance'' ou ''competence''';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_location ON users USING GIST(location);
 
-DROP TRIGGER IF EXISTS check_badge_type_trigger ON public.badges;
-CREATE TRIGGER check_badge_type_trigger
-BEFORE INSERT OR UPDATE ON public.badges
-FOR EACH ROW
-EXECUTE FUNCTION public.check_badge_type();
-
-ALTER TABLE public.badges ENABLE ROW LEVEL SECURITY;
-CREATE POLICY badges_select ON public.badges
-    FOR SELECT USING (true);
-CREATE POLICY badges_insert ON public.badges
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY badges_update ON public.badges
-    FOR UPDATE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY badges_delete ON public.badges
-    FOR DELETE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-
--- Table de liaison badges <-> utilisateurs
-CREATE TABLE IF NOT EXISTS public.user_badges (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  badge_id UUID REFERENCES public.badges(id) ON DELETE CASCADE NOT NULL,
-  awarded_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  UNIQUE (user_id, badge_id),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  CONSTRAINT check_user_badge_unique UNIQUE (user_id, badge_id)
+-- Table des profils d'associations
+CREATE TABLE organization_profiles (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    logo_url TEXT,
+    website_url TEXT,
+    address TEXT,
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    location GEOGRAPHY(POINT),
+    -- Référence au secteur d'action
+    sector_id UUID REFERENCES organization_sectors(id),
+    siret_number VARCHAR(14),
+    creation_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT unique_user_id UNIQUE (user_id)
 );
 
-ALTER TABLE public.user_badges ENABLE ROW LEVEL SECURITY;
-CREATE POLICY user_badges_select ON public.user_badges
-    FOR SELECT USING (true);
-CREATE POLICY user_badges_insert ON public.user_badges
-    FOR INSERT WITH CHECK (
-        auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_association = true
-        )
-    );
-CREATE POLICY user_badges_update ON public.user_badges
-    FOR UPDATE USING (
-        auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_association = true
-        )
-    );
-CREATE POLICY user_badges_delete ON public.user_badges
-    FOR DELETE USING (
-        auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_association = true
-        )
-    );
+CREATE INDEX idx_organization_profiles_location ON organization_profiles USING GIST(location);
+CREATE INDEX idx_organization_profiles_sector ON organization_profiles(sector_id);
 
 -- Table des missions
-CREATE TABLE IF NOT EXISTS public.missions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  title VARCHAR(200) NOT NULL,
-  description VARCHAR(2000),
-  association_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  address VARCHAR(255),
-  city_id UUID REFERENCES public.cities(id) ON DELETE SET NULL,
-  duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
-  starts_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  ends_at TIMESTAMP WITH TIME ZONE NOT NULL,
-  spots_available INTEGER NOT NULL DEFAULT 1 CHECK (spots_available > 0),
-  spots_taken INTEGER NOT NULL DEFAULT 0 CHECK (spots_taken >= 0),
-  status VARCHAR(50) NOT NULL DEFAULT 'draft',
-  skills_required TEXT[],
-  min_skills_required UUID[],
-  is_online BOOLEAN DEFAULT false NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  CONSTRAINT check_mission_dates CHECK (ends_at > starts_at),
-  CONSTRAINT check_spots CHECK (spots_taken <= spots_available)
+CREATE TABLE missions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organization_id UUID NOT NULL REFERENCES organization_profiles(id) ON DELETE CASCADE,
+    -- Référence au type de mission
+    mission_type_id UUID REFERENCES mission_types(id),
+    title VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    start_date TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_date TIMESTAMP WITH TIME ZONE,
+    duration_minutes INTEGER NOT NULL,
+    -- Ajout du format de la mission
+    format VARCHAR(20) CHECK (format IN ('Présentiel', 'À distance', 'Hybride')),
+    location VARCHAR(255), -- Adresse pour le présentiel
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+    geo_location GEOGRAPHY(POINT), -- Pour les missions présentielles
+    available_spots INTEGER DEFAULT 1,
+    difficulty_level VARCHAR(20) CHECK (difficulty_level IN ('débutant', 'intermédiaire', 'expert')),
+    -- Ajout du niveau d'engagement
+    engagement_level VARCHAR(30) CHECK (engagement_level IN ('Ultra-rapide', 'Petit coup de main', 'Mission avec suivi', 'Projet long')),
+    -- Ajout de l'impact recherché
+    desired_impact TEXT,
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'terminée', 'annulée')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    image_url TEXT,
+    
+    CONSTRAINT positive_duration CHECK (duration_minutes > 0),
+    CONSTRAINT positive_spots CHECK (available_spots > 0)
 );
 
--- Correction de la fonction check_mission_status
-CREATE OR REPLACE FUNCTION public.check_mission_status()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.status NOT IN ('draft', 'active', 'in_progress', 'completed', 'cancelled', 'validated') THEN
-    RAISE EXCEPTION 'Statut de mission invalide: %. Les statuts valides sont: draft, active, in_progress, completed, cancelled, validated', NEW.status;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification du statut de la mission: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE INDEX idx_missions_location ON missions(location);
+CREATE INDEX idx_missions_geo_location ON missions USING GIST(geo_location);
+CREATE INDEX idx_missions_coordinates ON missions(latitude, longitude);
+CREATE INDEX idx_missions_dates ON missions(start_date, end_date);
+CREATE INDEX idx_missions_status ON missions(status);
+CREATE INDEX idx_missions_type ON missions(mission_type_id);
+CREATE INDEX idx_missions_format ON missions(format);
+CREATE INDEX idx_missions_engagement ON missions(engagement_level);
 
-DROP TRIGGER IF EXISTS check_mission_status_trigger ON public.missions;
-CREATE TRIGGER check_mission_status_trigger
-BEFORE INSERT OR UPDATE ON public.missions
-FOR EACH ROW
-EXECUTE FUNCTION public.check_mission_status();
+-- Table des compétences
+CREATE TABLE skills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    category VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
--- Correction de la fonction check_mission_dates
-CREATE OR REPLACE FUNCTION public.check_mission_dates()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.starts_at >= NEW.ends_at THEN
-    RAISE EXCEPTION 'La date de début (%s) doit être antérieure à la date de fin (%s)', NEW.starts_at, NEW.ends_at;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification des dates de la mission: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_mission_dates_trigger ON public.missions;
-CREATE TRIGGER check_mission_dates_trigger
-BEFORE INSERT OR UPDATE ON public.missions
-FOR EACH ROW
-EXECUTE FUNCTION public.check_mission_dates();
-
--- Correction de la fonction check_mission_spots
-CREATE OR REPLACE FUNCTION public.check_mission_spots()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.spots_taken > NEW.spots_available THEN
-    RAISE EXCEPTION 'Le nombre de places prises (%s) ne peut pas dépasser le nombre de places disponibles (%s)', NEW.spots_taken, NEW.spots_available;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification des places de la mission: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_mission_spots_trigger ON public.missions;
-CREATE TRIGGER check_mission_spots_trigger
-BEFORE INSERT OR UPDATE ON public.missions
-FOR EACH ROW
-EXECUTE FUNCTION public.check_mission_spots();
-
--- Correction de la fonction check_association_id
-CREATE OR REPLACE FUNCTION public.check_association_id()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.association_id AND is_association = true
-  ) THEN
-    RAISE EXCEPTION 'L''ID %s ne correspond pas à une association', NEW.association_id;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification de l''association: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_association_id_trigger ON public.missions;
-CREATE TRIGGER check_association_id_trigger
-BEFORE INSERT OR UPDATE ON public.missions
-FOR EACH ROW
-EXECUTE FUNCTION public.check_association_id();
-
--- Ajout des colonnes de géolocalisation à la table missions
-ALTER TABLE public.missions 
-ADD COLUMN IF NOT EXISTS latitude DECIMAL(10, 8),
-ADD COLUMN IF NOT EXISTS longitude DECIMAL(11, 8);
-
-ALTER TABLE public.missions ENABLE ROW LEVEL SECURITY;
-CREATE POLICY missions_select ON public.missions
-    FOR SELECT USING (true);
-CREATE POLICY missions_insert ON public.missions
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_association = true
-        )
-    );
-CREATE POLICY missions_update ON public.missions
-    FOR UPDATE USING (
-        association_id = auth.uid() OR
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY missions_delete ON public.missions
-    FOR DELETE USING (
-        association_id = auth.uid() OR
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
+-- Table des badges
+CREATE TABLE badges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT,
+    image_url TEXT,
+    requirements TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Table des inscriptions aux missions
-CREATE TABLE IF NOT EXISTS public.mission_participants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  mission_id UUID REFERENCES public.missions(id) ON DELETE CASCADE NOT NULL,
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'registered',
-  feedback VARCHAR(1000),
-  rating INTEGER CHECK (rating IS NULL OR (rating >= 1 AND rating <= 5)),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  UNIQUE (mission_id, user_id)
-);
-
--- Correction de la fonction check_participant_status
-CREATE OR REPLACE FUNCTION public.check_participant_status()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.status NOT IN ('registered', 'confirmed', 'completed', 'cancelled') THEN
-    RAISE EXCEPTION 'Statut de participant invalide: %. Les statuts valides sont: registered, confirmed, completed, cancelled', NEW.status;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification du statut du participant: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_participant_status_trigger ON public.mission_participants;
-CREATE TRIGGER check_participant_status_trigger
-BEFORE INSERT OR UPDATE ON public.mission_participants
-FOR EACH ROW
-EXECUTE FUNCTION public.check_participant_status();
-
-ALTER TABLE public.mission_participants ENABLE ROW LEVEL SECURITY;
-CREATE POLICY mission_participants_select ON public.mission_participants
-    FOR SELECT USING (true);
-CREATE POLICY mission_participants_insert ON public.mission_participants
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY mission_participants_update ON public.mission_participants
-    FOR UPDATE USING (
-        auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.missions m
-            JOIN public.profiles p ON p.id = m.association_id
-            WHERE m.id = mission_id AND p.id = auth.uid()
-        )
-    );
-CREATE POLICY mission_participants_delete ON public.mission_participants
-    FOR DELETE USING (
-        auth.uid() = user_id OR
-        EXISTS (
-            SELECT 1 FROM public.missions m
-            JOIN public.profiles p ON p.id = m.association_id
-            WHERE m.id = mission_id AND p.id = auth.uid()
-        )
-    );
-
--- Table des catégories
-CREATE TABLE IF NOT EXISTS public.categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL UNIQUE,
-  description VARCHAR(500),
-  icon VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-);
-
-ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY categories_select ON public.categories
-    FOR SELECT USING (true);
-CREATE POLICY categories_insert ON public.categories
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY categories_update ON public.categories
-    FOR UPDATE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-CREATE POLICY categories_delete ON public.categories
-    FOR DELETE USING (
-        EXISTS (
-            SELECT 1 FROM public.profiles 
-            WHERE id = auth.uid() 
-            AND is_admin = true
-        )
-    );
-
--- Table de liaison missions <-> catégories
-CREATE TABLE IF NOT EXISTS public.mission_categories (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  mission_id UUID REFERENCES public.missions(id) ON DELETE CASCADE NOT NULL,
-  category_id UUID REFERENCES public.categories(id) ON DELETE CASCADE NOT NULL,
-  UNIQUE (mission_id, category_id),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
-);
-
-ALTER TABLE public.mission_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY mission_categories_select ON public.mission_categories
-    FOR SELECT USING (true);
-CREATE POLICY mission_categories_insert ON public.mission_categories
-    FOR INSERT WITH CHECK (
-        EXISTS (
-            SELECT 1 FROM public.missions m
-            JOIN public.profiles p ON p.id = m.association_id
-            WHERE m.id = mission_id AND p.id = auth.uid()
-        )
-    );
-CREATE POLICY mission_categories_update ON public.mission_categories
-    FOR UPDATE USING (
-        EXISTS (
-            SELECT 1 FROM public.missions m
-            JOIN public.profiles p ON p.id = m.association_id
-            WHERE m.id = mission_id AND p.id = auth.uid()
-        )
-    );
-CREATE POLICY mission_categories_delete ON public.mission_categories
-    FOR DELETE USING (
-        EXISTS (
-            SELECT 1 FROM public.missions m
-            JOIN public.profiles p ON p.id = m.association_id
-            WHERE m.id = mission_id AND p.id = auth.uid()
-        )
-    );
-
--- Table des disponibilités des bénévoles
-CREATE TABLE IF NOT EXISTS public.volunteer_availability (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  day_of_week INTEGER CHECK (day_of_week >= 0 AND day_of_week <= 6),
-  start_time TIME,
-  end_time TIME,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  CONSTRAINT check_availability_times CHECK (
-    (start_time IS NULL AND end_time IS NULL) OR
-    (start_time IS NOT NULL AND end_time IS NOT NULL AND start_time < end_time)
-  )
-);
-
--- Trigger pour vérifier que l'utilisateur n'est pas une association
-CREATE OR REPLACE FUNCTION public.check_volunteer_not_association()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id AND is_association = true
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur %s est une association et ne peut pas avoir de disponibilités', NEW.user_id;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification du type d''utilisateur: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_volunteer_not_association_trigger ON public.volunteer_availability;
-CREATE TRIGGER check_volunteer_not_association_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_availability
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_not_association();
-
--- Trigger pour vérifier le jour de la semaine
-CREATE OR REPLACE FUNCTION public.check_day_of_week()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.day_of_week < 0 OR NEW.day_of_week > 6 THEN
-    RAISE EXCEPTION 'Le jour de la semaine doit être compris entre 0 et 6, valeur reçue: %', NEW.day_of_week;
-  END IF;
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification du jour de la semaine: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_day_of_week_trigger ON public.volunteer_availability;
-CREATE TRIGGER check_day_of_week_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_availability
-FOR EACH ROW
-EXECUTE FUNCTION public.check_day_of_week();
-
--- Trigger pour vérifier les disponibilités
-CREATE OR REPLACE FUNCTION public.check_availability_times()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF (NEW.start_time IS NULL AND NEW.end_time IS NOT NULL) OR 
-     (NEW.start_time IS NOT NULL AND NEW.end_time IS NULL) THEN
-    RAISE EXCEPTION 'Les heures de début et de fin doivent être renseignées ensemble';
-  END IF;
-
-  IF NEW.start_time IS NOT NULL AND NEW.end_time IS NOT NULL AND 
-     NEW.start_time >= NEW.end_time THEN
-    RAISE EXCEPTION 'L''heure de début (%s) doit être antérieure à l''heure de fin (%s)', NEW.start_time, NEW.end_time;
-  END IF;
-
-  RETURN NEW;
-EXCEPTION
-  WHEN OTHERS THEN
-    RAISE EXCEPTION 'Erreur lors de la vérification des heures de disponibilité: %', SQLERRM;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS check_availability_times_trigger ON public.volunteer_availability;
-CREATE TRIGGER check_availability_times_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_availability
-FOR EACH ROW
-EXECUTE FUNCTION public.check_availability_times();
-
--- Trigger pour mettre à jour automatiquement la localisation
-CREATE OR REPLACE FUNCTION public.handle_location_update()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Si la localisation a changé
-  IF (NEW.latitude IS DISTINCT FROM OLD.latitude OR 
-      NEW.longitude IS DISTINCT FROM OLD.longitude) THEN
-    NEW.location_updated_at = NOW();
+CREATE TABLE mission_registrations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    mission_id UUID NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'inscrit' CHECK (status IN ('inscrit', 'confirmé', 'annulé', 'terminé')),
+    registration_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    confirmation_date TIMESTAMP WITH TIME ZONE,
+    volunteer_feedback TEXT,
+    volunteer_rating INTEGER CHECK (volunteer_rating BETWEEN 1 AND 5),
+    organization_feedback TEXT,
+    organization_rating INTEGER CHECK (organization_rating BETWEEN 1 AND 5),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-    -- Notification si la localisation est mise à jour pour la première fois
-    IF OLD.latitude IS NULL AND NEW.latitude IS NOT NULL THEN
-      INSERT INTO public.notifications (user_id, type, title, message)
-      VALUES (
-        NEW.id,
-        'location_updated',
-        'Localisation activée',
-        'Votre position a été enregistrée. Vous recevrez maintenant des suggestions de missions à proximité.'
-      );
-    END IF;
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER on_location_update
-BEFORE UPDATE ON public.profiles
-FOR EACH ROW
-WHEN (NEW.latitude IS DISTINCT FROM OLD.latitude OR 
-      NEW.longitude IS DISTINCT FROM OLD.longitude)
-EXECUTE FUNCTION public.handle_location_update();
-
--- Trigger pour mettre à jour les suggestions quand la localisation change
-CREATE OR REPLACE FUNCTION public.refresh_suggestions_on_location_change()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Invalider le cache des suggestions pour cet utilisateur
-  -- (à implémenter selon votre système de cache)
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER on_location_change_refresh_suggestions
-AFTER UPDATE ON public.profiles
-FOR EACH ROW
-WHEN (NEW.latitude IS DISTINCT FROM OLD.latitude OR 
-      NEW.longitude IS DISTINCT FROM OLD.longitude)
-EXECUTE FUNCTION public.refresh_suggestions_on_location_change();
-
--- Fonction de clustering des missions proches
-CREATE OR REPLACE FUNCTION public.cluster_nearby_missions(
-  p_center_lat DECIMAL,
-  p_center_lon DECIMAL,
-  p_radius_km DECIMAL DEFAULT 5,
-  p_cluster_radius_km DECIMAL DEFAULT 1
-) RETURNS TABLE (
-  cluster_id INTEGER,
-  center_lat DECIMAL,
-  center_lon DECIMAL,
-  mission_count INTEGER,
-  missions JSONB
-) AS $$
-BEGIN
-  RETURN QUERY
-  WITH mission_points AS (
-    SELECT 
-      id,
-      title,
-      latitude,
-      longitude,
-      ST_SetSRID(ST_MakePoint(longitude, latitude), 4326) as geom
-    FROM public.missions
-    WHERE 
-      status = 'active'
-      AND starts_at > NOW()
-      AND public.calculate_distance(p_center_lat, p_center_lon, latitude, longitude) <= p_radius_km
-  ),
-  clusters AS (
-    SELECT 
-      ST_ClusterDBSCAN(geom, p_cluster_radius_km * 1000, 1) OVER () as cluster_id,
-      id,
-      title,
-      latitude,
-      longitude
-    FROM mission_points
-  )
-  SELECT 
-    cluster_id,
-    AVG(latitude) as center_lat,
-    AVG(longitude) as center_lon,
-    COUNT(*) as mission_count,
-    jsonb_agg(
-      jsonb_build_object(
-        'id', id,
-        'title', title,
-        'latitude', latitude,
-        'longitude', longitude
-      )
-    ) as missions
-  FROM clusters
-  WHERE cluster_id IS NOT NULL
-  GROUP BY cluster_id
-  ORDER BY mission_count DESC;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Statistiques de distance pour les dashboards
-CREATE OR REPLACE FUNCTION public.get_distance_statistics(
-  user_id UUID DEFAULT NULL,
-  days INTEGER DEFAULT 30
-) RETURNS TABLE (
-  total_distance_km DECIMAL,
-  average_distance_km DECIMAL,
-  max_distance_km DECIMAL,
-  missions_count INTEGER,
-  missions_by_distance JSONB
-) AS $$
-BEGIN
-  RETURN QUERY
-  WITH user_missions AS (
-    SELECT 
-      m.id,
-      m.title,
-      public.calculate_distance(p.latitude, p.longitude, m.latitude, m.longitude) as distance_km
-    FROM public.mission_participants mp
-    JOIN public.missions m ON m.id = mp.mission_id
-    JOIN public.profiles p ON p.id = mp.user_id
-    WHERE 
-      mp.status = 'completed'
-      AND mp.user_id = COALESCE(user_id, mp.user_id)
-      AND m.starts_at >= NOW() - (days || ' days')::INTERVAL
-  )
-  SELECT 
-    SUM(distance_km) as total_distance_km,
-    AVG(distance_km) as average_distance_km,
-    MAX(distance_km) as max_distance_km,
-    COUNT(*) as missions_count,
-    jsonb_agg(
-      jsonb_build_object(
-        'mission_id', id,
-        'title', title,
-        'distance_km', distance_km
-      )
-    ) as missions_by_distance
-  FROM user_missions;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Table pour les webhooks de notification
-CREATE TABLE IF NOT EXISTS public.location_webhooks (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  endpoint_url VARCHAR(255) NOT NULL,
-  secret_key VARCHAR(255) NOT NULL,
-  is_active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+    CONSTRAINT unique_user_mission UNIQUE (user_id, mission_id)
 );
 
--- Trigger pour vérifier les webhooks de localisation
-CREATE OR REPLACE FUNCTION public.check_location_webhooks()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Vérifier que l'utilisateur existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''existe pas';
-  END IF;
-
-  -- Vérifier que l'URL est valide
-  IF NEW.endpoint_url IS NULL OR TRIM(NEW.endpoint_url) = '' THEN
-    RAISE EXCEPTION 'L''URL du webhook ne peut pas être vide';
-  END IF;
-
-  IF NOT (
-    NEW.endpoint_url LIKE 'http://%' OR 
-    NEW.endpoint_url LIKE 'https://%'
-  ) THEN
-    RAISE EXCEPTION 'L''URL du webhook doit commencer par http:// ou https://';
-  END IF;
-
-  -- Vérifier que la clé secrète est suffisamment sécurisée
-  IF NEW.secret_key IS NULL OR LENGTH(NEW.secret_key) < 32 THEN
-    RAISE EXCEPTION 'La clé secrète doit faire au moins 32 caractères';
-  END IF;
-
-  -- Vérifier qu'il n'y a pas de doublon d'URL pour le même utilisateur
-  IF EXISTS (
-    SELECT 1 FROM public.location_webhooks
-    WHERE user_id = NEW.user_id 
-    AND endpoint_url = NEW.endpoint_url
-    AND id != NEW.id
-    AND is_active = true
-  ) THEN
-    RAISE EXCEPTION 'Un webhook actif avec cette URL existe déjà pour cet utilisateur';
-  END IF;
-
-  -- Vérifier le nombre maximum de webhooks actifs par utilisateur
-  IF NEW.is_active AND (
-    SELECT COUNT(*) 
-    FROM public.location_webhooks
-    WHERE user_id = NEW.user_id 
-    AND is_active = true
-    AND id != NEW.id
-  ) >= 5 THEN
-    RAISE EXCEPTION 'Nombre maximum de webhooks actifs atteint (5)';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_location_webhooks_trigger
-BEFORE INSERT OR UPDATE ON public.location_webhooks
-FOR EACH ROW
-EXECUTE FUNCTION public.check_location_webhooks();
-
--- Trigger pour mettre à jour le timestamp
-CREATE TRIGGER handle_location_webhooks_updated_at
-BEFORE UPDATE ON public.location_webhooks
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
-
-ALTER TABLE public.location_webhooks ENABLE ROW LEVEL SECURITY;
-
--- Fonction pour gérer les webhooks
-CREATE OR REPLACE FUNCTION public.manage_location_webhook(
-  p_user_id UUID,
-  p_endpoint_url VARCHAR(255),
-  p_secret_key VARCHAR(255),
-  p_action TEXT DEFAULT 'add'
-) RETURNS UUID AS $$
-DECLARE
-  v_webhook_id UUID;
-BEGIN
-  IF p_action = 'add' THEN
-    INSERT INTO public.location_webhooks (
-      user_id,
-      endpoint_url,
-      secret_key
-    ) VALUES (
-      p_user_id,
-      p_endpoint_url,
-      p_secret_key
-    ) RETURNING id INTO v_webhook_id;
+-- Table de liaison entre missions et compétences requises
+CREATE TABLE mission_skills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    mission_id UUID NOT NULL REFERENCES missions(id) ON DELETE CASCADE,
+    skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+    required_level VARCHAR(20),
+    -- Indique si la compétence est obligatoire ou optionnelle
+    is_required BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
-  ELSIF p_action = 'remove' THEN
-    UPDATE public.location_webhooks
-    SET is_active = false
-    WHERE user_id = p_user_id
-    AND endpoint_url = p_endpoint_url
-    RETURNING id INTO v_webhook_id;
-  END IF;
-  
-  RETURN v_webhook_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Extensions nécessaires
-CREATE EXTENSION IF NOT EXISTS postgis;
-CREATE EXTENSION IF NOT EXISTS http;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
--- Table pour le cache de géocodage
-CREATE TABLE IF NOT EXISTS public.geocoding_cache (
-  address VARCHAR(255) PRIMARY KEY,
-  latitude DECIMAL(10, 8),
-  longitude DECIMAL(11, 8),
-  formatted_address VARCHAR(255),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+    CONSTRAINT unique_mission_skill UNIQUE (mission_id, skill_id)
 );
 
--- Trigger pour vérifier le cache de géocodage
-CREATE OR REPLACE FUNCTION public.check_geocoding_cache()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Vérifier que l'adresse n'est pas vide
-  IF NEW.address IS NULL OR TRIM(NEW.address) = '' THEN
-    RAISE EXCEPTION 'L''adresse ne peut pas être vide';
-  END IF;
-
-  -- Vérifier que les coordonnées sont valides
-  IF NEW.latitude IS NOT NULL THEN
-    IF NEW.latitude < -90 OR NEW.latitude > 90 THEN
-      RAISE EXCEPTION 'La latitude doit être comprise entre -90 et 90';
-    END IF;
-  END IF;
-
-  IF NEW.longitude IS NOT NULL THEN
-    IF NEW.longitude < -180 OR NEW.longitude > 180 THEN
-      RAISE EXCEPTION 'La longitude doit être comprise entre -180 et 180';
-    END IF;
-  END IF;
-
-  -- Vérifier que les coordonnées sont cohérentes
-  IF (NEW.latitude IS NULL AND NEW.longitude IS NOT NULL) OR 
-     (NEW.latitude IS NOT NULL AND NEW.longitude IS NULL) THEN
-    RAISE EXCEPTION 'Les coordonnées doivent être renseignées ensemble';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_geocoding_cache_trigger
-BEFORE INSERT OR UPDATE ON public.geocoding_cache
-FOR EACH ROW
-EXECUTE FUNCTION public.check_geocoding_cache();
-
--- Table pour le cache des temps de trajet
-CREATE TABLE IF NOT EXISTS public.travel_time_cache (
-  origin_lat DECIMAL(10, 8),
-  origin_lon DECIMAL(11, 8),
-  dest_lat DECIMAL(10, 8),
-  dest_lon DECIMAL(11, 8),
-  travel_time_minutes INTEGER,
-  distance_km DECIMAL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  PRIMARY KEY (origin_lat, origin_lon, dest_lat, dest_lon)
+-- Table des compétences des utilisateurs
+CREATE TABLE user_skills (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    skill_id UUID NOT NULL REFERENCES skills(id) ON DELETE CASCADE,
+    level VARCHAR(20),
+    validation_date TIMESTAMP WITH TIME ZONE,
+    validator_id UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT unique_user_skill UNIQUE (user_id, skill_id)
 );
 
--- Trigger pour vérifier le cache des temps de trajet
-CREATE OR REPLACE FUNCTION public.check_travel_time_cache()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Vérifier que les coordonnées sont valides
-  IF NEW.origin_lat < -90 OR NEW.origin_lat > 90 THEN
-    RAISE EXCEPTION 'La latitude d''origine doit être comprise entre -90 et 90';
-  END IF;
-
-  IF NEW.origin_lon < -180 OR NEW.origin_lon > 180 THEN
-    RAISE EXCEPTION 'La longitude d''origine doit être comprise entre -180 et 180';
-  END IF;
-
-  IF NEW.dest_lat < -90 OR NEW.dest_lat > 90 THEN
-    RAISE EXCEPTION 'La latitude de destination doit être comprise entre -90 et 90';
-  END IF;
-
-  IF NEW.dest_lon < -180 OR NEW.dest_lon > 180 THEN
-    RAISE EXCEPTION 'La longitude de destination doit être comprise entre -180 et 180';
-  END IF;
-
-  -- Vérifier que le temps de trajet est positif
-  IF NEW.travel_time_minutes <= 0 THEN
-    RAISE EXCEPTION 'Le temps de trajet doit être positif';
-  END IF;
-
-  -- Vérifier que la distance est positive
-  IF NEW.distance_km <= 0 THEN
-    RAISE EXCEPTION 'La distance doit être positive';
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_travel_time_cache_trigger
-BEFORE INSERT OR UPDATE ON public.travel_time_cache
-FOR EACH ROW
-EXECUTE FUNCTION public.check_travel_time_cache();
-
--- Table des types de mission
-CREATE TABLE IF NOT EXISTS public.mission_types (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(100) NOT NULL UNIQUE,
-  description VARCHAR(500),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+-- Table des badges des utilisateurs
+CREATE TABLE user_badges (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    badge_id UUID NOT NULL REFERENCES badges(id) ON DELETE CASCADE,
+    acquisition_date TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    
+    CONSTRAINT unique_user_badge UNIQUE (user_id, badge_id)
 );
 
--- Trigger pour vérifier les itinéraires optimisés
--- Fonction pour optimiser un itinéraire de missions
-CREATE OR REPLACE FUNCTION public.optimize_mission_route(
-  p_user_id UUID,
-  p_mission_ids UUID[],
-  p_max_daily_missions INTEGER DEFAULT 5,
-  p_max_daily_hours INTEGER DEFAULT 8
-) RETURNS TABLE (
-  route_id UUID,
-  total_distance_km DECIMAL,
-  total_duration_minutes INTEGER,
-  mission_count INTEGER,
-  route_order JSONB
-) AS $$
-DECLARE
-  v_route_id UUID;
-  v_missions RECORD;
-  v_route_order JSONB := '[]'::JSONB;
-  v_total_distance DECIMAL := 0;
-  v_total_duration INTEGER := 0;
-  v_current_time TIMESTAMP WITH TIME ZONE;
-  v_mission_count INTEGER := 0;
-  v_daily_missions INTEGER := 0;
-  v_daily_hours INTEGER := 0;
-BEGIN
-  -- Créer un nouvel itinéraire
-  INSERT INTO public.optimized_routes (
-    user_id,
-    total_distance_km,
-    total_duration_minutes,
-    mission_count,
-    route_order
-  ) VALUES (
-    p_user_id,
-    0,
-    0,
-    0,
-    '[]'::JSONB
-  ) RETURNING id INTO v_route_id;
-
-  -- Récupérer la position de l'utilisateur
-  SELECT latitude, longitude INTO v_missions
-  FROM public.profiles
-  WHERE id = p_user_id;
-
-  -- Algorithme glouton pour optimiser l'itinéraire
-  WITH RECURSIVE mission_sequence AS (
-    -- Point de départ (position de l'utilisateur)
-    SELECT 
-      0 as step,
-      v_missions.latitude as current_lat,
-      v_missions.longitude as current_lon,
-      NULL::UUID as mission_id,
-      0 as distance_km,
-      0 as duration_minutes,
-      '[]'::JSONB as route
-    UNION ALL
-    -- Sélectionner la prochaine mission la plus proche
-    SELECT 
-      ms.step + 1,
-      m.latitude,
-      m.longitude,
-      m.id,
-      tt.distance_km,
-      tt.travel_time_minutes,
-      ms.route || jsonb_build_object(
-        'mission_id', m.id,
-        'title', m.title,
-        'starts_at', m.starts_at,
-        'duration_minutes', m.duration_minutes,
-        'travel_time_minutes', tt.travel_time_minutes,
-        'distance_km', tt.distance_km
-      )
-    FROM mission_sequence ms
-    CROSS JOIN LATERAL (
-      SELECT m.*, tt.*
-      FROM public.missions m
-      CROSS JOIN LATERAL (
-        SELECT * FROM public.calculate_travel_time(
-          ms.current_lat,
-          ms.current_lon,
-          m.latitude,
-          m.longitude
-        )
-      ) tt
-      WHERE 
-        m.id = ANY(p_mission_ids)
-        AND m.id != ALL(ARRAY(
-          SELECT jsonb_array_elements(ms.route)->>'mission_id'::UUID
-        ))
-        AND m.starts_at > ms.current_time
-        AND m.status = 'active'
-      ORDER BY tt.travel_time_minutes
-      LIMIT 1
-    ) next_mission
-    WHERE 
-      ms.step < p_max_daily_missions
-      AND v_daily_hours + next_mission.duration_minutes <= p_max_daily_hours * 60
-  )
-  SELECT 
-    route,
-    SUM((route->>'distance_km')::DECIMAL) as total_distance,
-    SUM((route->>'travel_time_minutes')::INTEGER) as total_duration,
-    COUNT(*) as mission_count
-  INTO v_route_order, v_total_distance, v_total_duration, v_mission_count
-  FROM mission_sequence
-  WHERE step > 0
-  GROUP BY route
-  ORDER BY total_duration
-  LIMIT 1;
-
-  -- Mettre à jour l'itinéraire optimisé
-  UPDATE public.optimized_routes
-  SET 
-    total_distance_km = v_total_distance,
-    total_duration_minutes = v_total_duration,
-    mission_count = v_mission_count,
-    route_order = v_route_order,
-    updated_at = NOW()
-  WHERE id = v_route_id;
-
-  -- Retourner l'itinéraire optimisé
-  RETURN QUERY
-  SELECT 
-    v_route_id,
-    v_total_distance,
-    v_total_duration,
-    v_mission_count,
-    v_route_order;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Fonction pour obtenir les détails d'un itinéraire optimisé
-CREATE OR REPLACE FUNCTION public.get_optimized_route_details(
-  p_route_id UUID
-) RETURNS TABLE (
-  step_number INTEGER,
-  mission_id UUID,
-  title TEXT,
-  starts_at TIMESTAMP WITH TIME ZONE,
-  duration_minutes INTEGER,
-  travel_time_minutes INTEGER,
-  distance_km DECIMAL,
-  address TEXT,
-  latitude DECIMAL(10, 8),
-  longitude DECIMAL(11, 8)
-) AS $$
-BEGIN
-  RETURN QUERY
-  WITH route_steps AS (
-    SELECT 
-      (jsonb_array_elements(route_order)->>'mission_id')::UUID as mission_id,
-      jsonb_array_elements(route_order)->>'title' as title,
-      (jsonb_array_elements(route_order)->>'starts_at')::TIMESTAMP WITH TIME ZONE as starts_at,
-      (jsonb_array_elements(route_order)->>'duration_minutes')::INTEGER as duration_minutes,
-      (jsonb_array_elements(route_order)->>'travel_time_minutes')::INTEGER as travel_time_minutes,
-      (jsonb_array_elements(route_order)->>'distance_km')::DECIMAL as distance_km
-    FROM public.optimized_routes
-    WHERE id = p_route_id
-  )
-  SELECT 
-    ROW_NUMBER() OVER (ORDER BY starts_at) as step_number,
-    rs.mission_id,
-    rs.title,
-    rs.starts_at,
-    rs.duration_minutes,
-    rs.travel_time_minutes,
-    rs.distance_km,
-    m.address,
-    m.latitude,
-    m.longitude
-  FROM route_steps rs
-  JOIN public.missions m ON m.id = rs.mission_id
-  ORDER BY starts_at;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Fonction pour suggérer des missions complémentaires à un itinéraire
-CREATE OR REPLACE FUNCTION public.suggest_complementary_missions(
-  p_route_id UUID,
-  p_max_additional_missions INTEGER DEFAULT 3
-) RETURNS TABLE (
-  mission_id UUID,
-  title TEXT,
-  starts_at TIMESTAMP WITH TIME ZONE,
-  duration_minutes INTEGER,
-  travel_time_minutes INTEGER,
-  distance_km DECIMAL,
-  score DECIMAL
-) AS $$
-DECLARE
-  v_user_id UUID;
-  v_route RECORD;
-BEGIN
-  -- Récupérer les informations de l'itinéraire
-  SELECT user_id, route_order INTO v_route
-  FROM public.optimized_routes
-  WHERE id = p_route_id;
-
-  -- Trouver des missions complémentaires
-  RETURN QUERY
-  WITH route_missions AS (
-    SELECT DISTINCT (jsonb_array_elements(route_order)->>'mission_id')::UUID as mission_id
-    FROM public.optimized_routes
-    WHERE id = p_route_id
-  ),
-  complementary_missions AS (
-    SELECT 
-      m.*,
-      tt.travel_time_minutes,
-      tt.distance_km,
-      -- Score basé sur la proximité temporelle et géographique
-      (1.0 / (EXTRACT(EPOCH FROM (m.starts_at - v_route.route_order->0->>'starts_at')) / 3600 + 1)) *
-      (1.0 / (tt.distance_km + 1)) as score
-    FROM public.missions m
-    CROSS JOIN LATERAL (
-      SELECT * FROM public.calculate_travel_time(
-        (SELECT latitude FROM public.profiles WHERE id = v_user_id),
-        (SELECT longitude FROM public.profiles WHERE id = v_user_id),
-        m.latitude,
-        m.longitude
-      )
-    ) tt
-    WHERE 
-      m.id NOT IN (SELECT mission_id FROM route_missions)
-      AND m.status = 'active'
-      AND m.starts_at > NOW()
-  )
-  SELECT 
-    id as mission_id,
-    title,
-    starts_at,
-    duration_minutes,
-    travel_time_minutes,
-    distance_km,
-    score
-  FROM complementary_missions
-  ORDER BY score DESC
-  LIMIT p_max_additional_missions;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Table des itinéraires optimisés
-CREATE TABLE IF NOT EXISTS public.optimized_routes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
-  total_distance_km DECIMAL,
-  total_duration_minutes INTEGER,
-  mission_count INTEGER,
-  route_order JSONB,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+-- Table des témoignages
+CREATE TABLE testimonials (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_visible BOOLEAN DEFAULT FALSE,
+    job_title VARCHAR(100)
 );
-
--- Trigger pour vérifier les itinéraires optimisés
-CREATE OR REPLACE FUNCTION public.check_optimized_routes()
-RETURNS TRIGGER AS $$
-DECLARE
-  route_item JSONB;
-  mission_id UUID;
-  total_distance DECIMAL := 0;
-  total_duration INTEGER := 0;
-  mission_count INTEGER := 0;
-BEGIN
-  -- Vérifier que l'utilisateur existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''existe pas';
-  END IF;
-
-  -- Vérifier que route_order est un tableau JSON valide
-  IF jsonb_typeof(NEW.route_order) != 'array' THEN
-    RAISE EXCEPTION 'route_order doit être un tableau JSON';
-  END IF;
-
-  -- Vérifier chaque élément du tableau
-  FOR route_item IN SELECT jsonb_array_elements(NEW.route_order)
-  LOOP
-    -- Vérifier la structure de chaque élément
-    IF NOT (
-      route_item ? 'mission_id' AND
-      route_item ? 'title' AND
-      route_item ? 'starts_at' AND
-      route_item ? 'duration_minutes' AND
-      route_item ? 'travel_time_minutes' AND
-      route_item ? 'distance_km'
-    ) THEN
-      RAISE EXCEPTION 'Structure invalide dans route_order';
-    END IF;
-
-    -- Vérifier que la mission existe
-    mission_id := (route_item->>'mission_id')::UUID;
-    IF NOT EXISTS (
-      SELECT 1 FROM public.missions 
-      WHERE id = mission_id
-    ) THEN
-      RAISE EXCEPTION 'La mission % n''existe pas', mission_id;
-    END IF;
-
-    -- Vérifier que les valeurs numériques sont positives
-    IF (route_item->>'duration_minutes')::INTEGER <= 0 THEN
-      RAISE EXCEPTION 'La durée de la mission doit être positive';
-    END IF;
-
-    IF (route_item->>'travel_time_minutes')::INTEGER < 0 THEN
-      RAISE EXCEPTION 'Le temps de trajet ne peut pas être négatif';
-    END IF;
-
-    IF (route_item->>'distance_km')::DECIMAL < 0 THEN
-      RAISE EXCEPTION 'La distance ne peut pas être négative';
-    END IF;
-
-    -- Accumuler les totaux
-    total_distance := total_distance + (route_item->>'distance_km')::DECIMAL;
-    total_duration := total_duration + (route_item->>'duration_minutes')::INTEGER + 
-                     (route_item->>'travel_time_minutes')::INTEGER;
-    mission_count := mission_count + 1;
-  END LOOP;
-
-  -- Vérifier la cohérence des totaux
-  IF NEW.total_distance_km IS NOT NULL AND NEW.total_distance_km != total_distance THEN
-    RAISE EXCEPTION 'Le total_distance_km ne correspond pas à la somme des distances';
-  END IF;
-
-  IF NEW.total_duration_minutes IS NOT NULL AND NEW.total_duration_minutes != total_duration THEN
-    RAISE EXCEPTION 'Le total_duration_minutes ne correspond pas à la somme des durées';
-  END IF;
-
-  IF NEW.mission_count IS NOT NULL AND NEW.mission_count != mission_count THEN
-    RAISE EXCEPTION 'Le mission_count ne correspond pas au nombre de missions';
-  END IF;
-
-  -- Mettre à jour les totaux si non spécifiés
-  NEW.total_distance_km := total_distance;
-  NEW.total_duration_minutes := total_duration;
-  NEW.mission_count := mission_count;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER check_optimized_routes_trigger
-BEFORE INSERT OR UPDATE ON public.optimized_routes
-FOR EACH ROW
-EXECUTE FUNCTION public.check_optimized_routes();
-
--- Fonction de géocodage améliorée
-CREATE OR REPLACE FUNCTION public.geocode_address(
-  p_address TEXT
-) RETURNS TABLE (
-  latitude DECIMAL(10, 8),
-  longitude DECIMAL(11, 8),
-  formatted_address TEXT
-) AS $$
-DECLARE
-  v_cached_result RECORD;
-  v_api_key TEXT := current_setting('app.settings.geocoding_api_key', true);
-  v_api_url TEXT := 'https://api-adresse.data.gouv.fr/search/';
-  v_response JSONB;
-BEGIN
-  -- Validation de l'adresse
-  IF p_address IS NULL OR TRIM(p_address) = '' THEN
-    RAISE EXCEPTION 'L''adresse ne peut pas être vide';
-  END IF;
-
-  -- Vérifier le cache
-  SELECT * INTO v_cached_result
-  FROM public.geocoding_cache
-  WHERE address = p_address;
-
-  IF v_cached_result IS NOT NULL THEN
-    RETURN QUERY
-    SELECT 
-      v_cached_result.latitude,
-      v_cached_result.longitude,
-      v_cached_result.formatted_address;
-    RETURN;
-  END IF;
-
-  -- Appel à l'API de géocodage
-  SELECT content::JSONB INTO v_response
-  FROM http((
-    'GET',
-    v_api_url || '?q=' || urlencode(p_address) || '&limit=1',
-    ARRAY[http_header('Accept', 'application/json')],
-    NULL,
-    NULL
-  )::http_request);
-
-  -- Vérifier la réponse
-  IF v_response->'features'->0 IS NULL THEN
-    RAISE EXCEPTION 'Adresse non trouvée';
-  END IF;
-
-  -- Extraire les coordonnées
-  RETURN QUERY
-  SELECT 
-    (v_response->'features'->0->'geometry'->'coordinates'->1)::DECIMAL as latitude,
-    (v_response->'features'->0->'geometry'->'coordinates'->0)::DECIMAL as longitude,
-    (v_response->'features'->0->'properties'->'label')::TEXT as formatted_address;
-
-  -- Mettre en cache
-  INSERT INTO public.geocoding_cache (
-    address,
-    latitude,
-    longitude,
-    formatted_address
-  ) VALUES (
-    p_address,
-    (v_response->'features'->0->'geometry'->'coordinates'->1)::DECIMAL,
-    (v_response->'features'->0->'geometry'->'coordinates'->0)::DECIMAL,
-    (v_response->'features'->0->'properties'->'label')::TEXT
-  ) ON CONFLICT (address) DO UPDATE SET
-    updated_at = NOW();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Table des notifications
-CREATE TABLE IF NOT EXISTS public.notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  type VARCHAR(50) NOT NULL CHECK (type IN ('location_updated', 'mission_reminder', 'mission_validated', 'mission_cancelled', 'badge_awarded')),
-  title VARCHAR(200) NOT NULL,
-  message VARCHAR(1000) NOT NULL,
-  is_read BOOLEAN DEFAULT false NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
+CREATE TABLE notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    link_url TEXT
 );
 
--- Trigger pour vérifier les notifications
-CREATE OR REPLACE FUNCTION public.check_notification()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Vérifier que l'utilisateur existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''existe pas';
-  END IF;
+-- Création de vues pour faciliter les requêtes courantes
 
-  -- Vérifier que le type est valide
-  IF NEW.type NOT IN ('location_updated', 'mission_reminder', 'mission_validated', 'mission_cancelled', 'badge_awarded') THEN
-    RAISE EXCEPTION 'Type de notification invalide';
-  END IF;
+-- Vue des missions actives avec détails
+CREATE VIEW available_missions_details AS
+SELECT 
+    m.id AS mission_id,
+    m.title,
+    m.description,
+    m.start_date,
+    m.duration_minutes,
+    m.format,
+    m.location,
+    m.latitude,
+    m.longitude,
+    m.available_spots,
+    m.difficulty_level,
+    m.engagement_level,
+    m.desired_impact,
+    m.image_url,
+    op.organization_name,
+    op.logo_url,
+    os.name AS sector_name,
+    mt.name AS mission_type_name,
+    (SELECT array_agg(s.name) FROM skills s JOIN mission_skills ms ON s.id = ms.skill_id WHERE ms.mission_id = m.id) AS required_skills
+FROM missions m
+JOIN organization_profiles op ON m.organization_id = op.id
+LEFT JOIN organization_sectors os ON op.sector_id = os.id
+LEFT JOIN mission_types mt ON m.mission_type_id = mt.id
+WHERE m.status = 'active' 
+AND m.available_spots > 0
+AND m.start_date > CURRENT_TIMESTAMP;
 
-  -- Vérifier que le titre et le message ne sont pas vides
-  IF NEW.title IS NULL OR TRIM(NEW.title) = '' THEN
-    RAISE EXCEPTION 'Le titre ne peut pas être vide';
-  END IF;
+-- Vue des missions par ville
+CREATE VIEW missions_by_city AS
+SELECT city, COUNT(*) as mission_count
+FROM missions
+WHERE status = 'active' AND format = 'Présentiel'
+GROUP BY city;
 
-  IF NEW.message IS NULL OR TRIM(NEW.message) = '' THEN
-    RAISE EXCEPTION 'Le message ne peut pas être vide';
-  END IF;
+-- Vue des compétences les plus demandées
+CREATE VIEW popular_skills AS
+SELECT s.id, s.name, COUNT(ms.mission_id) as mission_count
+FROM skills s
+JOIN mission_skills ms ON s.id = ms.skill_id
+JOIN missions m ON ms.mission_id = m.id
+WHERE m.status = 'active'
+GROUP BY s.id, s.name
+ORDER BY mission_count DESC;
 
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Vue des bénévoles les plus actifs
+CREATE VIEW active_volunteers AS
+SELECT u.id, u.first_name, u.last_name, COUNT(mr.mission_id) as completed_missions
+FROM users u
+JOIN mission_registrations mr ON u.id = mr.user_id
+WHERE mr.status = 'terminé'
+GROUP BY u.id, u.first_name, u.last_name
+ORDER BY completed_missions DESC;
 
-CREATE TRIGGER check_notification_trigger
-BEFORE INSERT OR UPDATE ON public.notifications
-FOR EACH ROW
-EXECUTE FUNCTION public.check_notification();
-
--- Trigger pour mettre à jour le timestamp
-CREATE TRIGGER handle_notifications_updated_at
-BEFORE UPDATE ON public.notifications
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
-
--- Index pour les notifications
-CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
-CREATE INDEX idx_notifications_type ON public.notifications(type);
-CREATE INDEX idx_notifications_created_at ON public.notifications(created_at);
-CREATE INDEX idx_notifications_is_read ON public.notifications(is_read);
-
--- Fin de la transaction
-COMMIT;
-
--- Création des index pour optimiser les performances
-CREATE INDEX idx_mission_participants_user_id ON public.mission_participants(user_id);
-CREATE INDEX idx_mission_participants_mission_id ON public.mission_participants(mission_id);
-CREATE INDEX idx_mission_participants_status ON public.mission_participants(status);
-CREATE INDEX idx_mission_participants_user_status ON public.mission_participants(user_id, status);
-
-CREATE INDEX idx_missions_starts_at ON public.missions(starts_at);
-CREATE INDEX idx_missions_city_id ON public.missions(city_id);
-CREATE INDEX idx_missions_is_online ON public.missions(is_online);
-CREATE INDEX idx_missions_created_at ON public.missions(created_at);
-
-CREATE INDEX idx_mission_categories_mission_id ON public.mission_categories(mission_id);
-CREATE INDEX idx_mission_categories_category_id ON public.mission_categories(category_id);
-
-CREATE INDEX idx_user_badges_user_id ON public.user_badges(user_id);
-CREATE INDEX idx_user_badges_badge_id ON public.user_badges(badge_id);
-
-CREATE INDEX idx_profiles_city_id ON public.profiles(city_id);
-
--- Création des index supplémentaires pour optimiser les performances
-CREATE INDEX idx_missions_status ON public.missions(status);
-CREATE INDEX idx_missions_association_id ON public.missions(association_id);
-CREATE INDEX idx_missions_latitude_longitude ON public.missions USING gist (ll_to_earth(latitude, longitude));
-CREATE INDEX idx_profiles_latitude_longitude ON public.profiles USING gist (ll_to_earth(latitude, longitude));
-CREATE INDEX idx_volunteer_skills_user_id ON public.volunteer_skills(user_id);
-CREATE INDEX idx_volunteer_skills_skill_id ON public.volunteer_skills(skill_id);
-CREATE INDEX idx_volunteer_preferences_user_id ON public.volunteer_preferences(user_id);
-CREATE INDEX idx_volunteer_availability_user_id ON public.volunteer_availability(user_id);
-CREATE INDEX idx_volunteer_availability_day_of_week ON public.volunteer_availability(day_of_week);
-CREATE INDEX idx_notifications_user_id ON public.notifications(user_id);
-CREATE INDEX idx_notifications_type ON public.notifications(type);
-CREATE INDEX idx_feedbacks_user_id ON public.feedbacks(user_id);
-CREATE INDEX idx_feedbacks_mission_id ON public.feedbacks(mission_id);
-CREATE INDEX idx_geocoding_cache_address ON public.geocoding_cache(address);
-CREATE INDEX idx_travel_time_cache_coordinates ON public.travel_time_cache(origin_lat, origin_lon, dest_lat, dest_lon);
-CREATE INDEX idx_optimized_routes_user_id ON public.optimized_routes(user_id);
-CREATE INDEX idx_location_webhooks_user_id ON public.location_webhooks(user_id);
-CREATE INDEX idx_location_webhooks_is_active ON public.location_webhooks(is_active);
-
--- Fonction pour calculer la distance entre deux points
-CREATE OR REPLACE FUNCTION public.calculate_distance(
-  lat1 DECIMAL,
-  lon1 DECIMAL,
-  lat2 DECIMAL,
-  lon2 DECIMAL
-) RETURNS DECIMAL AS $$
-DECLARE
-  earth_radius DECIMAL := 6371; -- Rayon de la Terre en km
-  dlat DECIMAL;
-  dlon DECIMAL;
-  a DECIMAL;
-  c DECIMAL;
-BEGIN
-  -- Conversion en radians
-  dlat := radians(lat2 - lat1);
-  dlon := radians(lon2 - lon1);
-  lat1 := radians(lat1);
-  lat2 := radians(lat2);
-
-  -- Formule de Haversine
-  a := sin(dlat/2) * sin(dlat/2) + 
-       cos(lat1) * cos(lat2) * 
-       sin(dlon/2) * sin(dlon/2);
-  c := 2 * atan2(sqrt(a), sqrt(1-a));
-  
-  RETURN earth_radius * c;
-END;
-$$ LANGUAGE plpgsql IMMUTABLE;
-
--- Fonction pour calculer le temps de trajet
-CREATE OR REPLACE FUNCTION public.calculate_travel_time(
-  p_origin_lat DECIMAL,
-  p_origin_lon DECIMAL,
-  p_dest_lat DECIMAL,
-  p_dest_lon DECIMAL
-) RETURNS TABLE (
-  travel_time_minutes INTEGER,
-  distance_km DECIMAL
+-- Fonction pour trouver les missions proches d'un utilisateur
+CREATE OR REPLACE FUNCTION nearby_missions(user_uuid UUID, max_distance_km FLOAT DEFAULT 10)
+RETURNS TABLE (
+    mission_id UUID,
+    title VARCHAR(255),
+    organization_name VARCHAR(255),
+    start_date TIMESTAMP WITH TIME ZONE,
+    duration_minutes INTEGER,
+    distance_km FLOAT,
+    mission_type_name VARCHAR(100),
+    sector_name VARCHAR(100)
 ) AS $$
-DECLARE
-  v_distance DECIMAL;
-  v_cached_result RECORD;
 BEGIN
-  -- Calculer la distance
-  v_distance := public.calculate_distance(p_origin_lat, p_origin_lon, p_dest_lat, p_dest_lon);
-  
-  -- Vérifier le cache
-  SELECT * INTO v_cached_result
-  FROM public.travel_time_cache
-  WHERE 
-    origin_lat = p_origin_lat
-    AND origin_lon = p_origin_lon
-    AND dest_lat = p_dest_lat
-    AND dest_lon = p_dest_lon;
-
-  IF v_cached_result IS NOT NULL THEN
     RETURN QUERY
     SELECT 
-      v_cached_result.travel_time_minutes,
-      v_cached_result.distance_km;
-    RETURN;
-  END IF;
-
-  -- Estimation simple du temps de trajet (à améliorer avec une API de routage)
-  -- Vitesse moyenne estimée : 50 km/h
-  RETURN QUERY
-  SELECT 
-    (v_distance * 1.2)::INTEGER as travel_time_minutes, -- 20% de marge pour les arrêts
-    v_distance as distance_km;
+        m.id AS mission_id,
+        m.title,
+        op.organization_name,
+        m.start_date,
+        m.duration_minutes,
+        ST_Distance(u.location, m.geo_location) / 1000 AS distance_km,
+        mt.name AS mission_type_name,
+        os.name AS sector_name
+    FROM 
+        users u
+        JOIN missions m ON ST_DWithin(u.location, m.geo_location, max_distance_km * 1000)
+        JOIN organization_profiles op ON m.organization_id = op.id
+        LEFT JOIN mission_types mt ON m.mission_type_id = mt.id
+        LEFT JOIN organization_sectors os ON op.sector_id = os.id
+    WHERE 
+        u.id = user_uuid
+        AND m.status = 'active'
+        AND m.format = 'Présentiel'
+        AND m.start_date > CURRENT_TIMESTAMP
+    ORDER BY 
+        distance_km ASC;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$ LANGUAGE plpgsql;
 
--- Fonction pour gérer les inscriptions aux missions
-CREATE OR REPLACE FUNCTION public.handle_mission_registration(
-  p_mission_id UUID,
-  p_user_id UUID
-) RETURNS UUID AS $$
-DECLARE
-  v_participant_id UUID;
-  v_mission RECORD;
+-- Fonctions et triggers pour la gestion automatique
+
+-- Fonction pour mettre à jour le timestamp "updated_at"
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
 BEGIN
-  -- Vérifier que la mission existe et est active
-  SELECT * INTO v_mission
-  FROM public.missions
-  WHERE id = p_mission_id
-  AND status = 'active'
-  AND starts_at > NOW();
-
-  IF v_mission IS NULL THEN
-    RAISE EXCEPTION 'La mission n''existe pas ou n''est pas disponible';
-  END IF;
-
-  -- Vérifier qu'il reste des places
-  IF v_mission.spots_taken >= v_mission.spots_available THEN
-    RAISE EXCEPTION 'Il n''y a plus de places disponibles pour cette mission';
-  END IF;
-
-  -- Vérifier que l'utilisateur n'est pas déjà inscrit
-  IF EXISTS (
-    SELECT 1 FROM public.mission_participants
-    WHERE mission_id = p_mission_id
-    AND user_id = p_user_id
-  ) THEN
-    RAISE EXCEPTION 'Vous êtes déjà inscrit à cette mission';
-  END IF;
-
-  -- Créer l'inscription
-  INSERT INTO public.mission_participants (
-    mission_id,
-    user_id,
-    status
-  ) VALUES (
-    p_mission_id,
-    p_user_id,
-    'registered'
-  ) RETURNING id INTO v_participant_id;
-
-  -- Mettre à jour le nombre de places prises
-  UPDATE public.missions
-  SET spots_taken = spots_taken + 1
-  WHERE id = p_mission_id;
-
-  -- Créer une notification
-  INSERT INTO public.notifications (
-    user_id,
-    type,
-    title,
-    message
-  ) VALUES (
-    p_user_id,
-    'mission_reminder',
-    'Inscription confirmée',
-    'Vous êtes inscrit à la mission : ' || v_mission.title
-  );
-
-  RETURN v_participant_id;
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Fonction pour gérer les annulations d'inscription
-CREATE OR REPLACE FUNCTION public.handle_mission_cancellation(
-  p_mission_id UUID,
-  p_user_id UUID
-) RETURNS BOOLEAN AS $$
-DECLARE
-  v_participant RECORD;
+-- Fonction pour mettre à jour le champ de localisation géographique à partir des coordonnées
+CREATE OR REPLACE FUNCTION update_location_from_coordinates()
+RETURNS TRIGGER AS $$
 BEGIN
-  -- Vérifier que l'inscription existe
-  SELECT * INTO v_participant
-  FROM public.mission_participants
-  WHERE mission_id = p_mission_id
-  AND user_id = p_user_id
-  AND status IN ('registered', 'confirmed');
-
-  IF v_participant IS NULL THEN
-    RAISE EXCEPTION 'Vous n''êtes pas inscrit à cette mission';
-  END IF;
-
-  -- Mettre à jour le statut
-  UPDATE public.mission_participants
-  SET status = 'cancelled'
-  WHERE id = v_participant.id;
-
-  -- Mettre à jour le nombre de places prises
-  UPDATE public.missions
-  SET spots_taken = spots_taken - 1
-  WHERE id = p_mission_id;
-
-  -- Créer une notification
-  INSERT INTO public.notifications (
-    user_id,
-    type,
-    title,
-    message
-  ) VALUES (
-    p_user_id,
-    'mission_cancelled',
-    'Inscription annulée',
-    'Votre inscription à la mission a été annulée'
-  );
-
-  RETURN true;
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.location = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+    END IF;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
--- Fonction pour valider une mission
-CREATE OR REPLACE FUNCTION public.validate_mission(
-  p_mission_id UUID,
-  p_validator_id UUID
-) RETURNS BOOLEAN AS $$
-DECLARE
-  v_mission RECORD;
-  v_participant RECORD;
+-- Fonction pour mettre à jour le champ de localisation géographique des missions
+CREATE OR REPLACE FUNCTION update_mission_location_from_coordinates()
+RETURNS TRIGGER AS $$
 BEGIN
-  -- Vérifier que la mission existe
-  SELECT * INTO v_mission
-  FROM public.missions
-  WHERE id = p_mission_id;
+    IF NEW.latitude IS NOT NULL AND NEW.longitude IS NOT NULL THEN
+        NEW.geo_location = ST_SetSRID(ST_MakePoint(NEW.longitude, NEW.latitude), 4326)::geography;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-  IF v_mission IS NULL THEN
-    RAISE EXCEPTION 'La mission n''existe pas';
-  END IF;
+-- Triggers pour mettre à jour automatiquement le champ updated_at
+CREATE TRIGGER update_organization_sectors_updated_at BEFORE UPDATE ON organization_sectors FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mission_types_updated_at BEFORE UPDATE ON mission_types FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_organization_profiles_updated_at BEFORE UPDATE ON organization_profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_missions_updated_at BEFORE UPDATE ON missions FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_skills_updated_at BEFORE UPDATE ON skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_badges_updated_at BEFORE UPDATE ON badges FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_mission_registrations_updated_at BEFORE UPDATE ON mission_registrations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_user_skills_updated_at BEFORE UPDATE ON user_skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_testimonials_updated_at BEFORE UPDATE ON testimonials FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-  -- Vérifier que le validateur est l'association qui a créé la mission
-  IF v_mission.association_id != p_validator_id THEN
-    RAISE EXCEPTION 'Vous n''êtes pas autorisé à valider cette mission';
-  END IF;
+-- Triggers pour mettre à jour automatiquement les champs de localisation géographique
+CREATE TRIGGER update_users_location BEFORE INSERT OR UPDATE OF latitude, longitude ON users FOR EACH ROW EXECUTE FUNCTION update_location_from_coordinates();
+CREATE TRIGGER update_organization_profiles_location BEFORE INSERT OR UPDATE OF latitude, longitude ON organization_profiles FOR EACH ROW EXECUTE FUNCTION update_location_from_coordinates();
+CREATE TRIGGER update_missions_location BEFORE INSERT OR UPDATE OF latitude, longitude ON missions FOR EACH ROW EXECUTE FUNCTION update_mission_location_from_coordinates();
 
-  -- Mettre à jour le statut de la mission
-  UPDATE public.missions
-  SET status = 'validated'
-  WHERE id = p_mission_id;
+-- Fonction pour vérifier la disponibilité des places lors de l'inscription à une mission
+CREATE OR REPLACE FUNCTION check_mission_availability()
+RETURNS TRIGGER AS $$
+DECLARE
+    available INTEGER;
+BEGIN
+    SELECT available_spots INTO available
+    FROM missions
+    WHERE id = NEW.mission_id;
+    
+    IF available <= 0 THEN
+        RAISE EXCEPTION 'Plus de places disponibles pour cette mission';
+    END IF;
+    
+    -- Réduire le nombre de places disponibles
+    UPDATE missions
+    SET available_spots = available_spots - 1
+    WHERE id = NEW.mission_id;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
 
-  -- Mettre à jour le statut des participants
-  FOR v_participant IN 
-    SELECT * FROM public.mission_participants
-    WHERE mission_id = p_mission_id
-    AND status = 'completed'
-  LOOP
-    -- Créer une notification pour chaque participant
-    INSERT INTO public.notifications (
-      user_id,
-      type,
-      title,
-      message
-    ) VALUES (
-      v_participant.user_id,
-      'mission_validated',
-      'Mission validée',
-      'Votre participation à la mission a été validée'
+-- Trigger pour vérifier la disponibilité avant l'inscription
+CREATE TRIGGER check_mission_availability_trigger BEFORE INSERT ON mission_registrations FOR EACH ROW EXECUTE FUNCTION check_mission_availability();
+
+-- Fonction pour restaurer une place lorsqu'une inscription est annulée
+CREATE OR REPLACE FUNCTION restore_mission_spot()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF OLD.status != 'annulé' AND NEW.status = 'annulé' THEN
+        UPDATE missions
+        SET available_spots = available_spots + 1
+        WHERE id = NEW.mission_id;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour restaurer une place lors de l'annulation
+CREATE TRIGGER restore_mission_spot_trigger BEFORE UPDATE ON mission_registrations FOR EACH ROW EXECUTE FUNCTION restore_mission_spot();
+
+-- Fonction pour créer une notification lorsqu'un utilisateur s'inscrit à une mission
+CREATE OR REPLACE FUNCTION create_registration_notification()
+RETURNS TRIGGER AS $$
+DECLARE
+    mission_title TEXT;
+    organization_id UUID;
+    organization_user_id UUID;
+    volunteer_name TEXT;
+BEGIN
+    SELECT m.title, m.organization_id INTO mission_title, organization_id FROM missions m WHERE m.id = NEW.mission_id;
+    SELECT op.user_id INTO organization_user_id FROM organization_profiles op WHERE op.id = organization_id;
+    SELECT CONCAT(u.first_name, ' ', u.last_name) INTO volunteer_name FROM users u WHERE u.id = NEW.user_id;
+    
+    INSERT INTO notifications (user_id, title, content, link_url)
+    VALUES (
+        organization_user_id,
+        'Nouvelle inscription à une mission',
+        CONCAT('Le bénévole ', volunteer_name, ' s''est inscrit à votre mission "', mission_title, '".'),
+        '/missions/' || NEW.mission_id
     );
-
-    -- Vérifier et attribuer des badges
-    PERFORM public.check_and_award_badges(v_participant.user_id);
-  END LOOP;
-
-  RETURN true;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Fonction pour vérifier et attribuer des badges
-CREATE OR REPLACE FUNCTION public.check_and_award_badges(
-  p_user_id UUID
-) RETURNS VOID AS $$
-DECLARE
-  v_completed_missions INTEGER;
-  v_helped_volunteers INTEGER;
-BEGIN
-  -- Compter les missions complétées
-  SELECT COUNT(*) INTO v_completed_missions
-  FROM public.mission_participants mp
-  JOIN public.missions m ON m.id = mp.mission_id
-  WHERE mp.user_id = p_user_id
-  AND mp.status = 'completed'
-  AND m.status = 'validated';
-
-  -- Compter les nouveaux bénévoles aidés
-  SELECT COUNT(DISTINCT mp2.user_id) INTO v_helped_volunteers
-  FROM public.mission_participants mp1
-  JOIN public.mission_participants mp2 ON mp1.mission_id = mp2.mission_id
-  WHERE mp1.user_id = p_user_id
-  AND mp1.status = 'completed'
-  AND mp2.status = 'completed'
-  AND mp2.user_id != p_user_id
-  AND mp2.user_id IN (
-    SELECT user_id
-    FROM public.mission_participants
-    GROUP BY user_id
-    HAVING COUNT(*) = 1
-  );
-
-  -- Attribuer les badges en fonction des statistiques
-  -- Premier pas
-  IF v_completed_missions = 1 THEN
-    INSERT INTO public.user_badges (user_id, badge_id)
-    SELECT p_user_id, id
-    FROM public.badges
-    WHERE name = 'Premier pas'
-    ON CONFLICT (user_id, badge_id) DO NOTHING;
-  END IF;
-
-  -- Super bénévole
-  IF v_completed_missions = 10 THEN
-    INSERT INTO public.user_badges (user_id, badge_id)
-    SELECT p_user_id, id
-    FROM public.badges
-    WHERE name = 'Super bénévole'
-    ON CONFLICT (user_id, badge_id) DO NOTHING;
-  END IF;
-
-  -- Expert
-  IF v_completed_missions = 50 THEN
-    INSERT INTO public.user_badges (user_id, badge_id)
-    SELECT p_user_id, id
-    FROM public.badges
-    WHERE name = 'Expert'
-    ON CONFLICT (user_id, badge_id) DO NOTHING;
-  END IF;
-
-  -- Mentor
-  IF v_helped_volunteers >= 5 THEN
-    INSERT INTO public.user_badges (user_id, badge_id)
-    SELECT p_user_id, id
-    FROM public.badges
-    WHERE name = 'Mentor'
-    ON CONFLICT (user_id, badge_id) DO NOTHING;
-  END IF;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Fonction pour gérer les compétences des bénévoles
-CREATE OR REPLACE FUNCTION public.handle_volunteer_skill(
-  p_user_id UUID,
-  p_skill_id UUID,
-  p_level INTEGER,
-  p_awarded_by UUID DEFAULT NULL
-) RETURNS UUID AS $$
-DECLARE
-  v_skill_id UUID;
-BEGIN
-  -- Vérifier que l'utilisateur existe et n'est pas une association
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = p_user_id 
-    AND is_association = false
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''existe pas ou est une association';
-  END IF;
-
-  -- Vérifier que la compétence existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.skills 
-    WHERE id = p_skill_id
-  ) THEN
-    RAISE EXCEPTION 'La compétence n''existe pas';
-  END IF;
-
-  -- Vérifier que le niveau est valide
-  IF p_level < 1 OR p_level > 5 THEN
-    RAISE EXCEPTION 'Le niveau doit être compris entre 1 et 5';
-  END IF;
-
-  -- Vérifier que l'attributeur est une association si spécifié
-  IF p_awarded_by IS NOT NULL AND NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = p_awarded_by 
-    AND is_association = true
-  ) THEN
-    RAISE EXCEPTION 'L''attributeur doit être une association';
-  END IF;
-
-  -- Insérer ou mettre à jour la compétence
-  INSERT INTO public.volunteer_skills (
-    user_id,
-    skill_id,
-    level,
-    awarded_by
-  ) VALUES (
-    p_user_id,
-    p_skill_id,
-    p_level,
-    p_awarded_by
-  ) ON CONFLICT (user_id, skill_id) 
-  DO UPDATE SET
-    level = EXCLUDED.level,
-    awarded_by = EXCLUDED.awarded_by,
-    awarded_at = CASE 
-      WHEN EXCLUDED.awarded_by IS NOT NULL THEN NOW()
-      ELSE volunteer_skills.awarded_at
-    END,
-    updated_at = NOW()
-  RETURNING id INTO v_skill_id;
-
-  -- Créer une notification si attribué par une association
-  IF p_awarded_by IS NOT NULL THEN
-    INSERT INTO public.notifications (
-      user_id,
-      type,
-      title,
-      message
-    ) VALUES (
-      p_user_id,
-      'badge_awarded',
-      'Nouvelle compétence validée',
-      'Une association a validé votre niveau dans une compétence'
+    
+    INSERT INTO notifications (user_id, title, content, link_url)
+    VALUES (
+        NEW.user_id,
+        'Inscription confirmée',
+        CONCAT('Vous êtes inscrit à la mission "', mission_title, '". Merci de votre engagement!'),
+        '/missions/' || NEW.mission_id
     );
-  END IF;
-
-  RETURN v_skill_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- Table des préférences des bénévoles
-CREATE TABLE IF NOT EXISTS public.volunteer_preferences (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
-  preferred_mission_types UUID[],
-  preferred_categories UUID[],
-  max_distance_km INTEGER CHECK (max_distance_km > 0),
-  min_duration_minutes INTEGER CHECK (min_duration_minutes > 0),
-  max_duration_minutes INTEGER CHECK (max_duration_minutes > 0),
-  preferred_days_of_week INTEGER[],
-  preferred_time_slots TSTZRANGE[],
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
-  UNIQUE (user_id)
-);
-
--- Trigger pour vérifier que l'utilisateur n'est pas une association
-CREATE OR REPLACE FUNCTION public.check_volunteer_preferences_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id AND is_association = true
-  ) THEN
-    RAISE EXCEPTION 'Les associations ne peuvent pas avoir de préférences';
-  END IF;
-  RETURN NEW;
+    
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS check_volunteer_preferences_user_trigger ON public.volunteer_preferences;
-CREATE TRIGGER check_volunteer_preferences_user_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_preferences_user();
+-- Trigger pour créer des notifications lors de l'inscription
+CREATE TRIGGER create_registration_notification_trigger AFTER INSERT ON mission_registrations FOR EACH ROW EXECUTE FUNCTION create_registration_notification();
 
--- Trigger pour vérifier la cohérence des durées
-CREATE OR REPLACE FUNCTION public.check_volunteer_preferences_duration()
+-- Fonction pour créer une notification lorsqu'un badge est attribué
+CREATE OR REPLACE FUNCTION create_badge_notification()
 RETURNS TRIGGER AS $$
+DECLARE
+    badge_name TEXT;
 BEGIN
-  IF NEW.min_duration_minutes IS NOT NULL AND NEW.max_duration_minutes IS NOT NULL 
-     AND NEW.min_duration_minutes > NEW.max_duration_minutes THEN
-    RAISE EXCEPTION 'La durée minimale ne peut pas être supérieure à la durée maximale';
-  END IF;
-  RETURN NEW;
+    SELECT b.name INTO badge_name FROM badges b WHERE b.id = NEW.badge_id;
+    
+    INSERT INTO notifications (user_id, title, content, link_url)
+    VALUES (
+        NEW.user_id,
+        'Nouveau badge obtenu',
+        CONCAT('Félicitations! Vous avez obtenu le badge "', badge_name, '".'),
+        '/profile/badges'
+    );
+    
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS check_volunteer_preferences_duration_trigger ON public.volunteer_preferences;
-CREATE TRIGGER check_volunteer_preferences_duration_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_preferences_duration();
+-- Trigger pour créer des notifications lors de l'attribution d'un badge
+CREATE TRIGGER create_badge_notification_trigger AFTER INSERT ON user_badges FOR EACH ROW EXECUTE FUNCTION create_badge_notification();
 
--- Trigger pour vérifier les jours de la semaine
-CREATE OR REPLACE FUNCTION public.check_volunteer_preferences_days()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.preferred_days_of_week IS NOT NULL AND NOT (
-    SELECT bool_and(day >= 0 AND day <= 6)
-    FROM unnest(NEW.preferred_days_of_week) AS day
-  ) THEN
-    RAISE EXCEPTION 'Les jours de la semaine doivent être compris entre 0 et 6';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Configuration des politiques RLS (Row Level Security)
 
-DROP TRIGGER IF EXISTS check_volunteer_preferences_days_trigger ON public.volunteer_preferences;
-CREATE TRIGGER check_volunteer_preferences_days_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_preferences_days();
+-- Activer RLS sur toutes les tables
+ALTER TABLE organization_sectors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mission_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE organization_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE missions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mission_registrations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE mission_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE testimonials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Trigger pour vérifier les types de mission
-CREATE OR REPLACE FUNCTION public.check_volunteer_preferences_mission_types()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.preferred_mission_types IS NOT NULL AND NOT (
-    SELECT bool_and(EXISTS (
-      SELECT 1 FROM public.mission_types 
-      WHERE id = type_id
-    ))
-    FROM unnest(NEW.preferred_mission_types) AS type_id
-  ) THEN
-    RAISE EXCEPTION 'Un ou plusieurs types de mission n''existent pas';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Politiques pour les tables de référence (lecture seule pour tous)
+CREATE POLICY "Anyone can view organization sectors" ON organization_sectors FOR SELECT USING (true);
+CREATE POLICY "Anyone can view mission types" ON mission_types FOR SELECT USING (true);
+CREATE POLICY "Anyone can view skills" ON skills FOR SELECT USING (true);
+CREATE POLICY "Anyone can view badges" ON badges FOR SELECT USING (true);
 
-DROP TRIGGER IF EXISTS check_volunteer_preferences_mission_types_trigger ON public.volunteer_preferences;
-CREATE TRIGGER check_volunteer_preferences_mission_types_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_preferences_mission_types();
+-- Politiques pour la table users
+CREATE POLICY "Users can view public profiles" ON users FOR SELECT USING (true);
+CREATE POLICY "Users can update their own profile" ON users FOR UPDATE USING (id = auth.uid()) WITH CHECK (id = auth.uid());
+-- CREATE POLICY "Admins can do anything with users" ON users USING (EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.email = 'admin@microbenevole.fr'));
 
--- Trigger pour vérifier les catégories
-CREATE OR REPLACE FUNCTION public.check_volunteer_preferences_categories()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.preferred_categories IS NOT NULL AND NOT (
-    SELECT bool_and(EXISTS (
-      SELECT 1 FROM public.categories 
-      WHERE id = category_id
-    ))
-    FROM unnest(NEW.preferred_categories) AS category_id
-  ) THEN
-    RAISE EXCEPTION 'Une ou plusieurs catégories n''existent pas';
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Politiques pour la table organization_profiles
+CREATE POLICY "Anyone can view organization profiles" ON organization_profiles FOR SELECT USING (true);
+CREATE POLICY "Organizations can update their own profile" ON organization_profiles FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Organizations can create their profile" ON organization_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
 
-DROP TRIGGER IF EXISTS check_volunteer_preferences_categories_trigger ON public.volunteer_preferences;
-CREATE TRIGGER check_volunteer_preferences_categories_trigger
-BEFORE INSERT OR UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.check_volunteer_preferences_categories();
+-- Politiques pour la table missions
+CREATE POLICY "Anyone can view active missions" ON missions FOR SELECT USING (status = 'active' OR organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid()));
+CREATE POLICY "Organizations can manage their own missions" ON missions USING (organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid())) WITH CHECK (organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid()));
 
--- Création des triggers handle_updated_at pour toutes les tables
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Politiques pour la table mission_registrations
+CREATE POLICY "Users can view their own registrations" ON mission_registrations FOR SELECT USING (user_id = auth.uid() OR mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid()));
+CREATE POLICY "Users can register for missions" ON mission_registrations FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users can update their own registrations" ON mission_registrations FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Organizations can manage registrations for their missions" ON mission_registrations USING (mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid())) WITH CHECK (mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid()));
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.badges
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Politiques pour la table notifications
+CREATE POLICY "Users can view their own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Users can update their own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.user_badges
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Politiques pour les autres tables
+CREATE POLICY "Users can view their own skills" ON user_skills FOR SELECT USING (user_id = auth.uid() OR validator_id = auth.uid());
+CREATE POLICY "Organizations can validate skills" ON user_skills FOR INSERT WITH CHECK (validator_id = auth.uid());
+CREATE POLICY "Users can view their own badges" ON user_badges FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Anyone can view public testimonials" ON testimonials FOR SELECT USING (is_visible = true OR user_id = auth.uid());
+CREATE POLICY "Users can create their own testimonials" ON testimonials FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Users can update their own testimonials" ON testimonials FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Anyone can view mission skills" ON mission_skills FOR SELECT USING (true);
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.cities
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion de données d'exemple
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.missions
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des secteurs d'action
+INSERT INTO organization_sectors (name, description) VALUES
+('Humanitaire & Urgence', 'Aide en situation de crise, secours'),
+('Alimentation & Précarité', 'Aide alimentaire, lutte contre la pauvreté'),
+('Enfance & Éducation', 'Soutien scolaire, protection de l''enfance'),
+('Personnes âgées & isolées', 'Accompagnement, lutte contre l''isolement'),
+('Handicap & Inclusion', 'Soutien aux personnes en situation de handicap'),
+('Migrants & Réfugiés', 'Accueil, accompagnement juridique et social'),
+('Santé & Soins', 'Accès aux soins, prévention, recherche'),
+('Femmes & Égalité', 'Lutte contre les violences, promotion de l''égalité'),
+('Environnement & Écologie', 'Protection de la nature, sensibilisation'),
+('Animaux', 'Protection animale, refuges');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.mission_participants
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des types de missions
+INSERT INTO mission_types (name, description) VALUES
+('Aide alimentaire', 'Distribution de repas, collecte de denrées'),
+('Accompagnement humain', 'Visites, écoute, soutien moral'),
+('Soutien scolaire / éducatif', 'Aide aux devoirs, lecture, alphabétisation'),
+('Aide administrative', 'Aide pour remplir des documents, médiation'),
+('Traduction / langue', 'Interprétariat, traduction de documents'),
+('Logistique / manutention', 'Déménagement, tri, rangement'),
+('Communication / graphisme', 'Création de supports visuels, gestion des réseaux sociaux'),
+('Événementiel', 'Aide à l''organisation, tenue de stands'),
+('Soins / bien-être', 'Coiffure, soins esthétiques, aide aux soins de base'),
+('Sensibilisation / prévention', 'Animation d''ateliers, information du public'),
+('Numérique / informatique', 'Création de site web, réparation, initiation');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.categories
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des compétences
+INSERT INTO skills (name, description, category) VALUES
+('Communication', 'Capacité à communiquer efficacement à l''oral et à l''écrit', 'Soft skills'),
+('Organisation', 'Capacité à planifier et organiser des tâches', 'Soft skills'),
+('Travail d''équipe', 'Capacité à collaborer efficacement avec d''autres personnes', 'Soft skills'),
+('Cuisine', 'Préparation de repas et connaissance des techniques culinaires', 'Pratique'),
+('Jardinage', 'Entretien de jardins et connaissance des plantes', 'Pratique'),
+('Informatique', 'Utilisation d''outils informatiques et numériques', 'Technique'),
+('Premiers secours', 'Connaissances de base en premiers secours', 'Santé'),
+('Accompagnement de personnes', 'Capacité à accompagner des personnes vulnérables', 'Social'),
+('Enseignement', 'Capacité à transmettre des connaissances', 'Éducation'),
+('Bricolage', 'Réparations et travaux manuels', 'Pratique'),
+('Photographie', 'Prise de vue et retouche photo', 'Artistique'),
+('Rédaction', 'Rédaction de contenus et articles', 'Communication'),
+('Langues étrangères', 'Maîtrise de langues étrangères', 'Communication'),
+('Animation', 'Animation de groupes et d''activités', 'Social'),
+('Logistique', 'Organisation et gestion de ressources matérielles', 'Pratique');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.mission_categories
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des badges
+INSERT INTO badges (name, description, image_url, requirements) VALUES
+('Première mission', 'A complété sa première mission de bénévolat', '/badges/premiere_mission.png', 'Compléter une mission'),
+('Héros du quotidien', 'A complété 10 missions de bénévolat', '/badges/heros_quotidien.png', 'Compléter 10 missions'),
+('Expert en communication', 'A excellé dans des missions de communication', '/badges/expert_communication.png', 'Obtenir 5 validations en communication'),
+('Bénévole engagé', 'A participé régulièrement à des missions pendant 3 mois', '/badges/benevole_engage.png', 'Participer à au moins une mission par mois pendant 3 mois'),
+('Polyvalent', 'A complété des missions dans 5 domaines différents', '/badges/polyvalent.png', 'Compléter des missions dans 5 catégories différentes'),
+('Mentor', 'A aidé d''autres bénévoles à s''intégrer', '/badges/mentor.png', 'Accompagner 3 nouveaux bénévoles'),
+('Fidèle', 'Membre actif depuis plus d''un an', '/badges/fidele.png', 'Être inscrit et actif depuis plus d''un an'),
+('Impact social', 'A contribué à des missions à fort impact social', '/badges/impact_social.png', 'Participer à 5 missions d''aide aux personnes vulnérables'),
+('Écocitoyen', 'Engagé pour l''environnement', '/badges/ecocitoyen.png', 'Participer à 5 missions environnementales'),
+('Coup de main', 'Toujours prêt à aider en cas d''urgence', '/badges/coup_de_main.png', 'Répondre présent à 3 missions urgentes');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.volunteer_availability
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion d'utilisateurs (bénévoles et associations)
+INSERT INTO users (id, email, encrypted_password, first_name, last_name, bio, profile_picture_url, phone, city, postal_code, address, latitude, longitude, is_organization, last_login) VALUES
+-- Bénévoles
+('11111111-1111-1111-1111-111111111111', 'marie.dupont@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Marie', 'Dupont', 'Infirmière passionnée par l''aide aux autres', '/profiles/marie.jpg', '0601020304', 'Paris', '75011', '15 rue de la République, 75011 Paris', 48.8566, 2.3522, false, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+('22222222-2222-2222-2222-222222222222', 'thomas.martin@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Thomas', 'Martin', 'Étudiant en informatique, disponible les week-ends', '/profiles/thomas.jpg', '0602030405', 'Lyon', '69003', '8 avenue Berthelot, 69003 Lyon', 45.7640, 4.8357, false, CURRENT_TIMESTAMP - INTERVAL '5 hours'),
+('33333333-3333-3333-3333-333333333333', 'julie.petit@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Julie', 'Petit', 'Étudiante en marketing, je souhaite mettre mes compétences au service des associations', '/profiles/julie.jpg', '0603040506', 'Bordeaux', '33000', '25 cours Victor Hugo, 33000 Bordeaux', 44.8378, -0.5792, false, CURRENT_TIMESTAMP - INTERVAL '1 day'),
+('44444444-4444-4444-4444-444444444444', 'lucas.bernard@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Lucas', 'Bernard', 'Retraité actif, ancien professeur de mathématiques', '/profiles/lucas.jpg', '0604050607', 'Marseille', '13006', '12 rue Paradis, 13006 Marseille', 43.2965, 5.3698, false, CURRENT_TIMESTAMP - INTERVAL '3 days'),
+('55555555-5555-5555-5555-555555555555', 'emma.moreau@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Emma', 'Moreau', 'Graphiste freelance, disponible pour des missions créatives', '/profiles/emma.jpg', '0605060708', 'Lille', '59000', '45 rue Nationale, 59000 Lille', 50.6292, 3.0573, false, CURRENT_TIMESTAMP - INTERVAL '12 hours'),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.volunteer_preferences
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Associations
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'contact@restosducoeur.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Restos', 'du Cœur', 'Association d''aide alimentaire et d''insertion', '/profiles/restos.jpg', '0101020304', 'Paris', '75008', '42 rue de Clichy, 75008 Paris', 48.8800, 2.3278, true, CURRENT_TIMESTAMP - INTERVAL '1 day'),
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'contact@environnementvert.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Environnement', 'Vert', 'Association de protection de l''environnement', '/profiles/environnement.jpg', '0102030405', 'Lyon', '69007', '15 rue de Gerland, 69007 Lyon', 45.7320, 4.8320, true, CURRENT_TIMESTAMP - INTERVAL '6 hours'),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', 'contact@aideeducative.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Aide', 'Éducative', 'Soutien scolaire pour les enfants défavorisés', '/profiles/education.jpg', '0103040506', 'Bordeaux', '33800', '8 rue des Écoles, 33800 Bordeaux', 44.8250, -0.5700, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
+('dddddddd-dddd-dddd-dddd-dddddddddddd', 'contact@solidarite-seniors.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Solidarité', 'Seniors', 'Accompagnement des personnes âgées isolées', '/profiles/seniors.jpg', '0104050607', 'Marseille', '13008', '25 avenue du Prado, 13008 Marseille', 43.2715, 5.3800, true, CURRENT_TIMESTAMP - INTERVAL '5 days'),
+('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'contact@animaux-protection.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Protection', 'Animaux', 'Refuge et protection des animaux abandonnés', '/profiles/animaux.jpg', '0105060708', 'Lille', '59160', '10 rue des Animaux, 59160 Lille', 50.6500, 3.0800, true, CURRENT_TIMESTAMP - INTERVAL '1 day');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.volunteer_skills
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des profils d'associations avec secteurs
+INSERT INTO organization_profiles (id, user_id, organization_name, description, logo_url, website_url, address, latitude, longitude, sector_id, siret_number, creation_date) VALUES
+('a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Les Restos du Cœur', 'Association d''aide alimentaire et d''insertion sociale fondée par Coluche en 1985', '/logos/restos.png', 'https://www.restosducoeur.org', '42 rue de Clichy, 75008 Paris', 48.8800, 2.3278, (SELECT id FROM organization_sectors WHERE name = 'Alimentation & Précarité'), '12345678901234', '1985-10-15'),
+('b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Environnement Vert', 'Association dédiée à la protection de l''environnement et à la sensibilisation écologique', '/logos/environnement.png', 'https://www.environnementvert.org', '15 rue de Gerland, 69007 Lyon', 45.7320, 4.8320, (SELECT id FROM organization_sectors WHERE name = 'Environnement & Écologie'), '23456789012345', '2005-04-22'),
+('c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Aide Éducative', 'Association proposant du soutien scolaire aux enfants défavorisés', '/logos/education.png', 'https://www.aideeducative.org', '8 rue des Écoles, 33800 Bordeaux', 44.8250, -0.5700, (SELECT id FROM organization_sectors WHERE name = 'Enfance & Éducation'), '34567890123456', '2010-09-01'),
+('d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Solidarité Seniors', 'Association d''accompagnement des personnes âgées isolées', '/logos/seniors.png', 'https://www.solidarite-seniors.org', '25 avenue du Prado, 13008 Marseille', 43.2715, 5.3800, (SELECT id FROM organization_sectors WHERE name = 'Personnes âgées & isolées'), '45678901234567', '2008-06-15'),
+('e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Protection Animaux', 'Association de protection et de défense des animaux', '/logos/animaux.png', 'https://www.animaux-protection.org', '10 rue des Animaux, 59160 Lille', 50.6500, 3.0800, (SELECT id FROM organization_sectors WHERE name = 'Animaux'), '56789012345678', '2012-03-30');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.skills
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion de missions avec types, formats, niveaux d'engagement et impacts
+INSERT INTO missions (id, organization_id, mission_type_id, title, description, start_date, end_date, duration_minutes, format, location, latitude, longitude, available_spots, difficulty_level, engagement_level, desired_impact, status, image_url) VALUES
+-- Missions des Restos du Cœur
+('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Aide alimentaire'), 'Distribution de repas', 'Participer à la distribution de repas chauds aux personnes dans le besoin', CURRENT_TIMESTAMP + INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '1 day' + INTERVAL '2 hours', 120, 'Présentiel', 'Centre de distribution Paris 11e', 48.8630, 2.3790, 5, 'débutant', 'Petit coup de main', 'Lutter contre l''exclusion', 'active', '/missions/distribution.jpg'),
+('m2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Tri des dons alimentaires', 'Aider au tri et au rangement des denrées alimentaires reçues', CURRENT_TIMESTAMP + INTERVAL '3 days', CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Entrepôt Paris 18e', 48.8920, 2.3500, 3, 'débutant', 'Petit coup de main', 'Agir pour une cause urgente', 'active', '/missions/tri.jpg'),
+('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Accueil et orientation', 'Accueillir les bénéficiaires et les orienter vers les services adaptés', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Centre d''accueil Paris 13e', 48.8300, 2.3650, 2, 'intermédiaire', 'Mission avec suivi', 'Créer du lien humain', 'active', '/missions/accueil.jpg'),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.notifications
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Missions d'Environnement Vert
+('m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Nettoyage des berges du Rhône', 'Participer au ramassage des déchets sur les berges du Rhône', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '5 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Berges du Rhône, Lyon', 45.7550, 4.8450, 10, 'débutant', 'Petit coup de main', 'Protéger l''environnement', 'active', '/missions/nettoyage.jpg'),
+('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Sensibilisation / prévention'), 'Atelier de sensibilisation écologique', 'Animer un atelier de sensibilisation à l''écologie pour des enfants', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP + INTERVAL '7 days' + INTERVAL '2 hours', 120, 'Présentiel', 'École primaire Lyon 7e', 45.7320, 4.8320, 2, 'intermédiaire', 'Mission avec suivi', 'Éduquer et sensibiliser', 'active', '/missions/atelier.jpg'),
+('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Plantation d''arbres', 'Participer à une opération de reboisement urbain', CURRENT_TIMESTAMP + INTERVAL '10 days', CURRENT_TIMESTAMP + INTERVAL '10 days' + INTERVAL '4 hours', 240, 'Présentiel', 'Parc de la Tête d''Or, Lyon', 45.7770, 4.8520, 8, 'débutant', 'Projet long', 'Protéger l''environnement', 'active', '/missions/plantation.jpg'),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.feedbacks
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Missions d'Aide Éducative
+('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Soutien scolaire / éducatif'), 'Aide aux devoirs', 'Accompagner des collégiens dans leurs devoirs', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Collège Victor Hugo, Bordeaux', 44.8350, -0.5750, 5, 'intermédiaire', 'Mission avec suivi', 'Faire progresser l''égalité', 'active', '/missions/devoirs.jpg'),
+('m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Soutien scolaire / éducatif'), 'Lecture pour enfants', 'Animer une séance de lecture pour des enfants de 6 à 8 ans', CURRENT_TIMESTAMP + INTERVAL '4 days', CURRENT_TIMESTAMP + INTERVAL '4 days' + INTERVAL '45 minutes', 45, 'Présentiel', 'Bibliothèque municipale, Bordeaux', 44.8400, -0.5700, 2, 'débutant', 'Petit coup de main', 'Créer du lien humain', 'active', '/missions/lecture.jpg'),
+('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Numérique / informatique'), 'Atelier d''initiation à l''informatique', 'Initier des jeunes aux bases de la programmation', CURRENT_TIMESTAMP + INTERVAL '6 days', CURRENT_TIMESTAMP + INTERVAL '6 days' + INTERVAL '2 hours', 120, 'À distance', NULL, NULL, NULL, 3, 'expert', 'Mission avec suivi', 'Faire progresser l''égalité', 'active', '/missions/informatique.jpg'),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.geocoding_cache
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Missions de Solidarité Seniors
+('m10m10m10-m10m-m10m-m10m-m10m10m10m10', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Visite à domicile', 'Rendre visite à une personne âgée isolée pour un moment de convivialité', CURRENT_TIMESTAMP + INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '1 day' + INTERVAL '1 hour', 60, 'Présentiel', 'Quartier du Prado, Marseille', 43.2715, 5.3800, 1, 'débutant', 'Petit coup de main', 'Créer du lien humain', 'active', '/missions/visite.jpg'),
+('m11m11m11-m11m-m11m-m11m-m11m11m11m11', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Aide aux courses', 'Accompagner une personne âgée pour faire ses courses', CURRENT_TIMESTAMP + INTERVAL '3 days', CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '2 hours', 120, 'Présentiel', 'Quartier Vieux-Port, Marseille', 43.2950, 5.3650, 1, 'débutant', 'Petit coup de main', 'Lutter contre l''exclusion', 'active', '/missions/courses.jpg'),
+('m12m12m12-m12m-m12m-m12m-m12m12m12m12', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Animation'), 'Animation d''atelier mémoire', 'Animer un atelier pour stimuler la mémoire des seniors', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '5 days' + INTERVAL '1 hour 30 minutes', 90, 'Présentiel', 'Maison de retraite Les Oliviers, Marseille', 43.2800, 5.3900, 2, 'intermédiaire', 'Mission avec suivi', 'Créer du lien humain', 'active', '/missions/memoire.jpg'),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.travel_time_cache
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Missions de Protection Animaux
+('m13m13m13-m13m-m13m-m13m-m13m13m13m13', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Promenade de chiens', 'Promener les chiens du refuge', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Refuge animalier, Lille', 50.6500, 3.0800, 4, 'débutant', 'Petit coup de main', 'Sauver des vies / protéger', 'active', '/missions/promenade.jpg'),
+('m14m14m14-m14m-m14m-m14m-m14m14m14m14', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Nettoyage des enclos', 'Aider au nettoyage et à l''entretien des enclos des animaux', CURRENT_TIMESTAMP + INTERVAL '4 days', CURRENT_TIMESTAMP + INTERVAL '4 days' + INTERVAL '2 hours', 120, 'Présentiel', 'Refuge animalier, Lille', 50.6500, 3.0800, 3, 'intermédiaire', 'Petit coup de main', 'Sauver des vies / protéger', 'active', '/missions/enclos.jpg'),
+('m15m15m15-m15m-m15m-m15m-m15m15m15m15', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Événementiel'), 'Stand d''information', 'Tenir un stand d''information sur la protection animale', CURRENT_TIMESTAMP + INTERVAL '6 days', CURRENT_TIMESTAMP + INTERVAL '6 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Centre commercial Euralille, Lille', 50.6370, 3.0700, 2, 'intermédiaire', 'Mission avec suivi', 'Éduquer et sensibiliser', 'active', '/missions/stand.jpg'),
+('m16m16m16-m16m-m16m-m16m-m16m16m16m16', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Communication / graphisme'), 'Création de visuels pour réseaux sociaux', 'Créer des visuels attractifs pour la campagne de Noël des Restos du Coeur', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '15 days', 15, 'À distance', NULL, NULL, NULL, 1, 'intermédiaire', 'Ultra-rapide', 'Agir pour une cause urgente', 'active', '/missions/visuels.jpg');
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.optimized_routes
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Insertion des compétences requises pour les missions
+INSERT INTO mission_skills (mission_id, skill_id, is_required) VALUES
+-- Compétences pour les missions des Restos du Cœur
+('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
+('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', (SELECT id FROM skills WHERE name = 'Communication'), false),
+('m2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', (SELECT id FROM skills WHERE name = 'Organisation'), true),
+('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', (SELECT id FROM skills WHERE name = 'Communication'), true),
+('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
+('m16m16m16-m16m-m16m-m16m-m16m16m16m16', (SELECT id FROM skills WHERE name = 'Photographie'), true),
+('m16m16m16-m16m-m16m-m16m-m16m16m16m16', (SELECT id FROM skills WHERE name = 'Communication'), false),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.mission_types
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Compétences pour les missions d'Environnement Vert
+('m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
+('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', (SELECT id FROM skills WHERE name = 'Communication'), true),
+('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
+('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', (SELECT id FROM skills WHERE name = 'Jardinage'), false),
+('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
 
-CREATE TRIGGER handle_updated_at_trigger
-BEFORE UPDATE ON public.location_webhooks
-FOR EACH ROW
-EXECUTE FUNCTION public.handle_updated_at();
+-- Compétences pour les missions d'Aide Éducative
+('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
+('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', (SELECT id FROM skills WHERE name = 'Communication'), false),
+('m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', (SELECT id FROM skills WHERE name = 'Communication'), true),
+('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', (SELECT id FROM skills WHERE name = 'Informatique'), true),
+('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
 
--- Ajout des politiques de sécurité RLS
-ALTER TABLE public.volunteer_skills ENABLE ROW LEVEL SECURITY;
-CREATE POLICY volunteer_skills_select ON public.volunteer_skills
-    FOR SELECT USING (true);
-CREATE POLICY volunteer_skills_insert ON public.volunteer_skills
-    FOR INSERT WITH CHECK (auth.uid() = user_id OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_association = true
-    ));
-CREATE POLICY volunteer_skills_update ON public.volunteer_skills
-    FOR UPDATE USING (auth.uid() = user_id OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_association = true
-    ));
-CREATE POLICY volunteer_skills_delete ON public.volunteer_skills
-    FOR DELETE USING (auth.uid() = user_id OR EXISTS (
-        SELECT 1 FROM public.profiles WHERE id = auth.uid() AND is_association = true
-    ));
+-- Compétences pour les missions de Solidarité Seniors
+('m10m10m10-m10m-m10m-m10m-m10m10m10m10', (SELECT id FROM skills WHERE name = 'Communication'), true),
+('m10m10m10-m10m-m10m-m10m-m10m10m10m10', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
+('m11m11m11-m11m-m11m-m11m-m11m11m11m11', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
+('m12m12m12-m12m-m12m-m12m-m12m12m12m12', (SELECT id FROM skills WHERE name = 'Animation'), true),
+('m12m12m12-m12m-m12m-m12m-m12m12m12m12', (SELECT id FROM skills WHERE name = 'Communication'), false),
 
-ALTER TABLE public.volunteer_preferences ENABLE ROW LEVEL SECURITY;
-CREATE POLICY volunteer_preferences_select ON public.volunteer_preferences
-    FOR SELECT USING (true);
-CREATE POLICY volunteer_preferences_insert ON public.volunteer_preferences
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY volunteer_preferences_update ON public.volunteer_preferences
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY volunteer_preferences_delete ON public.volunteer_preferences
-    FOR DELETE USING (auth.uid() = user_id);
+-- Compétences pour les missions de Protection Animaux
+('m13m13m13-m13m-m13m-m13m-m13m13m13m13', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), false),
+('m14m14m14-m14m-m14m-m14m-m14m14m14m14', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), false),
+('m15m15m15-m15m-m15m-m15m-m15m15m15m15', (SELECT id FROM skills WHERE name = 'Communication'), true);
 
-ALTER TABLE public.volunteer_availability ENABLE ROW LEVEL SECURITY;
-CREATE POLICY volunteer_availability_select ON public.volunteer_availability
-    FOR SELECT USING (true);
-CREATE POLICY volunteer_availability_insert ON public.volunteer_availability
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY volunteer_availability_update ON public.volunteer_availability
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY volunteer_availability_delete ON public.volunteer_availability
-    FOR DELETE USING (auth.uid() = user_id);
+-- Insertion des inscriptions aux missions
+INSERT INTO mission_registrations (user_id, mission_id, status, registration_date, confirmation_date) VALUES
+-- Marie s'est inscrite à plusieurs missions
+('11111111-1111-1111-1111-111111111111', 'm1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '4 days'),
+('11111111-1111-1111-1111-111111111111', 'm10m10m10-m10m-m10m-m10m-m10m10m10m10', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '2 days', NULL),
 
-ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
-CREATE POLICY notifications_select ON public.notifications
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY notifications_insert ON public.notifications
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY notifications_update ON public.notifications
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY notifications_delete ON public.notifications
-    FOR DELETE USING (auth.uid() = user_id);
+-- Thomas s'est inscrit à des missions environnementales
+('22222222-2222-2222-2222-222222222222', 'm4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '7 days', CURRENT_TIMESTAMP - INTERVAL '6 days'),
+('22222222-2222-2222-2222-222222222222', 'm6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
 
-ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY feedbacks_select ON public.feedbacks
-    FOR SELECT USING (true);
-CREATE POLICY feedbacks_insert ON public.feedbacks
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY feedbacks_update ON public.feedbacks
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY feedbacks_delete ON public.feedbacks
-    FOR DELETE USING (auth.uid() = user_id);
+-- Julie s'est inscrite à des missions éducatives
+('33333333-3333-3333-3333-333333333333', 'm7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '9 days'),
+('33333333-3333-3333-3333-333333333333', 'm8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '4 days'),
+('33333333-3333-3333-3333-333333333333', 'm15m15m15-m15m-m15m-m15m-m15m15m15m15', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
 
-ALTER TABLE public.optimized_routes ENABLE ROW LEVEL SECURITY;
-CREATE POLICY optimized_routes_select ON public.optimized_routes
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY optimized_routes_insert ON public.optimized_routes
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY optimized_routes_update ON public.optimized_routes
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY optimized_routes_delete ON public.optimized_routes
-    FOR DELETE USING (auth.uid() = user_id);
+-- Lucas s'est inscrit à des missions pour seniors
+('44444444-4444-4444-4444-444444444444', 'm10m10m10-m10m-m10m-m10m-m10m10m10m10', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '7 days'),
+('44444444-4444-4444-4444-444444444444', 'm11m11m11-m11m-m11m-m11m-m11m11m11m11', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '3 days'),
+('44444444-4444-4444-4444-444444444444', 'm12m12m12-m12m-m12m-m12m-m12m12m12m12', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '2 days', NULL),
 
-ALTER TABLE public.location_webhooks ENABLE ROW LEVEL SECURITY;
-CREATE POLICY location_webhooks_select ON public.location_webhooks
-    FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY location_webhooks_insert ON public.location_webhooks
-    FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY location_webhooks_update ON public.location_webhooks
-    FOR UPDATE USING (auth.uid() = user_id);
-CREATE POLICY location_webhooks_delete ON public.location_webhooks
-    FOR DELETE USING (auth.uid() = user_id);
+-- Emma s'est inscrite à des missions diverses
+('55555555-5555-5555-5555-555555555555', 'm2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '6 days', CURRENT_TIMESTAMP - INTERVAL '5 days'),
+('55555555-5555-5555-5555-555555555555', 'm13m13m13-m13m-m13m-m13m-m13m13m13m13', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '2 days'),
+('55555555-5555-5555-5555-555555555555', 'm5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
+('55555555-5555-5555-5555-555555555555', 'm16m16m16-m16m-m16m-m16m-m16m16m16m16', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 hour', NULL);
 
--- Fonction de validation des retours d'expérience
-CREATE OR REPLACE FUNCTION public.check_feedback()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Vérifier que l'utilisateur existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.profiles 
-    WHERE id = NEW.user_id
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''existe pas';
-  END IF;
+-- Insertion des compétences validées pour les utilisateurs
+INSERT INTO user_skills (user_id, skill_id, level, validation_date, validator_id) VALUES
+-- Compétences de Marie
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '30 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), 'expert', CURRENT_TIMESTAMP - INTERVAL '60 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'expert', CURRENT_TIMESTAMP - INTERVAL '90 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
 
-  -- Vérifier que la mission existe
-  IF NOT EXISTS (
-    SELECT 1 FROM public.missions 
-    WHERE id = NEW.mission_id
-  ) THEN
-    RAISE EXCEPTION 'La mission n''existe pas';
-  END IF;
+-- Compétences de Thomas
+('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Informatique'), 'expert', CURRENT_TIMESTAMP - INTERVAL '45 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '60 days', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
+('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Jardinage'), 'débutant', CURRENT_TIMESTAMP - INTERVAL '30 days', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
 
-  -- Vérifier que l'utilisateur a participé à la mission
-  IF NOT EXISTS (
-    SELECT 1 FROM public.mission_participants 
-    WHERE mission_id = NEW.mission_id 
-    AND user_id = NEW.user_id
-    AND status = 'completed'
-  ) THEN
-    RAISE EXCEPTION 'L''utilisateur n''a pas participé à cette mission';
-  END IF;
+-- Compétences de Julie
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '40 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Enseignement'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '70 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Rédaction'), 'expert', CURRENT_TIMESTAMP - INTERVAL '100 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
 
-  -- Vérifier que la note est valide si elle est renseignée
-  IF NEW.rating IS NOT NULL AND (NEW.rating < 1 OR NEW.rating > 5) THEN
-    RAISE EXCEPTION 'La note doit être comprise entre 1 et 5';
-  END IF;
+-- Compétences de Lucas
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Enseignement'), 'expert', CURRENT_TIMESTAMP - INTERVAL '120 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '80 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '90 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
 
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+-- Compétences d'Emma
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '50 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Organisation'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '70 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Photographie'), 'expert', CURRENT_TIMESTAMP - INTERVAL '100 days', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
 
-CREATE TRIGGER check_feedback_trigger
-BEFORE INSERT OR UPDATE ON public.feedbacks
-FOR EACH ROW
-EXECUTE FUNCTION public.check_feedback();
+-- Insertion des badges obtenus par les utilisateurs
+INSERT INTO user_badges (user_id, badge_id, acquisition_date) VALUES
+-- Badges de Marie
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '60 days'),
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Bénévole engagé'), CURRENT_TIMESTAMP - INTERVAL '30 days'),
+('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Impact social'), CURRENT_TIMESTAMP - INTERVAL '15 days'),
 
--- Ajout d'index supplémentaires pour les clés étrangères
-CREATE INDEX IF NOT EXISTS idx_profiles_association_id ON public.profiles(id) WHERE is_association = true;
-CREATE INDEX IF NOT EXISTS idx_profiles_admin_id ON public.profiles(id) WHERE is_admin = true;
+-- Badges de Thomas
+('22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '70 days'),
+('22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Écocitoyen'), CURRENT_TIMESTAMP - INTERVAL '40 days'),
 
-CREATE INDEX IF NOT EXISTS idx_missions_association_id_status ON public.missions(association_id, status);
-CREATE INDEX IF NOT EXISTS idx_missions_starts_at_status ON public.missions(starts_at, status);
-CREATE INDEX IF NOT EXISTS idx_missions_city_id_status ON public.missions(city_id, status);
+-- Badges de Julie
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '100 days'),
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Expert en communication'), CURRENT_TIMESTAMP - INTERVAL '50 days'),
+('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Polyvalent'), CURRENT_TIMESTAMP - INTERVAL '20 days'),
 
-CREATE INDEX IF NOT EXISTS idx_mission_participants_user_id_status ON public.mission_participants(user_id, status);
-CREATE INDEX IF NOT EXISTS idx_mission_participants_mission_id_status ON public.mission_participants(mission_id, status);
+-- Badges de Lucas
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '120 days'),
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Bénévole engagé'), CURRENT_TIMESTAMP - INTERVAL '90 days'),
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Mentor'), CURRENT_TIMESTAMP - INTERVAL '60 days'),
+('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Fidèle'), CURRENT_TIMESTAMP - INTERVAL '30 days'),
 
-CREATE INDEX IF NOT EXISTS idx_volunteer_skills_user_id_level ON public.volunteer_skills(user_id, level);
-CREATE INDEX IF NOT EXISTS idx_volunteer_skills_skill_id_level ON public.volunteer_skills(skill_id, level);
+-- Badges d'Emma
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '80 days'),
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Polyvalent'), CURRENT_TIMESTAMP - INTERVAL '40 days'),
+('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Coup de main'), CURRENT_TIMESTAMP - INTERVAL '20 days');
 
-CREATE INDEX IF NOT EXISTS idx_volunteer_preferences_user_id_distance ON public.volunteer_preferences(user_id, max_distance_km);
-CREATE INDEX IF NOT EXISTS idx_volunteer_preferences_user_id_duration ON public.volunteer_preferences(user_id, min_duration_minutes, max_duration_minutes);
+-- Insertion des témoignages
+INSERT INTO testimonials (user_id, content, created_at, is_visible, job_title) VALUES
+('11111111-1111-1111-1111-111111111111', 'MicroBénévole m''a permis d''intégrer le bénévolat dans mon quotidien chargé. Je peux aider quand j''ai un moment, sans culpabiliser les jours où je ne suis pas disponible.', CURRENT_TIMESTAMP - INTERVAL '45 days', true, 'Infirmière'),
+('22222222-2222-2222-2222-222222222222', 'Grâce à cette plateforme, j''ai pu découvrir des associations près de chez moi dont j''ignorais l''existence. Les missions courtes sont parfaites pour mon emploi du temps d''étudiant.', CURRENT_TIMESTAMP - INTERVAL '30 days', true, 'Étudiant en informatique'),
+('33333333-3333-3333-3333-333333333333', 'J''ai pu valider des compétences réelles en communication tout en aidant une cause qui me tient à cœur. Les badges obtenus valorisent mon profil professionnel de façon concrète.', CURRENT_TIMESTAMP - INTERVAL '60 days', true, 'Étudiante en marketing'),
+('44444444-4444-4444-4444-444444444444', 'À la retraite, je cherchais un moyen de rester actif et utile. MicroBénévole m''a permis de trouver des missions adaptées à mon rythme et de rencontrer des personnes formidables.', CURRENT_TIMESTAMP - INTERVAL '90 days', true, 'Retraité, Ancien professeur'),
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Grâce à cette plateforme, notre association a pu trouver des volontaires pour des tâches ponctuelles que nous n''aurions pas pu réaliser seuls. Un vrai gain de temps et d''efficacité !', CURRENT_TIMESTAMP - INTERVAL '75 days', true, 'Responsable, Les Restos du Cœur'),
+('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'L''application est intuitive et nous permet de poster rapidement nos besoins. En quelques minutes, nous avons souvent plusieurs volontaires qui se manifestent. Impressionnant !', CURRENT_TIMESTAMP - INTERVAL '50 days', true, 'Directeur, Association Protection Animaux');
 
-CREATE INDEX IF NOT EXISTS idx_volunteer_availability_user_id_day ON public.volunteer_availability(user_id, day_of_week);
-CREATE INDEX IF NOT EXISTS idx_volunteer_availability_user_id_time ON public.volunteer_availability(user_id, start_time, end_time);
+-- Insertion des notifications
+INSERT INTO notifications (user_id, title, content, is_read, created_at, link_url) VALUES
+-- Notifications pour Marie
+('11111111-1111-1111-1111-111111111111', 'Confirmation de mission', 'Votre participation à la mission "Distribution de repas" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '4 days', '/missions/m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1'),
+('11111111-1111-1111-1111-111111111111', 'Nouvelle mission près de chez vous', 'Une nouvelle mission "Visite à domicile" est disponible à 1,5 km de chez vous.', false, CURRENT_TIMESTAMP - INTERVAL '2 days', '/missions/m10m10m10-m10m-m10m-m10m-m10m10m10m10'),
+('11111111-1111-1111-1111-111111111111', 'Badge obtenu', 'Félicitations ! Vous avez obtenu le badge "Impact social".', true, CURRENT_TIMESTAMP - INTERVAL '15 days', '/profile/badges'),
 
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_type ON public.notifications(user_id, type);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_created_at ON public.notifications(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_id_is_read ON public.notifications(user_id, is_read);
+-- Notifications pour Thomas
+('22222222-2222-2222-2222-222222222222', 'Confirmation de mission', 'Votre participation à la mission "Nettoyage des berges du Rhône" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '6 days', '/missions/m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4'),
+('22222222-2222-2222-2222-222222222222', 'Nouvelle compétence validée', 'Votre compétence "Jardinage" a été validée par Environnement Vert.', false, CURRENT_TIMESTAMP - INTERVAL '30 days', '/profile/skills'),
 
-CREATE INDEX IF NOT EXISTS idx_feedbacks_user_id_rating ON public.feedbacks(user_id, rating);
-CREATE INDEX IF NOT EXISTS idx_feedbacks_mission_id_rating ON public.feedbacks(mission_id, rating);
+-- Notifications pour Julie
+('33333333-3333-3333-3333-333333333333', 'Confirmation de mission', 'Votre participation à la mission "Aide aux devoirs" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '9 days', '/missions/m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7'),
+('33333333-3333-3333-3333-333333333333', 'Confirmation de mission', 'Votre participation à la mission "Lecture pour enfants" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '4 days', '/missions/m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8'),
+('33333333-3333-3333-3333-333333333333', 'Badge obtenu', 'Félicitations ! Vous avez obtenu le badge "Polyvalent".', false, CURRENT_TIMESTAMP - INTERVAL '20 days', '/profile/badges'),
 
-CREATE INDEX IF NOT EXISTS idx_geocoding_cache_coordinates ON public.geocoding_cache USING gist (ll_to_earth(latitude, longitude));
-CREATE INDEX IF NOT EXISTS idx_travel_time_cache_times ON public.travel_time_cache(travel_time_minutes);
+-- Notifications pour les associations
+('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Nouvelle inscription', 'Marie Dupont s''est inscrite à votre mission "Distribution de repas".', true, CURRENT_TIMESTAMP - INTERVAL '5 days', '/missions/m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1/registrations'),
+('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Nouvelle inscription', 'Thomas Martin s''est inscrit à votre mission "Nettoyage des berges du Rhône".', true, CURRENT_TIMESTAMP - INTERVAL '7 days', '/missions/m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4/registrations'),
+('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Nouvelle inscription', 'Julie Petit s''est inscrite à votre mission "Aide aux devoirs".', true, CURRENT_TIMESTAMP - INTERVAL '10 days', '/missions/m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7/registrations');
 
-CREATE INDEX IF NOT EXISTS idx_optimized_routes_user_id_created_at ON public.optimized_routes(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_optimized_routes_mission_count ON public.optimized_routes(mission_count);
+-- Commentaires sur l'utilisation avec Supabase
+/*
+Pour utiliser ce script avec Supabase:
 
-CREATE INDEX IF NOT EXISTS idx_location_webhooks_user_id_active ON public.location_webhooks(user_id, is_active);
+1. Connectez-vous à votre projet Supabase
+2. Allez dans l'éditeur SQL
+3. Copiez et collez ce script
+4. Exécutez le script
 
--- Index pour les recherches textuelles
-CREATE INDEX IF NOT EXISTS idx_missions_title_trgm ON public.missions USING gin (title gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_missions_description_trgm ON public.missions USING gin (description gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_profiles_name_trgm ON public.profiles USING gin ((first_name || ' ' || last_name) gin_trgm_ops);
-CREATE INDEX IF NOT EXISTS idx_categories_name_trgm ON public.categories USING gin (name gin_trgm_ops);
+Notes importantes:
+- Ce script inclut l'extension PostGIS pour la géolocalisation
+- Toutes les politiques RLS (Row Level Security) sont configurées
+- Des données de test complètes sont incluses
+- La localisation des utilisateurs est prise en charge
+- Les catégories d'associations et de missions sont intégrées
+- Les formats de missions (Présentiel, À distance) sont gérés
+- Des fonctions pour trouver des missions à proximité sont implémentées
 
--- Index pour les recherches géospatiales
-CREATE INDEX IF NOT EXISTS idx_missions_location_gist ON public.missions USING gist (ll_to_earth(latitude, longitude));
-CREATE INDEX IF NOT EXISTS idx_profiles_location_gist ON public.profiles USING gist (ll_to_earth(latitude, longitude));
+Pour tester la fonctionnalité de localisation:
+- Utilisez la fonction nearby_missions(user_uuid, max_distance_km) pour trouver les missions proches d'un utilisateur
+  Exemple: SELECT * FROM nearby_missions('11111111-1111-1111-1111-111111111111', 5);
+
+Pour l'authentification:
+- Utilisez les fonctionnalités intégrées de Supabase Auth
+- Configurez les webhooks pour synchroniser les utilisateurs Supabase Auth avec la table users
+*/
