@@ -4,8 +4,9 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { Loader2, Mail, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 const LoginForm = () => {
@@ -14,89 +15,114 @@ const LoginForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const { signIn } = useAuth();
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setIsLoading(true);
-    
-    // Vérification basique des champs
+  const validateForm = () => {
     if (!email || !email.includes('@')) {
       toast.error("Veuillez entrer une adresse e-mail valide");
-      setIsLoading(false);
-      return;
+      return false;
     }
     
     if (!password || password.length < 6) {
       toast.error("Le mot de passe doit contenir au moins 6 caractères");
-      setIsLoading(false);
-      return;
+      return false;
     }
 
+    return true;
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+
+    setIsLoading(true);
     try {
       await signIn(email, password);
-      // La navigation est gérée dans le hook useAuth
-    } catch (error: any) {
-      console.error("[LoginForm] Erreur lors de la connexion:", error);
-      // Les erreurs sont déjà affichées dans useAuth
+    } catch (error) {
+      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          placeholder="exemple@mail.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={isLoading}
-          autoComplete="email"
-        />
-      </div>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Mot de passe</Label>
-          <Link to="/auth/reset-password" className="text-sm text-bleu hover:underline">
-            Mot de passe oublié?
-          </Link>
+    <Card className="w-full max-w-md mx-auto">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">Connexion</CardTitle>
+        <CardDescription>
+          Connectez-vous à votre compte pour accéder à vos missions
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="exemple@mail.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="pl-10"
+                required
+                disabled={isLoading}
+                autoComplete="email"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Link 
+                to="/auth/reset-password" 
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Mot de passe oublié ?
+              </Link>
+            </div>
+            <div className="relative">
+              <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="pl-10"
+                required
+                disabled={isLoading}
+                autoComplete="current-password"
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Connexion en cours...
+              </>
+            ) : (
+              "Se connecter"
+            )}
+          </Button>
+        </form>
+
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
+            Pas encore de compte ?{" "}
+            <Link to="/auth/register" className="text-blue-600 hover:underline">
+              Créer un compte
+            </Link>
+          </p>
         </div>
-        <Input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          disabled={isLoading}
-          autoComplete="current-password"
-        />
-      </div>
-      <Button
-        type="submit"
-        className="w-full bg-bleu hover:bg-bleu-700"
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Connexion en cours...
-          </>
-        ) : (
-          "Se connecter"
-        )}
-      </Button>
-      <div className="text-center mt-4">
-        <span className="text-sm text-gray-500">
-          Pas encore de compte?{" "}
-          <Link to="/auth/register" className="text-bleu hover:underline">
-            Créer un compte
-          </Link>
-        </span>
-      </div>
-    </form>
+      </CardContent>
+    </Card>
   );
 };
 
