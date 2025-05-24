@@ -247,12 +247,12 @@ WHERE m.status = 'active'
 AND m.available_spots > 0
 AND m.start_date > CURRENT_TIMESTAMP;
 
--- Vue des missions par ville
-CREATE VIEW missions_by_city AS
-SELECT city, COUNT(*) as mission_count
+-- Vue des missions par localisation (correction de l'erreur: utilisation de location au lieu de city)
+CREATE VIEW missions_by_location AS
+SELECT location, COUNT(*) as mission_count
 FROM missions
 WHERE status = 'active' AND format = 'Présentiel'
-GROUP BY city;
+GROUP BY location;
 
 -- Vue des compétences les plus demandées
 CREATE VIEW popular_skills AS
@@ -403,35 +403,91 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Trigger pour restaurer une place lors de l'annulation
-CREATE TRIGGER restore_mission_spot_trigger BEFORE UPDATE ON mission_registrations FOR EACH ROW EXECUTE FUNCTION restore_mission_spot();
+CREATE TRIGGER restore_mission_spot_trigger AFTER UPDATE OF status ON mission_registrations FOR EACH ROW EXECUTE FUNCTION restore_mission_spot();
 
--- Fonction pour créer une notification lorsqu'un utilisateur s'inscrit à une mission
+-- Fonction pour attribuer automatiquement des badges
+CREATE OR REPLACE FUNCTION award_badges()
+RETURNS TRIGGER AS $$
+DECLARE
+    completed_count INTEGER;
+    badge_id UUID;
+BEGIN
+    -- Vérifier si l'utilisateur a terminé une mission
+    IF NEW.status = 'terminé' THEN
+        -- Compter le nombre de missions terminées par l'utilisateur
+        SELECT COUNT(*) INTO completed_count
+        FROM mission_registrations
+        WHERE user_id = NEW.user_id AND status = 'terminé';
+        
+        -- Attribuer des badges en fonction du nombre de missions terminées
+        IF completed_count = 1 THEN
+            -- Badge pour la première mission
+            SELECT id INTO badge_id FROM badges WHERE name = 'Première mission';
+            IF badge_id IS NOT NULL THEN
+                INSERT INTO user_badges (user_id, badge_id)
+                VALUES (NEW.user_id, badge_id)
+                ON CONFLICT (user_id, badge_id) DO NOTHING;
+            END IF;
+        ELSIF completed_count = 5 THEN
+            -- Badge pour 5 missions
+            SELECT id INTO badge_id FROM badges WHERE name = 'Bénévole engagé';
+            IF badge_id IS NOT NULL THEN
+                INSERT INTO user_badges (user_id, badge_id)
+                VALUES (NEW.user_id, badge_id)
+                ON CONFLICT (user_id, badge_id) DO NOTHING;
+            END IF;
+        ELSIF completed_count = 10 THEN
+            -- Badge pour 10 missions
+            SELECT id INTO badge_id FROM badges WHERE name = 'Bénévole expert';
+            IF badge_id IS NOT NULL THEN
+                INSERT INTO user_badges (user_id, badge_id)
+                VALUES (NEW.user_id, badge_id)
+                ON CONFLICT (user_id, badge_id) DO NOTHING;
+            END IF;
+        END IF;
+    END IF;
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger pour attribuer des badges
+CREATE TRIGGER award_badges_trigger AFTER UPDATE OF status ON mission_registrations FOR EACH ROW EXECUTE FUNCTION award_badges();
+
+-- Fonction pour créer une notification lors de l'inscription à une mission
 CREATE OR REPLACE FUNCTION create_registration_notification()
 RETURNS TRIGGER AS $$
 DECLARE
-    mission_title TEXT;
-    organization_id UUID;
-    organization_user_id UUID;
-    volunteer_name TEXT;
+    mission_title VARCHAR(255);
+    org_id UUID;
+    org_user_id UUID;
 BEGIN
-    SELECT m.title, m.organization_id INTO mission_title, organization_id FROM missions m WHERE m.id = NEW.mission_id;
-    SELECT op.user_id INTO organization_user_id FROM organization_profiles op WHERE op.id = organization_id;
-    SELECT CONCAT(u.first_name, ' ', u.last_name) INTO volunteer_name FROM users u WHERE u.id = NEW.user_id;
+    -- Récupérer le titre de la mission et l'ID de l'organisation
+    SELECT title, organization_id INTO mission_title, org_id
+    FROM missions
+    WHERE id = NEW.mission_id;
     
-    INSERT INTO notifications (user_id, title, content, link_url)
-    VALUES (
-        organization_user_id,
-        'Nouvelle inscription à une mission',
-        CONCAT('Le bénévole ', volunteer_name, ' s''est inscrit à votre mission "', mission_title, '".'),
-        '/missions/' || NEW.mission_id
-    );
-    
+    -- Créer une notification pour le bénévole
     INSERT INTO notifications (user_id, title, content, link_url)
     VALUES (
         NEW.user_id,
         'Inscription confirmée',
-        CONCAT('Vous êtes inscrit à la mission "', mission_title, '". Merci de votre engagement!'),
+        'Vous êtes inscrit à la mission : ' || mission_title,
         '/missions/' || NEW.mission_id
+    );
+    
+    -- Récupérer l'ID utilisateur de l'organisation
+    SELECT user_id INTO org_user_id
+    FROM organization_profiles
+    WHERE id = org_id;
+    
+    -- Créer une notification pour l'organisation
+    INSERT INTO notifications (user_id, title, content, link_url)
+    VALUES (
+        org_user_id,
+        'Nouvelle inscription',
+        'Un bénévole s''est inscrit à votre mission : ' || mission_title,
+        '/missions/' || NEW.mission_id || '/registrations'
     );
     
     RETURN NEW;
@@ -441,367 +497,231 @@ $$ LANGUAGE plpgsql;
 -- Trigger pour créer des notifications lors de l'inscription
 CREATE TRIGGER create_registration_notification_trigger AFTER INSERT ON mission_registrations FOR EACH ROW EXECUTE FUNCTION create_registration_notification();
 
--- Fonction pour créer une notification lorsqu'un badge est attribué
-CREATE OR REPLACE FUNCTION create_badge_notification()
+-- Fonction pour créer une notification lors de l'annulation d'une inscription
+CREATE OR REPLACE FUNCTION create_cancellation_notification()
 RETURNS TRIGGER AS $$
 DECLARE
-    badge_name TEXT;
+    mission_title VARCHAR(255);
+    org_id UUID;
+    org_user_id UUID;
 BEGIN
-    SELECT b.name INTO badge_name FROM badges b WHERE b.id = NEW.badge_id;
-    
-    INSERT INTO notifications (user_id, title, content, link_url)
-    VALUES (
-        NEW.user_id,
-        'Nouveau badge obtenu',
-        CONCAT('Félicitations! Vous avez obtenu le badge "', badge_name, '".'),
-        '/profile/badges'
-    );
+    IF OLD.status != 'annulé' AND NEW.status = 'annulé' THEN
+        -- Récupérer le titre de la mission et l'ID de l'organisation
+        SELECT title, organization_id INTO mission_title, org_id
+        FROM missions
+        WHERE id = NEW.mission_id;
+        
+        -- Créer une notification pour le bénévole
+        INSERT INTO notifications (user_id, title, content, link_url)
+        VALUES (
+            NEW.user_id,
+            'Inscription annulée',
+            'Votre inscription à la mission : ' || mission_title || ' a été annulée',
+            '/missions/' || NEW.mission_id
+        );
+        
+        -- Récupérer l'ID utilisateur de l'organisation
+        SELECT user_id INTO org_user_id
+        FROM organization_profiles
+        WHERE id = org_id;
+        
+        -- Créer une notification pour l'organisation
+        INSERT INTO notifications (user_id, title, content, link_url)
+        VALUES (
+            org_user_id,
+            'Inscription annulée',
+            'Un bénévole a annulé son inscription à votre mission : ' || mission_title,
+            '/missions/' || NEW.mission_id || '/registrations'
+        );
+    END IF;
     
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Trigger pour créer des notifications lors de l'attribution d'un badge
-CREATE TRIGGER create_badge_notification_trigger AFTER INSERT ON user_badges FOR EACH ROW EXECUTE FUNCTION create_badge_notification();
+-- Trigger pour créer des notifications lors de l'annulation
+CREATE TRIGGER create_cancellation_notification_trigger AFTER UPDATE OF status ON mission_registrations FOR EACH ROW EXECUTE FUNCTION create_cancellation_notification();
 
--- Configuration des politiques RLS (Row Level Security)
+-- Fonction pour créer une notification lorsqu'une mission est sur le point de commencer
+CREATE OR REPLACE FUNCTION create_mission_reminder()
+RETURNS void AS $$
+DECLARE
+    mission_record RECORD;
+    registration_record RECORD;
+BEGIN
+    -- Trouver les missions qui commencent dans 24 heures
+    FOR mission_record IN
+        SELECT id, title, start_date
+        FROM missions
+        WHERE status = 'active'
+        AND start_date BETWEEN NOW() AND NOW() + INTERVAL '24 hours'
+    LOOP
+        -- Pour chaque inscription à cette mission
+        FOR registration_record IN
+            SELECT user_id
+            FROM mission_registrations
+            WHERE mission_id = mission_record.id
+            AND status = 'confirmé'
+        LOOP
+            -- Créer une notification de rappel
+            INSERT INTO notifications (user_id, title, content, link_url)
+            VALUES (
+                registration_record.user_id,
+                'Rappel de mission',
+                'Votre mission "' || mission_record.title || '" commence bientôt : ' || mission_record.start_date,
+                '/missions/' || mission_record.id
+            );
+        END LOOP;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
 
--- Activer RLS sur toutes les tables
-ALTER TABLE organization_sectors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mission_types ENABLE ROW LEVEL SECURITY;
+-- Création des politiques de sécurité RLS (Row Level Security)
+
+-- Activer RLS sur les tables principales
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE organization_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE missions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE skills ENABLE ROW LEVEL SECURITY;
-ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mission_registrations ENABLE ROW LEVEL SECURITY;
-ALTER TABLE mission_skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_skills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE testimonials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
--- Politiques pour les tables de référence (lecture seule pour tous)
-CREATE POLICY "Anyone can view organization sectors" ON organization_sectors FOR SELECT USING (true);
-CREATE POLICY "Anyone can view mission types" ON mission_types FOR SELECT USING (true);
-CREATE POLICY "Anyone can view skills" ON skills FOR SELECT USING (true);
-CREATE POLICY "Anyone can view badges" ON badges FOR SELECT USING (true);
-
 -- Politiques pour la table users
-CREATE POLICY "Users can view public profiles" ON users FOR SELECT USING (true);
-CREATE POLICY "Users can update their own profile" ON users FOR UPDATE USING (id = auth.uid()) WITH CHECK (id = auth.uid());
--- CREATE POLICY "Admins can do anything with users" ON users USING (EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.email = 'admin@microbenevole.fr'));
+CREATE POLICY users_view_self ON users
+    FOR SELECT
+    USING (auth.uid() = id);
+
+CREATE POLICY users_update_self ON users
+    FOR UPDATE
+    USING (auth.uid() = id);
 
 -- Politiques pour la table organization_profiles
-CREATE POLICY "Anyone can view organization profiles" ON organization_profiles FOR SELECT USING (true);
-CREATE POLICY "Organizations can update their own profile" ON organization_profiles FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Organizations can create their profile" ON organization_profiles FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY org_profiles_view_all ON organization_profiles
+    FOR SELECT
+    USING (true);
+
+CREATE POLICY org_profiles_update_own ON organization_profiles
+    FOR UPDATE
+    USING (auth.uid() = user_id);
 
 -- Politiques pour la table missions
-CREATE POLICY "Anyone can view active missions" ON missions FOR SELECT USING (status = 'active' OR organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid()));
-CREATE POLICY "Organizations can manage their own missions" ON missions USING (organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid())) WITH CHECK (organization_id IN (SELECT op.id FROM organization_profiles op WHERE op.user_id = auth.uid()));
+CREATE POLICY missions_view_all ON missions
+    FOR SELECT
+    USING (true);
+
+CREATE POLICY missions_insert_own_org ON missions
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM organization_profiles
+            WHERE id = organization_id AND user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY missions_update_own_org ON missions
+    FOR UPDATE
+    USING (
+        EXISTS (
+            SELECT 1 FROM organization_profiles
+            WHERE id = organization_id AND user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY missions_delete_own_org ON missions
+    FOR DELETE
+    USING (
+        EXISTS (
+            SELECT 1 FROM organization_profiles
+            WHERE id = organization_id AND user_id = auth.uid()
+        )
+    );
 
 -- Politiques pour la table mission_registrations
-CREATE POLICY "Users can view their own registrations" ON mission_registrations FOR SELECT USING (user_id = auth.uid() OR mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid()));
-CREATE POLICY "Users can register for missions" ON mission_registrations FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Users can update their own registrations" ON mission_registrations FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Organizations can manage registrations for their missions" ON mission_registrations USING (mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid())) WITH CHECK (mission_id IN (SELECT m.id FROM missions m JOIN organization_profiles op ON m.organization_id = op.id WHERE op.user_id = auth.uid()));
+CREATE POLICY registrations_view_own ON mission_registrations
+    FOR SELECT
+    USING (
+        auth.uid() = user_id OR
+        EXISTS (
+            SELECT 1 FROM missions m
+            JOIN organization_profiles op ON m.organization_id = op.id
+            WHERE m.id = mission_id AND op.user_id = auth.uid()
+        )
+    );
+
+CREATE POLICY registrations_insert_self ON mission_registrations
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY registrations_update_own ON mission_registrations
+    FOR UPDATE
+    USING (
+        auth.uid() = user_id OR
+        EXISTS (
+            SELECT 1 FROM missions m
+            JOIN organization_profiles op ON m.organization_id = op.id
+            WHERE m.id = mission_id AND op.user_id = auth.uid()
+        )
+    );
 
 -- Politiques pour la table notifications
-CREATE POLICY "Users can view their own notifications" ON notifications FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "Users can update their own notifications" ON notifications FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
+CREATE POLICY notifications_view_own ON notifications
+    FOR SELECT
+    USING (auth.uid() = user_id);
 
--- Politiques pour les autres tables
-CREATE POLICY "Users can view their own skills" ON user_skills FOR SELECT USING (user_id = auth.uid() OR validator_id = auth.uid());
-CREATE POLICY "Organizations can validate skills" ON user_skills FOR INSERT WITH CHECK (validator_id = auth.uid());
-CREATE POLICY "Users can view their own badges" ON user_badges FOR SELECT USING (user_id = auth.uid());
-CREATE POLICY "Anyone can view public testimonials" ON testimonials FOR SELECT USING (is_visible = true OR user_id = auth.uid());
-CREATE POLICY "Users can create their own testimonials" ON testimonials FOR INSERT WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Users can update their own testimonials" ON testimonials FOR UPDATE USING (user_id = auth.uid()) WITH CHECK (user_id = auth.uid());
-CREATE POLICY "Anyone can view mission skills" ON mission_skills FOR SELECT USING (true);
+CREATE POLICY notifications_update_own ON notifications
+    FOR UPDATE
+    USING (auth.uid() = user_id);
 
--- Insertion de données d'exemple
-
--- Insertion des secteurs d'action
+-- Insertion de données de test pour les secteurs d'action
 INSERT INTO organization_sectors (name, description) VALUES
-('Humanitaire & Urgence', 'Aide en situation de crise, secours'),
-('Alimentation & Précarité', 'Aide alimentaire, lutte contre la pauvreté'),
-('Enfance & Éducation', 'Soutien scolaire, protection de l''enfance'),
-('Personnes âgées & isolées', 'Accompagnement, lutte contre l''isolement'),
-('Handicap & Inclusion', 'Soutien aux personnes en situation de handicap'),
-('Migrants & Réfugiés', 'Accueil, accompagnement juridique et social'),
-('Santé & Soins', 'Accès aux soins, prévention, recherche'),
-('Femmes & Égalité', 'Lutte contre les violences, promotion de l''égalité'),
-('Environnement & Écologie', 'Protection de la nature, sensibilisation'),
-('Animaux', 'Protection animale, refuges');
+('Environnement', 'Protection de l''environnement, biodiversité, développement durable'),
+('Social', 'Aide aux personnes en difficulté, lutte contre l''exclusion'),
+('Éducation', 'Soutien scolaire, alphabétisation, formation'),
+('Santé', 'Prévention, accompagnement des malades, recherche médicale'),
+('Culture', 'Promotion de l''art et de la culture, patrimoine'),
+('Sport', 'Promotion du sport et des activités physiques'),
+('Humanitaire', 'Aide d''urgence, développement international'),
+('Droits humains', 'Défense des droits et libertés fondamentales'),
+('Numérique', 'Inclusion numérique, développement technologique');
 
--- Insertion des types de missions
+-- Insertion de données de test pour les types de missions
 INSERT INTO mission_types (name, description) VALUES
-('Aide alimentaire', 'Distribution de repas, collecte de denrées'),
-('Accompagnement humain', 'Visites, écoute, soutien moral'),
-('Soutien scolaire / éducatif', 'Aide aux devoirs, lecture, alphabétisation'),
-('Aide administrative', 'Aide pour remplir des documents, médiation'),
-('Traduction / langue', 'Interprétariat, traduction de documents'),
-('Logistique / manutention', 'Déménagement, tri, rangement'),
-('Communication / graphisme', 'Création de supports visuels, gestion des réseaux sociaux'),
-('Événementiel', 'Aide à l''organisation, tenue de stands'),
-('Soins / bien-être', 'Coiffure, soins esthétiques, aide aux soins de base'),
-('Sensibilisation / prévention', 'Animation d''ateliers, information du public'),
-('Numérique / informatique', 'Création de site web, réparation, initiation');
+('Accompagnement', 'Accompagnement de personnes (enfants, personnes âgées, etc.)'),
+('Animation', 'Animation d''ateliers, d''événements'),
+('Communication', 'Création de contenu, gestion des réseaux sociaux'),
+('Logistique', 'Organisation, transport, manutention'),
+('Administration', 'Gestion administrative, comptabilité'),
+('Technique', 'Réparation, bricolage, informatique'),
+('Conseil', 'Expertise, consultation, formation'),
+('Collecte', 'Collecte de fonds, de denrées, de matériel'),
+('Sensibilisation', 'Information, prévention, plaidoyer');
 
--- Insertion des compétences
+-- Insertion de données de test pour les compétences
 INSERT INTO skills (name, description, category) VALUES
-('Communication', 'Capacité à communiquer efficacement à l''oral et à l''écrit', 'Soft skills'),
-('Organisation', 'Capacité à planifier et organiser des tâches', 'Soft skills'),
-('Travail d''équipe', 'Capacité à collaborer efficacement avec d''autres personnes', 'Soft skills'),
-('Cuisine', 'Préparation de repas et connaissance des techniques culinaires', 'Pratique'),
-('Jardinage', 'Entretien de jardins et connaissance des plantes', 'Pratique'),
-('Informatique', 'Utilisation d''outils informatiques et numériques', 'Technique'),
-('Premiers secours', 'Connaissances de base en premiers secours', 'Santé'),
-('Accompagnement de personnes', 'Capacité à accompagner des personnes vulnérables', 'Social'),
-('Enseignement', 'Capacité à transmettre des connaissances', 'Éducation'),
-('Bricolage', 'Réparations et travaux manuels', 'Pratique'),
-('Photographie', 'Prise de vue et retouche photo', 'Artistique'),
-('Rédaction', 'Rédaction de contenus et articles', 'Communication'),
+('Rédaction', 'Capacité à rédiger des contenus clairs et engageants', 'Communication'),
+('Photographie', 'Prise de vue et retouche photo', 'Communication'),
+('Montage vidéo', 'Création et édition de contenu vidéo', 'Communication'),
+('Gestion de projet', 'Organisation et suivi de projets', 'Management'),
+('Comptabilité', 'Gestion financière et comptable', 'Administration'),
+('Développement web', 'Création et maintenance de sites web', 'Technique'),
+('Design graphique', 'Création d''identités visuelles et supports', 'Communication'),
+('Animation de groupe', 'Capacité à animer des ateliers et groupes', 'Animation'),
 ('Langues étrangères', 'Maîtrise de langues étrangères', 'Communication'),
-('Animation', 'Animation de groupes et d''activités', 'Social'),
-('Logistique', 'Organisation et gestion de ressources matérielles', 'Pratique');
+('Premiers secours', 'Formation aux gestes de premiers secours', 'Santé'),
+('Jardinage', 'Entretien d''espaces verts, permaculture', 'Environnement'),
+('Cuisine', 'Préparation de repas, connaissance culinaire', 'Service'),
+('Bricolage', 'Réparation, construction, DIY', 'Technique'),
+('Conduite', 'Permis de conduire et expérience de conduite', 'Logistique'),
+('Médiation', 'Résolution de conflits, facilitation', 'Social');
 
--- Insertion des badges
+-- Insertion de données de test pour les badges
 INSERT INTO badges (name, description, image_url, requirements) VALUES
-('Première mission', 'A complété sa première mission de bénévolat', '/badges/premiere_mission.png', 'Compléter une mission'),
-('Héros du quotidien', 'A complété 10 missions de bénévolat', '/badges/heros_quotidien.png', 'Compléter 10 missions'),
-('Expert en communication', 'A excellé dans des missions de communication', '/badges/expert_communication.png', 'Obtenir 5 validations en communication'),
-('Bénévole engagé', 'A participé régulièrement à des missions pendant 3 mois', '/badges/benevole_engage.png', 'Participer à au moins une mission par mois pendant 3 mois'),
-('Polyvalent', 'A complété des missions dans 5 domaines différents', '/badges/polyvalent.png', 'Compléter des missions dans 5 catégories différentes'),
-('Mentor', 'A aidé d''autres bénévoles à s''intégrer', '/badges/mentor.png', 'Accompagner 3 nouveaux bénévoles'),
-('Fidèle', 'Membre actif depuis plus d''un an', '/badges/fidele.png', 'Être inscrit et actif depuis plus d''un an'),
-('Impact social', 'A contribué à des missions à fort impact social', '/badges/impact_social.png', 'Participer à 5 missions d''aide aux personnes vulnérables'),
-('Écocitoyen', 'Engagé pour l''environnement', '/badges/ecocitoyen.png', 'Participer à 5 missions environnementales'),
-('Coup de main', 'Toujours prêt à aider en cas d''urgence', '/badges/coup_de_main.png', 'Répondre présent à 3 missions urgentes');
-
--- Insertion d'utilisateurs (bénévoles et associations)
-INSERT INTO users (id, email, encrypted_password, first_name, last_name, bio, profile_picture_url, phone, city, postal_code, address, latitude, longitude, is_organization, last_login) VALUES
--- Bénévoles
-('11111111-1111-1111-1111-111111111111', 'marie.dupont@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Marie', 'Dupont', 'Infirmière passionnée par l''aide aux autres', '/profiles/marie.jpg', '0601020304', 'Paris', '75011', '15 rue de la République, 75011 Paris', 48.8566, 2.3522, false, CURRENT_TIMESTAMP - INTERVAL '2 days'),
-('22222222-2222-2222-2222-222222222222', 'thomas.martin@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Thomas', 'Martin', 'Étudiant en informatique, disponible les week-ends', '/profiles/thomas.jpg', '0602030405', 'Lyon', '69003', '8 avenue Berthelot, 69003 Lyon', 45.7640, 4.8357, false, CURRENT_TIMESTAMP - INTERVAL '5 hours'),
-('33333333-3333-3333-3333-333333333333', 'julie.petit@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Julie', 'Petit', 'Étudiante en marketing, je souhaite mettre mes compétences au service des associations', '/profiles/julie.jpg', '0603040506', 'Bordeaux', '33000', '25 cours Victor Hugo, 33000 Bordeaux', 44.8378, -0.5792, false, CURRENT_TIMESTAMP - INTERVAL '1 day'),
-('44444444-4444-4444-4444-444444444444', 'lucas.bernard@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Lucas', 'Bernard', 'Retraité actif, ancien professeur de mathématiques', '/profiles/lucas.jpg', '0604050607', 'Marseille', '13006', '12 rue Paradis, 13006 Marseille', 43.2965, 5.3698, false, CURRENT_TIMESTAMP - INTERVAL '3 days'),
-('55555555-5555-5555-5555-555555555555', 'emma.moreau@example.com', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Emma', 'Moreau', 'Graphiste freelance, disponible pour des missions créatives', '/profiles/emma.jpg', '0605060708', 'Lille', '59000', '45 rue Nationale, 59000 Lille', 50.6292, 3.0573, false, CURRENT_TIMESTAMP - INTERVAL '12 hours'),
-
--- Associations
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'contact@restosducoeur.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Restos', 'du Cœur', 'Association d''aide alimentaire et d''insertion', '/profiles/restos.jpg', '0101020304', 'Paris', '75008', '42 rue de Clichy, 75008 Paris', 48.8800, 2.3278, true, CURRENT_TIMESTAMP - INTERVAL '1 day'),
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'contact@environnementvert.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Environnement', 'Vert', 'Association de protection de l''environnement', '/profiles/environnement.jpg', '0102030405', 'Lyon', '69007', '15 rue de Gerland, 69007 Lyon', 45.7320, 4.8320, true, CURRENT_TIMESTAMP - INTERVAL '6 hours'),
-('cccccccc-cccc-cccc-cccc-cccccccccccc', 'contact@aideeducative.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Aide', 'Éducative', 'Soutien scolaire pour les enfants défavorisés', '/profiles/education.jpg', '0103040506', 'Bordeaux', '33800', '8 rue des Écoles, 33800 Bordeaux', 44.8250, -0.5700, true, CURRENT_TIMESTAMP - INTERVAL '2 days'),
-('dddddddd-dddd-dddd-dddd-dddddddddddd', 'contact@solidarite-seniors.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Solidarité', 'Seniors', 'Accompagnement des personnes âgées isolées', '/profiles/seniors.jpg', '0104050607', 'Marseille', '13008', '25 avenue du Prado, 13008 Marseille', 43.2715, 5.3800, true, CURRENT_TIMESTAMP - INTERVAL '5 days'),
-('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'contact@animaux-protection.org', '$2a$10$abcdefghijklmnopqrstuvwxyz123456', 'Protection', 'Animaux', 'Refuge et protection des animaux abandonnés', '/profiles/animaux.jpg', '0105060708', 'Lille', '59160', '10 rue des Animaux, 59160 Lille', 50.6500, 3.0800, true, CURRENT_TIMESTAMP - INTERVAL '1 day');
-
--- Insertion des profils d'associations avec secteurs
-INSERT INTO organization_profiles (id, user_id, organization_name, description, logo_url, website_url, address, latitude, longitude, sector_id, siret_number, creation_date) VALUES
-('a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Les Restos du Cœur', 'Association d''aide alimentaire et d''insertion sociale fondée par Coluche en 1985', '/logos/restos.png', 'https://www.restosducoeur.org', '42 rue de Clichy, 75008 Paris', 48.8800, 2.3278, (SELECT id FROM organization_sectors WHERE name = 'Alimentation & Précarité'), '12345678901234', '1985-10-15'),
-('b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Environnement Vert', 'Association dédiée à la protection de l''environnement et à la sensibilisation écologique', '/logos/environnement.png', 'https://www.environnementvert.org', '15 rue de Gerland, 69007 Lyon', 45.7320, 4.8320, (SELECT id FROM organization_sectors WHERE name = 'Environnement & Écologie'), '23456789012345', '2005-04-22'),
-('c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', 'cccccccc-cccc-cccc-cccc-cccccccccccc', 'Aide Éducative', 'Association proposant du soutien scolaire aux enfants défavorisés', '/logos/education.png', 'https://www.aideeducative.org', '8 rue des Écoles, 33800 Bordeaux', 44.8250, -0.5700, (SELECT id FROM organization_sectors WHERE name = 'Enfance & Éducation'), '34567890123456', '2010-09-01'),
-('d4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', 'dddddddd-dddd-dddd-dddd-dddddddddddd', 'Solidarité Seniors', 'Association d''accompagnement des personnes âgées isolées', '/logos/seniors.png', 'https://www.solidarite-seniors.org', '25 avenue du Prado, 13008 Marseille', 43.2715, 5.3800, (SELECT id FROM organization_sectors WHERE name = 'Personnes âgées & isolées'), '45678901234567', '2008-06-15'),
-('e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'Protection Animaux', 'Association de protection et de défense des animaux', '/logos/animaux.png', 'https://www.animaux-protection.org', '10 rue des Animaux, 59160 Lille', 50.6500, 3.0800, (SELECT id FROM organization_sectors WHERE name = 'Animaux'), '56789012345678', '2012-03-30');
-
--- Insertion de missions avec types, formats, niveaux d'engagement et impacts
-INSERT INTO missions (id, organization_id, mission_type_id, title, description, start_date, end_date, duration_minutes, format, location, latitude, longitude, available_spots, difficulty_level, engagement_level, desired_impact, status, image_url) VALUES
--- Missions des Restos du Cœur
-('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Aide alimentaire'), 'Distribution de repas', 'Participer à la distribution de repas chauds aux personnes dans le besoin', CURRENT_TIMESTAMP + INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '1 day' + INTERVAL '2 hours', 120, 'Présentiel', 'Centre de distribution Paris 11e', 48.8630, 2.3790, 5, 'débutant', 'Petit coup de main', 'Lutter contre l''exclusion', 'active', '/missions/distribution.jpg'),
-('m2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Tri des dons alimentaires', 'Aider au tri et au rangement des denrées alimentaires reçues', CURRENT_TIMESTAMP + INTERVAL '3 days', CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Entrepôt Paris 18e', 48.8920, 2.3500, 3, 'débutant', 'Petit coup de main', 'Agir pour une cause urgente', 'active', '/missions/tri.jpg'),
-('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Accueil et orientation', 'Accueillir les bénéficiaires et les orienter vers les services adaptés', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Centre d''accueil Paris 13e', 48.8300, 2.3650, 2, 'intermédiaire', 'Mission avec suivi', 'Créer du lien humain', 'active', '/missions/accueil.jpg'),
-
--- Missions d'Environnement Vert
-('m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Nettoyage des berges du Rhône', 'Participer au ramassage des déchets sur les berges du Rhône', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '5 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Berges du Rhône, Lyon', 45.7550, 4.8450, 10, 'débutant', 'Petit coup de main', 'Protéger l''environnement', 'active', '/missions/nettoyage.jpg'),
-('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Sensibilisation / prévention'), 'Atelier de sensibilisation écologique', 'Animer un atelier de sensibilisation à l''écologie pour des enfants', CURRENT_TIMESTAMP + INTERVAL '7 days', CURRENT_TIMESTAMP + INTERVAL '7 days' + INTERVAL '2 hours', 120, 'Présentiel', 'École primaire Lyon 7e', 45.7320, 4.8320, 2, 'intermédiaire', 'Mission avec suivi', 'Éduquer et sensibiliser', 'active', '/missions/atelier.jpg'),
-('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', 'b2b2b2b2-b2b2-b2b2-b2b2-b2b2b2b2b2b2', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Plantation d''arbres', 'Participer à une opération de reboisement urbain', CURRENT_TIMESTAMP + INTERVAL '10 days', CURRENT_TIMESTAMP + INTERVAL '10 days' + INTERVAL '4 hours', 240, 'Présentiel', 'Parc de la Tête d''Or, Lyon', 45.7770, 4.8520, 8, 'débutant', 'Projet long', 'Protéger l''environnement', 'active', '/missions/plantation.jpg'),
-
--- Missions d'Aide Éducative
-('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Soutien scolaire / éducatif'), 'Aide aux devoirs', 'Accompagner des collégiens dans leurs devoirs', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Collège Victor Hugo, Bordeaux', 44.8350, -0.5750, 5, 'intermédiaire', 'Mission avec suivi', 'Faire progresser l''égalité', 'active', '/missions/devoirs.jpg'),
-('m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Soutien scolaire / éducatif'), 'Lecture pour enfants', 'Animer une séance de lecture pour des enfants de 6 à 8 ans', CURRENT_TIMESTAMP + INTERVAL '4 days', CURRENT_TIMESTAMP + INTERVAL '4 days' + INTERVAL '45 minutes', 45, 'Présentiel', 'Bibliothèque municipale, Bordeaux', 44.8400, -0.5700, 2, 'débutant', 'Petit coup de main', 'Créer du lien humain', 'active', '/missions/lecture.jpg'),
-('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', 'c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3', (SELECT id FROM mission_types WHERE name = 'Numérique / informatique'), 'Atelier d''initiation à l''informatique', 'Initier des jeunes aux bases de la programmation', CURRENT_TIMESTAMP + INTERVAL '6 days', CURRENT_TIMESTAMP + INTERVAL '6 days' + INTERVAL '2 hours', 120, 'À distance', NULL, NULL, NULL, 3, 'expert', 'Mission avec suivi', 'Faire progresser l''égalité', 'active', '/missions/informatique.jpg'),
-
--- Missions de Solidarité Seniors
-('m10m10m10-m10m-m10m-m10m-m10m10m10m10', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Visite à domicile', 'Rendre visite à une personne âgée isolée pour un moment de convivialité', CURRENT_TIMESTAMP + INTERVAL '1 day', CURRENT_TIMESTAMP + INTERVAL '1 day' + INTERVAL '1 hour', 60, 'Présentiel', 'Quartier du Prado, Marseille', 43.2715, 5.3800, 1, 'débutant', 'Petit coup de main', 'Créer du lien humain', 'active', '/missions/visite.jpg'),
-('m11m11m11-m11m-m11m-m11m-m11m11m11m11', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Aide aux courses', 'Accompagner une personne âgée pour faire ses courses', CURRENT_TIMESTAMP + INTERVAL '3 days', CURRENT_TIMESTAMP + INTERVAL '3 days' + INTERVAL '2 hours', 120, 'Présentiel', 'Quartier Vieux-Port, Marseille', 43.2950, 5.3650, 1, 'débutant', 'Petit coup de main', 'Lutter contre l''exclusion', 'active', '/missions/courses.jpg'),
-('m12m12m12-m12m-m12m-m12m-m12m12m12m12', 'd4d4d4d4-d4d4-d4d4-d4d4-d4d4d4d4d4d4', (SELECT id FROM mission_types WHERE name = 'Animation'), 'Animation d''atelier mémoire', 'Animer un atelier pour stimuler la mémoire des seniors', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '5 days' + INTERVAL '1 hour 30 minutes', 90, 'Présentiel', 'Maison de retraite Les Oliviers, Marseille', 43.2800, 5.3900, 2, 'intermédiaire', 'Mission avec suivi', 'Créer du lien humain', 'active', '/missions/memoire.jpg'),
-
--- Missions de Protection Animaux
-('m13m13m13-m13m-m13m-m13m-m13m13m13m13', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Accompagnement humain'), 'Promenade de chiens', 'Promener les chiens du refuge', CURRENT_TIMESTAMP + INTERVAL '2 days', CURRENT_TIMESTAMP + INTERVAL '2 days' + INTERVAL '1 hour', 60, 'Présentiel', 'Refuge animalier, Lille', 50.6500, 3.0800, 4, 'débutant', 'Petit coup de main', 'Sauver des vies / protéger', 'active', '/missions/promenade.jpg'),
-('m14m14m14-m14m-m14m-m14m-m14m14m14m14', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Logistique / manutention'), 'Nettoyage des enclos', 'Aider au nettoyage et à l''entretien des enclos des animaux', CURRENT_TIMESTAMP + INTERVAL '4 days', CURRENT_TIMESTAMP + INTERVAL '4 days' + INTERVAL '2 hours', 120, 'Présentiel', 'Refuge animalier, Lille', 50.6500, 3.0800, 3, 'intermédiaire', 'Petit coup de main', 'Sauver des vies / protéger', 'active', '/missions/enclos.jpg'),
-('m15m15m15-m15m-m15m-m15m-m15m15m15m15', 'e5e5e5e5-e5e5-e5e5-e5e5-e5e5e5e5e5e5', (SELECT id FROM mission_types WHERE name = 'Événementiel'), 'Stand d''information', 'Tenir un stand d''information sur la protection animale', CURRENT_TIMESTAMP + INTERVAL '6 days', CURRENT_TIMESTAMP + INTERVAL '6 days' + INTERVAL '3 hours', 180, 'Présentiel', 'Centre commercial Euralille, Lille', 50.6370, 3.0700, 2, 'intermédiaire', 'Mission avec suivi', 'Éduquer et sensibiliser', 'active', '/missions/stand.jpg'),
-('m16m16m16-m16m-m16m-m16m-m16m16m16m16', 'a1a1a1a1-a1a1-a1a1-a1a1-a1a1a1a1a1a1', (SELECT id FROM mission_types WHERE name = 'Communication / graphisme'), 'Création de visuels pour réseaux sociaux', 'Créer des visuels attractifs pour la campagne de Noël des Restos du Coeur', CURRENT_TIMESTAMP + INTERVAL '5 days', CURRENT_TIMESTAMP + INTERVAL '15 days', 15, 'À distance', NULL, NULL, NULL, 1, 'intermédiaire', 'Ultra-rapide', 'Agir pour une cause urgente', 'active', '/missions/visuels.jpg');
-
--- Insertion des compétences requises pour les missions
-INSERT INTO mission_skills (mission_id, skill_id, is_required) VALUES
--- Compétences pour les missions des Restos du Cœur
-('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
-('m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', (SELECT id FROM skills WHERE name = 'Communication'), false),
-('m2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', (SELECT id FROM skills WHERE name = 'Organisation'), true),
-('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', (SELECT id FROM skills WHERE name = 'Communication'), true),
-('m3m3m3m3-m3m3-m3m3-m3m3-m3m3m3m3m3m3', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
-('m16m16m16-m16m-m16m-m16m-m16m16m16m16', (SELECT id FROM skills WHERE name = 'Photographie'), true),
-('m16m16m16-m16m-m16m-m16m-m16m16m16m16', (SELECT id FROM skills WHERE name = 'Communication'), false),
-
--- Compétences pour les missions d'Environnement Vert
-('m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
-('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', (SELECT id FROM skills WHERE name = 'Communication'), true),
-('m5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
-('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', (SELECT id FROM skills WHERE name = 'Jardinage'), false),
-('m6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), true),
-
--- Compétences pour les missions d'Aide Éducative
-('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
-('m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', (SELECT id FROM skills WHERE name = 'Communication'), false),
-('m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', (SELECT id FROM skills WHERE name = 'Communication'), true),
-('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', (SELECT id FROM skills WHERE name = 'Informatique'), true),
-('m9m9m9m9-m9m9-m9m9-m9m9-m9m9m9m9m9m9', (SELECT id FROM skills WHERE name = 'Enseignement'), true),
-
--- Compétences pour les missions de Solidarité Seniors
-('m10m10m10-m10m-m10m-m10m-m10m10m10m10', (SELECT id FROM skills WHERE name = 'Communication'), true),
-('m10m10m10-m10m-m10m-m10m-m10m10m10m10', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
-('m11m11m11-m11m-m11m-m11m-m11m11m11m11', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), true),
-('m12m12m12-m12m-m12m-m12m-m12m12m12m12', (SELECT id FROM skills WHERE name = 'Animation'), true),
-('m12m12m12-m12m-m12m-m12m-m12m12m12m12', (SELECT id FROM skills WHERE name = 'Communication'), false),
-
--- Compétences pour les missions de Protection Animaux
-('m13m13m13-m13m-m13m-m13m-m13m13m13m13', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), false),
-('m14m14m14-m14m-m14m-m14m-m14m14m14m14', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), false),
-('m15m15m15-m15m-m15m-m15m-m15m15m15m15', (SELECT id FROM skills WHERE name = 'Communication'), true);
-
--- Insertion des inscriptions aux missions
-INSERT INTO mission_registrations (user_id, mission_id, status, registration_date, confirmation_date) VALUES
--- Marie s'est inscrite à plusieurs missions
-('11111111-1111-1111-1111-111111111111', 'm1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '4 days'),
-('11111111-1111-1111-1111-111111111111', 'm10m10m10-m10m-m10m-m10m-m10m10m10m10', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '2 days', NULL),
-
--- Thomas s'est inscrit à des missions environnementales
-('22222222-2222-2222-2222-222222222222', 'm4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '7 days', CURRENT_TIMESTAMP - INTERVAL '6 days'),
-('22222222-2222-2222-2222-222222222222', 'm6m6m6m6-m6m6-m6m6-m6m6-m6m6m6m6m6m6', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
-
--- Julie s'est inscrite à des missions éducatives
-('33333333-3333-3333-3333-333333333333', 'm7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '10 days', CURRENT_TIMESTAMP - INTERVAL '9 days'),
-('33333333-3333-3333-3333-333333333333', 'm8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '5 days', CURRENT_TIMESTAMP - INTERVAL '4 days'),
-('33333333-3333-3333-3333-333333333333', 'm15m15m15-m15m-m15m-m15m-m15m15m15m15', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
-
--- Lucas s'est inscrit à des missions pour seniors
-('44444444-4444-4444-4444-444444444444', 'm10m10m10-m10m-m10m-m10m-m10m10m10m10', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '8 days', CURRENT_TIMESTAMP - INTERVAL '7 days'),
-('44444444-4444-4444-4444-444444444444', 'm11m11m11-m11m-m11m-m11m-m11m11m11m11', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '4 days', CURRENT_TIMESTAMP - INTERVAL '3 days'),
-('44444444-4444-4444-4444-444444444444', 'm12m12m12-m12m-m12m-m12m-m12m12m12m12', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '2 days', NULL),
-
--- Emma s'est inscrite à des missions diverses
-('55555555-5555-5555-5555-555555555555', 'm2m2m2m2-m2m2-m2m2-m2m2-m2m2m2m2m2m2', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '6 days', CURRENT_TIMESTAMP - INTERVAL '5 days'),
-('55555555-5555-5555-5555-555555555555', 'm13m13m13-m13m-m13m-m13m-m13m13m13m13', 'confirmé', CURRENT_TIMESTAMP - INTERVAL '3 days', CURRENT_TIMESTAMP - INTERVAL '2 days'),
-('55555555-5555-5555-5555-555555555555', 'm5m5m5m5-m5m5-m5m5-m5m5-m5m5m5m5m5m5', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
-('55555555-5555-5555-5555-555555555555', 'm16m16m16-m16m-m16m-m16m-m16m16m16m16', 'inscrit', CURRENT_TIMESTAMP - INTERVAL '1 hour', NULL);
-
--- Insertion des compétences validées pour les utilisateurs
-INSERT INTO user_skills (user_id, skill_id, level, validation_date, validator_id) VALUES
--- Compétences de Marie
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '30 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), 'expert', CURRENT_TIMESTAMP - INTERVAL '60 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'expert', CURRENT_TIMESTAMP - INTERVAL '90 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-
--- Compétences de Thomas
-('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Informatique'), 'expert', CURRENT_TIMESTAMP - INTERVAL '45 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Travail d''équipe'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '60 days', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-('22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Jardinage'), 'débutant', CURRENT_TIMESTAMP - INTERVAL '30 days', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'),
-
--- Compétences de Julie
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '40 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Enseignement'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '70 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Rédaction'), 'expert', CURRENT_TIMESTAMP - INTERVAL '100 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-
--- Compétences de Lucas
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Enseignement'), 'expert', CURRENT_TIMESTAMP - INTERVAL '120 days', 'cccccccc-cccc-cccc-cccc-cccccccccccc'),
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Accompagnement de personnes'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '80 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '90 days', 'dddddddd-dddd-dddd-dddd-dddddddddddd'),
-
--- Compétences d'Emma
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', CURRENT_TIMESTAMP - INTERVAL '50 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Organisation'), 'intermédiaire', CURRENT_TIMESTAMP - INTERVAL '70 days', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Photographie'), 'expert', CURRENT_TIMESTAMP - INTERVAL '100 days', 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee');
-
--- Insertion des badges obtenus par les utilisateurs
-INSERT INTO user_badges (user_id, badge_id, acquisition_date) VALUES
--- Badges de Marie
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '60 days'),
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Bénévole engagé'), CURRENT_TIMESTAMP - INTERVAL '30 days'),
-('11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Impact social'), CURRENT_TIMESTAMP - INTERVAL '15 days'),
-
--- Badges de Thomas
-('22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '70 days'),
-('22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Écocitoyen'), CURRENT_TIMESTAMP - INTERVAL '40 days'),
-
--- Badges de Julie
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '100 days'),
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Expert en communication'), CURRENT_TIMESTAMP - INTERVAL '50 days'),
-('33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Polyvalent'), CURRENT_TIMESTAMP - INTERVAL '20 days'),
-
--- Badges de Lucas
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '120 days'),
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Bénévole engagé'), CURRENT_TIMESTAMP - INTERVAL '90 days'),
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Mentor'), CURRENT_TIMESTAMP - INTERVAL '60 days'),
-('44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Fidèle'), CURRENT_TIMESTAMP - INTERVAL '30 days'),
-
--- Badges d'Emma
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Première mission'), CURRENT_TIMESTAMP - INTERVAL '80 days'),
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Polyvalent'), CURRENT_TIMESTAMP - INTERVAL '40 days'),
-('55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Coup de main'), CURRENT_TIMESTAMP - INTERVAL '20 days');
-
--- Insertion des témoignages
-INSERT INTO testimonials (user_id, content, created_at, is_visible, job_title) VALUES
-('11111111-1111-1111-1111-111111111111', 'MicroBénévole m''a permis d''intégrer le bénévolat dans mon quotidien chargé. Je peux aider quand j''ai un moment, sans culpabiliser les jours où je ne suis pas disponible.', CURRENT_TIMESTAMP - INTERVAL '45 days', true, 'Infirmière'),
-('22222222-2222-2222-2222-222222222222', 'Grâce à cette plateforme, j''ai pu découvrir des associations près de chez moi dont j''ignorais l''existence. Les missions courtes sont parfaites pour mon emploi du temps d''étudiant.', CURRENT_TIMESTAMP - INTERVAL '30 days', true, 'Étudiant en informatique'),
-('33333333-3333-3333-3333-333333333333', 'J''ai pu valider des compétences réelles en communication tout en aidant une cause qui me tient à cœur. Les badges obtenus valorisent mon profil professionnel de façon concrète.', CURRENT_TIMESTAMP - INTERVAL '60 days', true, 'Étudiante en marketing'),
-('44444444-4444-4444-4444-444444444444', 'À la retraite, je cherchais un moyen de rester actif et utile. MicroBénévole m''a permis de trouver des missions adaptées à mon rythme et de rencontrer des personnes formidables.', CURRENT_TIMESTAMP - INTERVAL '90 days', true, 'Retraité, Ancien professeur'),
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Grâce à cette plateforme, notre association a pu trouver des volontaires pour des tâches ponctuelles que nous n''aurions pas pu réaliser seuls. Un vrai gain de temps et d''efficacité !', CURRENT_TIMESTAMP - INTERVAL '75 days', true, 'Responsable, Les Restos du Cœur'),
-('eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee', 'L''application est intuitive et nous permet de poster rapidement nos besoins. En quelques minutes, nous avons souvent plusieurs volontaires qui se manifestent. Impressionnant !', CURRENT_TIMESTAMP - INTERVAL '50 days', true, 'Directeur, Association Protection Animaux');
-
--- Insertion des notifications
-INSERT INTO notifications (user_id, title, content, is_read, created_at, link_url) VALUES
--- Notifications pour Marie
-('11111111-1111-1111-1111-111111111111', 'Confirmation de mission', 'Votre participation à la mission "Distribution de repas" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '4 days', '/missions/m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1'),
-('11111111-1111-1111-1111-111111111111', 'Nouvelle mission près de chez vous', 'Une nouvelle mission "Visite à domicile" est disponible à 1,5 km de chez vous.', false, CURRENT_TIMESTAMP - INTERVAL '2 days', '/missions/m10m10m10-m10m-m10m-m10m-m10m10m10m10'),
-('11111111-1111-1111-1111-111111111111', 'Badge obtenu', 'Félicitations ! Vous avez obtenu le badge "Impact social".', true, CURRENT_TIMESTAMP - INTERVAL '15 days', '/profile/badges'),
-
--- Notifications pour Thomas
-('22222222-2222-2222-2222-222222222222', 'Confirmation de mission', 'Votre participation à la mission "Nettoyage des berges du Rhône" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '6 days', '/missions/m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4'),
-('22222222-2222-2222-2222-222222222222', 'Nouvelle compétence validée', 'Votre compétence "Jardinage" a été validée par Environnement Vert.', false, CURRENT_TIMESTAMP - INTERVAL '30 days', '/profile/skills'),
-
--- Notifications pour Julie
-('33333333-3333-3333-3333-333333333333', 'Confirmation de mission', 'Votre participation à la mission "Aide aux devoirs" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '9 days', '/missions/m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7'),
-('33333333-3333-3333-3333-333333333333', 'Confirmation de mission', 'Votre participation à la mission "Lecture pour enfants" a été confirmée.', true, CURRENT_TIMESTAMP - INTERVAL '4 days', '/missions/m8m8m8m8-m8m8-m8m8-m8m8-m8m8m8m8m8m8'),
-('33333333-3333-3333-3333-333333333333', 'Badge obtenu', 'Félicitations ! Vous avez obtenu le badge "Polyvalent".', false, CURRENT_TIMESTAMP - INTERVAL '20 days', '/profile/badges'),
-
--- Notifications pour les associations
-('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Nouvelle inscription', 'Marie Dupont s''est inscrite à votre mission "Distribution de repas".', true, CURRENT_TIMESTAMP - INTERVAL '5 days', '/missions/m1m1m1m1-m1m1-m1m1-m1m1-m1m1m1m1m1m1/registrations'),
-('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Nouvelle inscription', 'Thomas Martin s''est inscrit à votre mission "Nettoyage des berges du Rhône".', true, CURRENT_TIMESTAMP - INTERVAL '7 days', '/missions/m4m4m4m4-m4m4-m4m4-m4m4-m4m4m4m4m4m4/registrations'),
-('cccccccc-cccc-cccc-cccc-cccccccccccc', 'Nouvelle inscription', 'Julie Petit s''est inscrite à votre mission "Aide aux devoirs".', true, CURRENT_TIMESTAMP - INTERVAL '10 days', '/missions/m7m7m7m7-m7m7-m7m7-m7m7-m7m7m7m7m7m7/registrations');
-
--- Commentaires sur l'utilisation avec Supabase
-/*
-Pour utiliser ce script avec Supabase:
-
-1. Connectez-vous à votre projet Supabase
-2. Allez dans l'éditeur SQL
-3. Copiez et collez ce script
-4. Exécutez le script
-
-Notes importantes:
-- Ce script inclut l'extension PostGIS pour la géolocalisation
-- Toutes les politiques RLS (Row Level Security) sont configurées
-- Des données de test complètes sont incluses
-- La localisation des utilisateurs est prise en charge
-- Les catégories d'associations et de missions sont intégrées
-- Les formats de missions (Présentiel, À distance) sont gérés
-- Des fonctions pour trouver des missions à proximité sont implémentées
-
-Pour tester la fonctionnalité de localisation:
-- Utilisez la fonction nearby_missions(user_uuid, max_distance_km) pour trouver les missions proches d'un utilisateur
-  Exemple: SELECT * FROM nearby_missions('11111111-1111-1111-1111-111111111111', 5);
-
-Pour l'authentification:
-- Utilisez les fonctionnalités intégrées de Supabase Auth
-- Configurez les webhooks pour synchroniser les utilisateurs Supabase Auth avec la table users
-*/
+('Première mission', 'A complété sa première mission de bénévolat', '/badges/first_mission.png', 'Compléter une mission'),
+('Bénévole engagé', 'A complété 5 missions de bénévolat', '/badges/engaged.png', 'Compléter 5 missions'),
+('Bénévole expert', 'A complété 10 missions de bénévolat', '/badges/expert.png', 'Compléter 10 missions'),
+('Polyvalent', 'A participé à des missions dans 3 domaines différents', '/badges/versatile.png', 'Missions dans 3 secteurs'),
+('Fidèle', 'Membre depuis plus d''un an', '/badges/loyal.png', 'Ancienneté > 1 an'),
+('Ambassadeur', 'A parrainé 3 nouveaux bénévoles', '/badges/ambassador.png', 'Parrainer 3 bénévoles'),
+('Coup de cœur', 'A reçu d''excellentes évaluations', '/badges/favorite.png', '3 évaluations 5 étoiles');
