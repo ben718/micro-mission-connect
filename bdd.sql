@@ -725,3 +725,330 @@ INSERT INTO badges (name, description, image_url, requirements) VALUES
 ('Fidèle', 'Membre depuis plus d''un an', '/badges/loyal.png', 'Ancienneté > 1 an'),
 ('Ambassadeur', 'A parrainé 3 nouveaux bénévoles', '/badges/ambassador.png', 'Parrainer 3 bénévoles'),
 ('Coup de cœur', 'A reçu d''excellentes évaluations', '/badges/favorite.png', '3 évaluations 5 étoiles');
+
+
+
+
+
+                                                                                                                                                    -- Migration pour adapter la structure existante vers le nouveau schéma
+                                                                                                                                                    -- Compatible avec Supabase et l'authentification existante
+
+-- 1. Création des nouvelles tables de référence
+CREATE TABLE IF NOT EXISTS public.organization_sectors (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    name varchar(100) NOT NULL UNIQUE,
+    description text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.mission_types (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    name varchar(100) NOT NULL UNIQUE,
+    description text,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+-- 2. Création de la table profiles si elle n'existe pas
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    first_name varchar(100),
+    last_name varchar(100),
+    address text,
+    postal_code varchar(10),
+    city varchar(100),
+    latitude numeric(10,8),
+    longitude numeric(11,8),
+    profile_picture_url text,
+    last_login timestamptz,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now()
+);
+
+-- 3. Création d'une table organization_profiles liée aux profiles existants
+CREATE TABLE IF NOT EXISTS public.organization_profiles (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    organization_name varchar(255) NOT NULL,
+    description text,
+    logo_url text,
+    website_url text,
+    address text,
+    latitude numeric(10,8),
+    longitude numeric(11,8),
+    sector_id uuid REFERENCES public.organization_sectors(id),
+    siret_number varchar(14),
+    creation_date date,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    CONSTRAINT unique_user_id UNIQUE (user_id)
+);
+
+-- 4. Mise à jour de la table missions avec les nouveaux champs
+ALTER TABLE public.missions 
+ADD COLUMN IF NOT EXISTS mission_type_id uuid REFERENCES public.mission_types(id),
+ADD COLUMN IF NOT EXISTS format varchar(20) CHECK (format IN ('Présentiel', 'À distance', 'Hybride')),
+ADD COLUMN IF NOT EXISTS difficulty_level varchar(20) CHECK (difficulty_level IN ('débutant', 'intermédiaire', 'expert')),
+ADD COLUMN IF NOT EXISTS engagement_level varchar(30) CHECK (engagement_level IN ('Ultra-rapide', 'Petit coup de main', 'Mission avec suivi', 'Projet long')),
+ADD COLUMN IF NOT EXISTS desired_impact text,
+ADD COLUMN IF NOT EXISTS address text,
+ADD COLUMN IF NOT EXISTS postal_code varchar(10),
+ADD COLUMN IF NOT EXISTS location varchar(255);
+
+-- Renommer les colonnes pour correspondre au nouveau schéma
+DO $$
+BEGIN
+    -- Vérifier si la colonne starts_at existe
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'missions' AND column_name = 'starts_at'
+    ) THEN
+        ALTER TABLE public.missions RENAME COLUMN starts_at TO start_date;
+    END IF;
+    
+    -- Vérifier si la colonne ends_at existe
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'missions' AND column_name = 'ends_at'
+    ) THEN
+        ALTER TABLE public.missions RENAME COLUMN ends_at TO end_date;
+    END IF;
+END $$;
+
+-- 5. Mise à jour de la table skills avec les nouveaux champs
+ALTER TABLE public.skills 
+ADD COLUMN IF NOT EXISTS category varchar(50);
+
+-- 6. Création de la table mission_skills pour les liaisons
+CREATE TABLE IF NOT EXISTS public.mission_skills (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    mission_id uuid NOT NULL REFERENCES public.missions(id) ON DELETE CASCADE,
+    skill_id uuid NOT NULL REFERENCES public.skills(id) ON DELETE CASCADE,
+    required_level varchar(20),
+    is_required boolean DEFAULT true,
+    created_at timestamptz DEFAULT now(),
+    CONSTRAINT unique_mission_skill UNIQUE (mission_id, skill_id)
+);
+
+-- 7. Renommer mission_participants en mission_registrations pour correspondre au schéma
+DO $$
+BEGIN
+    -- Vérifier si la table mission_participants existe
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'mission_participants' AND table_schema = 'public'
+    ) THEN
+        ALTER TABLE public.mission_participants RENAME TO mission_registrations;
+    END IF;
+END $$;
+
+-- Ajouter les nouveaux champs à mission_registrations
+ALTER TABLE public.mission_registrations 
+ADD COLUMN IF NOT EXISTS registration_date timestamptz DEFAULT now(),
+ADD COLUMN IF NOT EXISTS confirmation_date timestamptz,
+ADD COLUMN IF NOT EXISTS volunteer_feedback text,
+ADD COLUMN IF NOT EXISTS volunteer_rating integer CHECK (volunteer_rating BETWEEN 1 AND 5),
+ADD COLUMN IF NOT EXISTS organization_feedback text,
+ADD COLUMN IF NOT EXISTS organization_rating integer CHECK (organization_rating BETWEEN 1 AND 5);
+
+-- Ajout de la contrainte unique sans utiliser IF NOT EXISTS (non supporté par PostgreSQL)
+DO $$
+BEGIN
+    -- Vérifier si la contrainte existe déjà
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint 
+        WHERE conname = 'unique_user_mission' 
+        AND conrelid = 'public.mission_registrations'::regclass
+    ) THEN
+        -- Ajouter la contrainte si elle n'existe pas
+        ALTER TABLE public.mission_registrations 
+        ADD CONSTRAINT unique_user_mission UNIQUE (user_id, mission_id);
+    END IF;
+END $$;
+
+-- 8. Mise à jour des statuts pour correspondre au nouveau schéma
+-- Missions: active, terminée, annulée
+-- Registrations: inscrit, confirmé, annulé, terminé
+
+-- 9. Création des index pour les performances
+CREATE INDEX IF NOT EXISTS idx_organization_profiles_sector ON public.organization_profiles(sector_id);
+CREATE INDEX IF NOT EXISTS idx_missions_type ON public.missions(mission_type_id);
+CREATE INDEX IF NOT EXISTS idx_missions_format ON public.missions(format);
+CREATE INDEX IF NOT EXISTS idx_missions_engagement ON public.missions(engagement_level);
+CREATE INDEX IF NOT EXISTS idx_missions_coordinates ON public.missions(latitude, longitude);
+
+-- 10. Création des vues compatibles avec le nouveau schéma
+-- CORRECTION: Supprimer d'abord la vue existante avant de la recréer
+DROP VIEW IF EXISTS public.available_missions_details;
+
+CREATE VIEW public.available_missions_details AS
+SELECT 
+    m.id AS mission_id,
+    m.title,
+    m.description,
+    m.start_date,
+    m.duration_minutes,
+    m.format,
+    m.location,
+    m.latitude,
+    m.longitude,
+    m.available_spots,
+    m.difficulty_level,
+    m.engagement_level,
+    m.desired_impact,
+    m.image_url,
+    COALESCE(op.organization_name, p.first_name || ' ' || p.last_name) AS organization_name,
+    op.logo_url,
+    os.name AS sector_name,
+    mt.name AS mission_type_name,
+    (SELECT array_agg(s.name) FROM public.skills s 
+     JOIN public.mission_skills ms ON s.id = ms.skill_id 
+     WHERE ms.mission_id = m.id) AS required_skills
+FROM public.missions m
+LEFT JOIN public.organization_profiles op ON m.organization_id = op.id
+LEFT JOIN public.profiles p ON m.organization_id = op.user_id
+LEFT JOIN public.organization_sectors os ON op.sector_id = os.id
+LEFT JOIN public.mission_types mt ON m.mission_type_id = mt.id
+WHERE m.status = 'active' 
+AND m.available_spots > 0
+AND m.start_date > now();
+
+-- 11. Insertion des données de référence
+INSERT INTO public.organization_sectors (name, description) VALUES
+('Environnement', 'Protection de l''environnement, biodiversité, développement durable'),
+('Social', 'Aide aux personnes en difficulté, lutte contre l''exclusion'),
+('Éducation', 'Soutien scolaire, alphabétisation, formation'),
+('Santé', 'Prévention, accompagnement des malades, recherche médicale'),
+('Culture', 'Promotion de l''art et de la culture, patrimoine'),
+('Sport', 'Promotion du sport et des activités physiques'),
+('Humanitaire', 'Aide d''urgence, développement international'),
+('Droits humains', 'Défense des droits et libertés fondamentales'),
+('Numérique', 'Inclusion numérique, développement technologique')
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO public.mission_types (name, description) VALUES
+('Accompagnement', 'Accompagnement de personnes (enfants, personnes âgées, etc.)'),
+('Animation', 'Animation d''ateliers, d''événements'),
+('Communication', 'Création de contenu, gestion des réseaux sociaux'),
+('Logistique', 'Organisation, transport, manutention'),
+('Administration', 'Gestion administrative, comptabilité'),
+('Technique', 'Réparation, bricolage, informatique'),
+('Conseil', 'Expertise, consultation, formation'),
+('Collecte', 'Collecte de fonds, de denrées, de matériel'),
+('Sensibilisation', 'Information, prévention, plaidoyer')
+ON CONFLICT (name) DO NOTHING;
+
+-- Mise à jour des skills existantes avec des catégories
+DO $$
+BEGIN
+    -- Vérifier si la table skills existe et contient des données
+    IF EXISTS (
+        SELECT 1 FROM information_schema.tables 
+        WHERE table_name = 'skills' AND table_schema = 'public'
+    ) AND EXISTS (
+        SELECT 1 FROM public.skills LIMIT 1
+    ) THEN
+        UPDATE public.skills SET category = 'Communication' WHERE name IN ('Rédaction', 'Photographie', 'Montage vidéo', 'Design graphique', 'Langues étrangères');
+        UPDATE public.skills SET category = 'Management' WHERE name = 'Gestion de projet';
+        UPDATE public.skills SET category = 'Administration' WHERE name = 'Comptabilité';
+        UPDATE public.skills SET category = 'Technique' WHERE name IN ('Développement web', 'Bricolage');
+        UPDATE public.skills SET category = 'Animation' WHERE name = 'Animation de groupe';
+        UPDATE public.skills SET category = 'Santé' WHERE name = 'Premiers secours';
+        UPDATE public.skills SET category = 'Environnement' WHERE name = 'Jardinage';
+        UPDATE public.skills SET category = 'Service' WHERE name = 'Cuisine';
+        UPDATE public.skills SET category = 'Logistique' WHERE name = 'Conduite';
+        UPDATE public.skills SET category = 'Social' WHERE name = 'Médiation';
+    END IF;
+END $$;
+
+-- Insertion de nouvelles compétences si elles n'existent pas
+INSERT INTO public.skills (name, description, category) VALUES
+('Rédaction', 'Capacité à rédiger des contenus clairs et engageants', 'Communication'),
+('Photographie', 'Prise de vue et retouche photo', 'Communication'),
+('Montage vidéo', 'Création et édition de contenu vidéo', 'Communication'),
+('Gestion de projet', 'Organisation et suivi de projets', 'Management'),
+('Comptabilité', 'Gestion financière et comptable', 'Administration'),
+('Développement web', 'Création et maintenance de sites web', 'Technique'),
+('Design graphique', 'Création d''identités visuelles et supports', 'Communication'),
+('Animation de groupe', 'Capacité à animer des ateliers et groupes', 'Animation'),
+('Langues étrangères', 'Maîtrise de langues étrangères', 'Communication'),
+('Premiers secours', 'Formation aux gestes de premiers secours', 'Santé'),
+('Jardinage', 'Entretien d''espaces verts, permaculture', 'Environnement'),
+('Cuisine', 'Préparation de repas, connaissance culinaire', 'Service'),
+('Bricolage', 'Réparation, construction, DIY', 'Technique'),
+('Conduite', 'Permis de conduire et expérience de conduite', 'Logistique'),
+('Médiation', 'Résolution de conflits, facilitation', 'Social')
+ON CONFLICT (name) DO NOTHING;
+
+-- 12. Triggers de mise à jour automatique
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = now();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Appliquer les triggers
+DROP TRIGGER IF EXISTS handle_updated_at ON public.organization_sectors;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.organization_sectors
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+DROP TRIGGER IF EXISTS handle_updated_at ON public.mission_types;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.mission_types
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+DROP TRIGGER IF EXISTS handle_updated_at ON public.organization_profiles;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.organization_profiles
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+DROP TRIGGER IF EXISTS handle_updated_at ON public.profiles;
+CREATE TRIGGER handle_updated_at
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- 13. Politiques RLS pour les nouvelles tables
+ALTER TABLE public.organization_sectors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mission_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.organization_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.mission_skills ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+
+-- Politiques pour organization_sectors et mission_types (lecture publique)
+CREATE POLICY "Public read access" ON public.organization_sectors FOR SELECT USING (true);
+CREATE POLICY "Public read access" ON public.mission_types FOR SELECT USING (true);
+
+-- Politiques pour profiles
+CREATE POLICY "Users can view their own profile" ON public.profiles
+    FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can update their own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can insert their own profile" ON public.profiles
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Politiques pour organization_profiles
+CREATE POLICY "Public read access" ON public.organization_profiles FOR SELECT USING (true);
+CREATE POLICY "Users can manage their organization profile" ON public.organization_profiles 
+    FOR ALL USING (auth.uid() = user_id);
+
+-- Politiques pour mission_skills
+CREATE POLICY "Public read access" ON public.mission_skills FOR SELECT USING (true);
+-- CORRECTION: Correction de l'erreur "missing FROM-clause entry for table op"
+CREATE POLICY "Mission owners can manage skills" ON public.mission_skills 
+    FOR ALL USING (
+        EXISTS (
+            SELECT 1 FROM public.missions m 
+            JOIN public.organization_profiles op_inner ON m.organization_id = op_inner.id
+            WHERE m.id = mission_id 
+            AND EXISTS (
+                SELECT 1 FROM public.organization_profiles op
+                WHERE op.user_id = auth.uid()
+                AND op.id = m.organization_id
+            )
+        )
+    );
+
