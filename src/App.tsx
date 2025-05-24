@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,13 +11,15 @@ import ProfileAssociation from "@/pages/ProfileAssociation";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Confirmation from "./pages/auth/Confirmation";
-import MissionsPage from "./pages/missions/MissionsPage";
+import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
+import ProfileOrganization from "@/pages/profile/ProfileOrganization";
+import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 
 const queryClient = new QueryClient();
 
@@ -121,6 +122,8 @@ const App = () => {
                   </PrivateRoute>
                 }
               />
+              <Route path="/profile/organization" element={<ProfileOrganization />} />
+              <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>

@@ -30,19 +30,17 @@ export type MissionWithOrganization = Mission & {
   mission_type?: MissionType;
 };
 
+export type MissionFormat = "présentiel" | "à distance" | "hybride";
+export type MissionDifficulty = "débutant" | "intermédiaire" | "expert";
+export type MissionEngagement = "ultra-rapide" | "petit coup de main" | "mission avec suivi" | "projet long";
+export type MissionStatus = 'active' | 'terminée' | 'annulée';
+export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé';
+
 export type MissionWithDetails = MissionWithOrganization & {
+  required_skills: string[];
   participants_count: number;
   is_registered?: boolean;
-  mission_skills?: MissionSkill[];
-  required_skills?: string[];
-  participant_status?: string; // Pour la compatibilité avec DashboardBenevole
-  participant_id?: string; // Pour la compatibilité avec DashboardBenevole
-  registrations?: MissionRegistrationWithProfiles[]; // Liste des inscriptions
-};
-
-// Type for mission registrations with profiles information
-export type MissionRegistrationWithProfiles = MissionRegistration & {
-  profile?: CompleteProfile;
+  registration_status?: ParticipationStatus;
 };
 
 // Type for date range selection used in calendar component
@@ -60,7 +58,7 @@ export type MissionFilters = {
     start?: Date;
     end?: Date;
   };
-  format?: string | string[]; // 'Présentiel', 'À distance', 'Hybride'
+  format?: MissionFormat | MissionFormat[];
   page?: number;
   pageSize?: number;
   coordinates?: {
@@ -68,28 +66,21 @@ export type MissionFilters = {
     longitude: number;
     radius?: number; // Rayon de recherche en kilomètres
   };
-  status?: MissionStatus | MissionStatus[]; // Statut(s) de la mission
-  difficulty_level?: string | string[]; // Niveau(x) de difficulté
-  engagement_level?: string | string[]; // Niveau(x) d'engagement
-  requiredSkills?: string[]; // Compétences requises
-  organization_sector?: string | string[]; // Secteur(s) d'organisation
+  status?: MissionStatus | MissionStatus[];
+  difficulty_level?: MissionDifficulty | MissionDifficulty[];
+  engagement_level?: MissionEngagement | MissionEngagement[];
+  requiredSkills?: string[];
+  organization_sector?: string | string[];
 };
-
-// Statuts possibles d'une mission
-export type MissionStatus = 'active' | 'terminée' | 'annulée';
 
 // Interface pour les statistiques de missions dans le tableau de bord
 export interface MissionStats {
-  total: number;
-  active: number;
-  completed: number;
-  cancelled: number;
-  totalVolunteers: number;
+  totalMissions: number;
+  activeMissions: number;
+  completedMissions: number;
+  totalParticipants: number;
   totalHours: number;
 }
-
-// Statuts possibles pour une participation
-export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé';
 
 // Interface pour les notifications liées aux missions
 export interface MissionNotification {
@@ -98,6 +89,10 @@ export interface MissionNotification {
   title: string;
   content: string;
   is_read: boolean;
-  link_url?: string;
   created_at: string;
+  link_url?: string;
 }
+
+export const MISSION_FORMATS: MissionFormat[] = ["présentiel", "à distance", "hybride"];
+export const MISSION_DIFFICULTIES: MissionDifficulty[] = ["débutant", "intermédiaire", "expert"];
+export const MISSION_ENGAGEMENTS: MissionEngagement[] = ["ultra-rapide", "petit coup de main", "mission avec suivi", "projet long"];
