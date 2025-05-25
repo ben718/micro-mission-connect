@@ -1,6 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { Mission, MissionFilters, MissionWithOrganization, MissionWithDetails, Organization, MissionStatus, MissionStats, MissionType, Skill } from "@/types/mission";
+import { toast } from "sonner";
 
 export function useMissions(filters?: MissionFilters) {
   const pageSize = filters?.pageSize || 12; // Default page size
@@ -143,6 +145,7 @@ export function useMissions(filters?: MissionFilters) {
   });
 }
 
+// Export existing hooks
 export function useMission(id: string | undefined) {
   return useQuery({
     queryKey: ["mission", id],
@@ -349,6 +352,9 @@ export function useOrganizationMissions(organizationId: string | undefined, stat
   });
 }
 
+// Alias for compatibility
+export const useAssociationMissions = useOrganizationMissions;
+
 // Hook pour récupérer les missions auxquelles participe un utilisateur
 export function useUserMissions(userId: string | undefined) {
   return useQuery({
@@ -413,7 +419,7 @@ export function useUserMissions(userId: string | undefined) {
 }
 
 // Hook pour récupérer les statistiques des missions pour le tableau de bord
-export function useMissionStats(userId: string | undefined, isOrganization: boolean) {
+export function useMissionStats(userId: string | undefined, isOrganization: boolean = false) {
   return useQuery({
     queryKey: ["mission-stats", userId, isOrganization],
     queryFn: async (): Promise<MissionStats | null> => {
@@ -440,13 +446,12 @@ export function useMissionStats(userId: string | undefined, isOrganization: bool
         if (!missions) return null;
         
         // Calculer les statistiques
-        const total = missions.length;
-        const active = missions.filter(m => m.status === 'active').length;
-        const completed = missions.filter(m => m.status === 'terminée').length;
-        const cancelled = missions.filter(m => m.status === 'annulée').length;
+        const totalMissions = missions.length;
+        const activeMissions = missions.filter(m => m.status === 'active').length;
+        const completedMissions = missions.filter(m => m.status === 'terminée').length;
         
         // Calculer le nombre total de bénévoles et d'heures
-        let totalVolunteers = 0;
+        let totalParticipants = 0;
         let totalHours = 0;
         
         for (const mission of missions) {
@@ -457,18 +462,17 @@ export function useMissionStats(userId: string | undefined, isOrganization: bool
             .eq("mission_id", mission.id)
             .in("status", ["confirmé", "terminé"]);
             
-          totalVolunteers += count || 0;
+          totalParticipants += count || 0;
           
           // Calculer les heures (durée en minutes / 60 * nombre de participants)
           totalHours += (mission.duration_minutes / 60) * (count || 0);
         }
         
         return {
-          total,
-          active,
-          completed,
-          cancelled,
-          totalVolunteers,
+          totalMissions,
+          activeMissions,
+          completedMissions,
+          totalParticipants,
           totalHours: Math.round(totalHours)
         };
       } else {
@@ -481,10 +485,9 @@ export function useMissionStats(userId: string | undefined, isOrganization: bool
         if (!registrations) return null;
         
         // Calculer les statistiques
-        const total = registrations.length;
-        const active = registrations.filter(r => r.status === 'inscrit' || r.status === 'confirmé').length;
-        const completed = registrations.filter(r => r.status === 'terminé').length;
-        const cancelled = registrations.filter(r => r.status === 'annulé').length;
+        const totalMissions = registrations.length;
+        const activeMissions = registrations.filter(r => r.status === 'inscrit' || r.status === 'confirmé').length;
+        const completedMissions = registrations.filter(r => r.status === 'terminé').length;
         
         // Calculer le nombre total d'heures
         let totalHours = 0;
@@ -496,15 +499,84 @@ export function useMissionStats(userId: string | undefined, isOrganization: bool
         }
         
         return {
-          total,
-          active,
-          completed,
-          cancelled,
-          totalVolunteers: 0, // Non applicable pour les bénévoles
+          totalMissions,
+          activeMissions,
+          completedMissions,
+          totalParticipants: 0, // Non applicable pour les bénévoles
           totalHours: Math.round(totalHours)
         };
       }
     },
     enabled: !!userId
   });
+}
+
+// Hook pour les actions sur les missions
+export function useMissionActions() {
+  const queryClient = useQueryClient();
+
+  const updateMissionStatus = useMutation({
+    mutationFn: async ({ missionId, status }: { missionId: string; status: string }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ status })
+        .eq("id", missionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-missions"] });
+      toast.success("Statut de la mission mis à jour");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour du statut");
+    },
+  });
+
+  const changeMissionStatus = async (missionId: string, newStatus: MissionStatus) => {
+    try {
+      await updateMissionStatus.mutateAsync({ missionId, status: newStatus });
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' };
+    }
+  };
+
+  const duplicateMission = async (missionId: string) => {
+    try {
+      // Récupérer la mission originale
+      const { data: originalMission, error: fetchError } = await supabase
+        .from("missions")
+        .select("*")
+        .eq("id", missionId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Créer une copie sans l'ID
+      const { id, created_at, updated_at, ...missionCopy } = originalMission;
+      missionCopy.title = `${missionCopy.title} (Copie)`;
+      missionCopy.status = 'draft';
+
+      const { error: insertError } = await supabase
+        .from("missions")
+        .insert(missionCopy);
+
+      if (insertError) throw insertError;
+
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.invalidateQueries({ queryKey: ["organization-missions"] });
+      
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' };
+    }
+  };
+
+  return {
+    updateMissionStatus,
+    changeMissionStatus,
+    duplicateMission,
+  };
 }

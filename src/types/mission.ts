@@ -39,7 +39,7 @@ export type MissionWithAssociation = MissionWithOrganization;
 export type MissionFormat = "présentiel" | "à distance" | "hybride";
 export type MissionDifficulty = "débutant" | "intermédiaire" | "expert";
 export type MissionEngagement = "ultra-rapide" | "petit coup de main" | "mission avec suivi" | "projet long";
-export type MissionStatus = 'active' | 'terminée' | 'annulée' | 'open' | 'completed' | 'cancelled';
+export type MissionStatus = 'active' | 'terminée' | 'annulée' | 'open' | 'completed' | 'cancelled' | 'draft' | 'in_progress' | 'filled';
 export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé' | 'registered' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 
 export type MissionWithDetails = MissionWithOrganization & {

@@ -3,17 +3,17 @@ import { useMissions } from "@/hooks/useMissions";
 import { MissionCard } from "./MissionCard";
 import MissionFilters from "./MissionFilters";
 import { useState } from "react";
+import { MissionFilters as MissionFiltersType } from "@/types/mission";
 
 export function MissionList() {
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<MissionFiltersType>({
     query: "",
     location: "",
-    format: "",
-    difficulty_level: "",
-    engagement_level: "",
-    mission_type_id: "",
-    organization_sector_id: "",
-    date_range: { from: null, to: null }
+    format: undefined,
+    difficulty_level: undefined,
+    engagement_level: undefined,
+    missionTypeIds: [],
+    dateRange: undefined
   });
 
   const { data: missionsResponse, isLoading, error } = useMissions(filters);
