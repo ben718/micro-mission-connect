@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionFilters, MissionStats } from "@/types/mission";
 import { toast } from "sonner";
@@ -29,7 +29,7 @@ export const useMissions = (filters?: MissionFilters) => {
           *,
           organization_profiles!organization_id (
             id,
-            name,
+            organization_name,
             description,
             website_url,
             logo_url,
@@ -74,7 +74,7 @@ export const useUserMissions = (userId?: string) => {
             *,
             organization_profiles!organization_id (
               id,
-              name,
+              organization_name,
               description,
               website_url,
               logo_url
@@ -90,9 +90,9 @@ export const useUserMissions = (userId?: string) => {
   });
 };
 
-export const useAssociationMissions = (organizationId?: string, filterStatus?: string | string[]) => {
+export const useOrganizationMissions = (organizationId?: string, filterStatus?: string | string[]) => {
   return useQuery({
-    queryKey: ["association-missions", organizationId, filterStatus],
+    queryKey: ["organization-missions", organizationId, filterStatus],
     queryFn: async () => {
       if (!organizationId) return [];
 
@@ -117,6 +117,9 @@ export const useAssociationMissions = (organizationId?: string, filterStatus?: s
     enabled: !!organizationId,
   });
 };
+
+// Keep the old function name for backward compatibility
+export const useAssociationMissions = useOrganizationMissions;
 
 export const useMissionStats = (userId?: string) => {
   return useQuery({
