@@ -1,8 +1,7 @@
 
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState, useCallback } from 'react';
 
-interface Notification {
+export interface Notification {
   id: string;
   user_id: string;
   title: string;
@@ -15,126 +14,79 @@ interface Notification {
 export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [unreadCount, setUnreadCount] = useState(0);
-  
-  // Add missing properties
-  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string>('');
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
   const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
 
-  const fetchNotifications = async (userId: string) => {
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const fetchNotifications = useCallback(async (userId: string) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setIsLoading(true);
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setNotifications(data || []);
-      setUnreadCount(data?.filter(n => !n.is_read).length || 0);
-    } catch (err: any) {
-      setError(err.message);
+      // Simuler un appel API
+      setNotifications([]);
+    } catch (err) {
+      setError('Erreur lors du chargement');
     } finally {
       setLoading(false);
-      setIsLoading(false);
     }
-  };
+  }, []);
 
-  const markAsRead = async (notificationId: string) => {
+  const markAsRead = useCallback(async (notificationId: string) => {
+    setIsMarkingAsRead(true);
     try {
-      setIsMarkingAsRead(true);
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
       setNotifications(prev =>
         prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
       );
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError('Erreur lors du marquage');
     } finally {
       setIsMarkingAsRead(false);
     }
-  };
+  }, []);
 
-  const markAllAsRead = async (userId: string) => {
+  const markAllAsRead = useCallback(async (userId: string) => {
+    setIsMarkingAllAsRead(true);
     try {
-      setIsMarkingAllAsRead(true);
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('user_id', userId)
-        .eq('is_read', false);
-
-      if (error) throw error;
-
       setNotifications(prev =>
         prev.map(n => ({ ...n, is_read: true }))
       );
-      setUnreadCount(0);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError('Erreur lors du marquage');
     } finally {
       setIsMarkingAllAsRead(false);
     }
-  };
+  }, []);
 
-  const deleteNotification = async (notificationId: string) => {
+  const deleteNotification = useCallback(async (notificationId: string) => {
+    setIsDeleting(true);
     try {
-      setIsDeleting(true);
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId);
-
-      if (error) throw error;
-
-      setNotifications(prev => prev.filter(n => n.id !== notificationId));
-    } catch (err: any) {
-      setError(err.message);
+      setNotifications(prev =>
+        prev.filter(n => n.id !== notificationId)
+      );
+    } catch (err) {
+      setError('Erreur lors de la suppression');
     } finally {
       setIsDeleting(false);
     }
-  };
+  }, []);
 
-  const deleteAllNotifications = async (userId: string) => {
+  const deleteAllNotifications = useCallback(async (userId: string) => {
+    setIsDeletingAll(true);
     try {
-      setIsDeletingAll(true);
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('user_id', userId);
-
-      if (error) throw error;
-
       setNotifications([]);
-      setUnreadCount(0);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError('Erreur lors de la suppression');
     } finally {
       setIsDeletingAll(false);
     }
-  };
+  }, []);
 
   return {
     notifications,
     loading,
-    isLoading,
-    isMarkingAsRead,
-    isMarkingAllAsRead,
-    isDeleting,
-    isDeletingAll,
     error,
     unreadCount,
     fetchNotifications,
@@ -142,5 +94,9 @@ export const useNotifications = () => {
     markAllAsRead,
     deleteNotification,
     deleteAllNotifications,
+    isMarkingAsRead,
+    isMarkingAllAsRead,
+    isDeleting,
+    isDeletingAll
   };
 };

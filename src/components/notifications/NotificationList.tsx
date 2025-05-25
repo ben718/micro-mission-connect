@@ -1,122 +1,183 @@
-import { useNotifications } from "@/hooks/useNotifications";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
-import { Bell, Check, Trash2 } from "lucide-react";
-import { Link } from "react-router-dom";
 
-export function NotificationList() {
+import React, { useEffect } from 'react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Bell, Check, CheckCheck, Trash2, Loader2 } from 'lucide-react';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useAuth } from '@/hooks/useAuth';
+import { Link } from 'react-router-dom';
+
+const NotificationList: React.FC = () => {
+  const { user } = useAuth();
   const {
     notifications,
-    isLoading,
+    loading,
+    error,
+    unreadCount,
+    fetchNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     deleteAllNotifications,
-    isMarkingAsRead,
-    isMarkingAllAsRead,
-    isDeleting,
-    isDeletingAll
+    isMarkingAsRead = false,
+    isMarkingAllAsRead = false,
+    isDeleting = false,
+    isDeletingAll = false
   } = useNotifications();
 
-  if (isLoading) {
-    return <div>Chargement des notifications...</div>;
+  useEffect(() => {
+    if (user?.id) {
+      fetchNotifications(user.id);
+    }
+  }, [user?.id, fetchNotifications]);
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    await markAsRead(notificationId);
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    await deleteNotification(notificationId);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    if (user?.id) {
+      await markAllAsRead(user.id);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (user?.id) {
+      await deleteAllNotifications(user.id);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-6">
+        <Loader2 className="w-6 h-6 animate-spin" />
+        <span className="ml-2">Chargement des notifications...</span>
+      </div>
+    );
   }
 
-  if (!notifications?.length) {
+  if (error) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-center justify-center py-8">
-          <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-muted-foreground">Aucune notification</p>
-        </CardContent>
-      </Card>
+      <div className="p-6 text-center text-red-600">
+        <p>Erreur lors du chargement des notifications: {error}</p>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>Notifications</CardTitle>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => markAllAsRead()}
-            disabled={isMarkingAllAsRead}
-          >
-            <Check className="h-4 w-4 mr-2" />
-            Tout marquer comme lu
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => deleteAllNotifications()}
-            disabled={isDeletingAll}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Tout supprimer
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px]">
-          <div className="space-y-4">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`p-4 rounded-lg border ${
-                  notification.is_read ? "bg-background" : "bg-muted"
-                }`}
-              >
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Bell className="w-5 h-5" />
+          Notifications
+          {unreadCount > 0 && (
+            <Badge variant="destructive">{unreadCount}</Badge>
+          )}
+        </h2>
+        
+        {notifications.length > 0 && (
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleMarkAllAsRead}
+              disabled={isMarkingAllAsRead || unreadCount === 0}
+            >
+              {isMarkingAllAsRead ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <CheckCheck className="w-4 h-4 mr-1" />
+              )}
+              Tout marquer lu
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleDeleteAll}
+              disabled={isDeletingAll}
+            >
+              {isDeletingAll ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="w-4 h-4 mr-1" />
+              )}
+              Tout supprimer
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {notifications.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6 pb-6">
+            <div className="text-center text-muted-foreground">
+              <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Aucune notification</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {notifications.map((notification) => (
+            <Card key={notification.id} className={`${!notification.is_read ? 'border-blue-200 bg-blue-50' : ''}`}>
+              <CardContent className="pt-4">
                 <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h4 className="font-medium">{notification.title}</h4>
-                    <p className="text-sm text-muted-foreground">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium">{notification.title}</h3>
+                      {!notification.is_read && (
+                        <Badge variant="destructive" className="text-xs">Nouveau</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-3">
                       {notification.content}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      {format(new Date(notification.created_at), "PPp", {
-                        locale: fr
-                      })}
-                    </p>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{new Date(notification.created_at).toLocaleDateString()}</span>
+                      {notification.link_url && (
+                        <Link
+                          to={notification.link_url}
+                          className="text-blue-600 hover:underline"
+                        >
+                          Voir détails
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                  
+                  <div className="flex gap-1 ml-4">
                     {!notification.is_read && (
                       <Button
-                        variant="ghost"
                         size="sm"
-                        onClick={() => markAsRead(notification.id)}
+                        variant="ghost"
+                        onClick={() => handleMarkAsRead(notification.id)}
                         disabled={isMarkingAsRead}
                       >
-                        <Check className="h-4 w-4" />
+                        <Check className="w-4 h-4" />
                       </Button>
                     )}
                     <Button
-                      variant="ghost"
                       size="sm"
-                      onClick={() => deleteNotification(notification.id)}
+                      variant="ghost"
+                      onClick={() => handleDeleteNotification(notification.id)}
                       disabled={isDeleting}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                {notification.link_url && (
-                  <Link
-                    to={notification.link_url}
-                    className="text-sm text-primary hover:underline mt-2 inline-block"
-                  >
-                    Voir plus
-                  </Link>
-                )}
-              </div>
-            ))}
-          </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   );
-} 
+};
+
+export default NotificationList;

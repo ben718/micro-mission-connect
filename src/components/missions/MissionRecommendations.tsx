@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,26 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { MapPin, Clock, Users, ArrowRight } from "lucide-react";
 import { Link } from "react-router-dom";
-
-interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  duration_minutes: number;
-  format: string;
-  difficulty_level: string;
-  engagement_level: string;
-  required_skills: string[];
-  available_spots: number;
-  created_at: string;
-  end_date: string;
-  desired_impact: string;
-  organization: {
-    name: string;
-    profile_picture_url: string;
-  };
-}
+import { Mission } from "@/types/mission";
 
 const MissionRecommendations = () => {
   const { user, profile } = useAuth();
@@ -52,18 +34,45 @@ const MissionRecommendations = () => {
           .from("missions")
           .select(`
             *,
-            organization:organization_profiles (
-              name,
-              profile_picture_url
+            organization_profiles!inner (
+              organization_name,
+              logo_url
+            ),
+            mission_skills (
+              skill:skills (name)
             )
           `)
-          .contains("required_skills", skillIds)
+          .eq("status", "active")
           .order("created_at", { ascending: false })
           .limit(3);
 
         if (error) throw error;
 
-        setRecommendations(missions || []);
+        // Transformer les données pour correspondre au type Mission
+        const transformedMissions: Mission[] = (missions || []).map(mission => ({
+          ...mission,
+          required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+          organization: {
+            id: mission.organization_id,
+            organization_name: mission.organization_profiles?.organization_name || '',
+            logo_url: mission.organization_profiles?.logo_url || '',
+            user_id: mission.organization_id,
+            created_at: '',
+            updated_at: '',
+            description: null,
+            website_url: null,
+            siret_number: null,
+            address: null,
+            creation_date: null,
+            sector_id: null,
+            location: null,
+            longitude: null,
+            latitude: null
+          },
+          participants_count: 0
+        }));
+
+        setRecommendations(transformedMissions);
       } catch (error) {
         console.error("Erreur lors de la récupération des recommandations:", error);
       } finally {
@@ -124,11 +133,11 @@ const MissionRecommendations = () => {
                 <CardTitle className="text-lg">{mission.title}</CardTitle>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <img
-                    src={mission.organization.profile_picture_url}
-                    alt={mission.organization.name}
+                    src={mission.organization.logo_url || "/placeholder.svg"}
+                    alt={mission.organization.organization_name}
                     className="w-4 h-4 rounded-full"
                   />
-                  <span>{mission.organization.name}</span>
+                  <span>{mission.organization.organization_name}</span>
                 </div>
               </div>
               <Badge variant="outline">{mission.format}</Badge>
@@ -177,4 +186,4 @@ const MissionRecommendations = () => {
   );
 };
 
-export default MissionRecommendations; 
+export default MissionRecommendations;

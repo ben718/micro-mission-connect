@@ -8,12 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
-import { addDays } from 'date-fns';
 import { cn } from "@/lib/utils"
-import { Category, MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
+import { MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
 import { DateRange } from "react-day-picker";
 
 const MissionsPage = () => {
@@ -23,7 +22,6 @@ const MissionsPage = () => {
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     searchParams.getAll('category')
   );
-  // Use DateRange from react-day-picker directly
   const [dateRange, setDateRange] = useState<DateRange | undefined>({
     from: searchParams.get('startDate') ? new Date(searchParams.get('startDate') as string) : undefined,
     to: searchParams.get('endDate') ? new Date(searchParams.get('endDate') as string) : undefined,
@@ -57,13 +55,11 @@ const MissionsPage = () => {
     if (dateRange?.to) params.set('endDate', dateRange.to.toISOString());
     if (remote) params.set('remote', 'true');
     setSearchParams(params);
-    setPage(0); // Reset page when filters change
+    setPage(0);
   }, [query, location, selectedCategories, dateRange, remote, setSearchParams]);
 
   // Handle category selection
-  const handleCategorySelect = (category: string | Category) => {
-    const categoryId = typeof category === 'string' ? category : category.id;
-
+  const handleCategorySelect = (categoryId: string) => {
     if (selectedCategories.includes(categoryId)) {
       setSelectedCategories(selectedCategories.filter(id => id !== categoryId));
     } else {
@@ -82,9 +78,9 @@ const MissionsPage = () => {
   // Transform missions data to match expected type
   const transformedMissions: MissionWithDetails[] = missions.map(mission => ({
     ...mission,
-    required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
-    organization: mission.organization_profiles || {} as any,
-    participants_count: mission.mission_registrations?.length || 0,
+    required_skills: (mission as any).mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+    organization: (mission as any).organization_profiles || {} as any,
+    participants_count: (mission as any).mission_registrations?.length || 0,
   }));
 
   if (isLoading) return <div>Chargement...</div>;
@@ -168,7 +164,7 @@ const MissionsPage = () => {
                     <CommandItem
                       key={category.id}
                       value={category.name}
-                      onSelect={() => handleCategorySelect(category)}
+                      onSelect={() => handleCategorySelect(category.id)}
                     >
                       <Check
                         className={cn(
