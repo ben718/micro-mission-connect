@@ -1,26 +1,25 @@
-
 import React from 'react';
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, Clock, MapPin, Users, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
-import type { MissionWithAssociation } from "@/types/mission";
+import type { MissionWithOrganization } from "@/types/mission";
 
 interface MissionCardProps {
-  mission: MissionWithAssociation;
+  mission: MissionWithOrganization;
 }
 
 export function MissionCard({ mission }: MissionCardProps) {
   // Préparer les valeurs à afficher
-  const associationName = mission.association ? 
-    `${mission.association.first_name || ''} ${mission.association.last_name || ''}`.trim() : 
-    'Association';
+  const organizationName = mission.organization ? 
+    mission.organization.organization_name || `${mission.organization.first_name || ''} ${mission.organization.last_name || ''}`.trim() : 
+    'Organisation';
   
   const categoryName = mission.category || 'Général';
   
-  const formattedDate = mission.starts_at ? 
-    new Date(mission.starts_at).toLocaleDateString('fr-FR', {
+  const formattedDate = mission.start_date ? 
+    new Date(mission.start_date).toLocaleDateString('fr-FR', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -29,18 +28,18 @@ export function MissionCard({ mission }: MissionCardProps) {
     mission.date || 'Date non spécifiée';
   
   const formattedTimeSlot = mission.timeSlot || 
-    (mission.starts_at ? new Date(mission.starts_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+    (mission.start_date ? new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
   
   const formattedDuration = mission.duration || 
     (mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '');
   
   const formattedLocation = mission.location || 
-    (mission.address ? mission.address : `${mission.city || ''}, ${mission.postal_code || ''}`.trim());
+    (mission.address ? mission.address : '');
   
   const formattedParticipants = mission.participants || 
-    `${mission.spots_taken || 0}/${mission.spots_available || 0}`;
+    `${mission.participants_count || 0}/${mission.available_spots || 0}`;
   
-  const skills = mission.requiredSkills || mission.skills_required || [];
+  const skills = mission.required_skills || [];
 
   return (
     <Card className="h-full flex flex-col">
@@ -53,7 +52,7 @@ export function MissionCard({ mission }: MissionCardProps) {
               </Link>
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              {associationName}
+              {organizationName}
             </p>
           </div>
           <Badge variant="outline">{categoryName}</Badge>

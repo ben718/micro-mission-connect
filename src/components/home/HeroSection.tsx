@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +18,7 @@ const HeroSection = () => {
   let primaryBtn = <Button asChild className="bg-bleu text-white hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions">Trouver une mission</Link></Button>;
   let secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/auth/register">Créer un compte</Link></Button>;
 
-  if (profile?.is_association) {
+  if (profile?.is_organization) {
     title = (
       <>
         <span className="block">Mobilisez des bénévoles,</span>
@@ -31,7 +30,7 @@ const HeroSection = () => {
     description = "Publiez vos missions, suivez vos bénévoles et valorisez l'engagement associatif sur MicroBénévole.";
     primaryBtn = <Button asChild className="text-white bg-bleu hover:bg-bleu-700 rounded-full py-6 px-8 text-lg shadow-lg hover:shadow-xl transition-all"><Link to="/missions/new">Créer une mission</Link></Button>;
     secondaryBtn = <Button asChild variant="outline" className="border-bleu text-bleu hover:bg-bleu-50 rounded-full py-6 px-8 text-lg"><Link to="/profile/association">Mon espace asso</Link></Button>;
-  } else if (profile && !profile.is_association) {
+  } else if (profile && !profile.is_organization) {
     title = (
       <>
         <span className="block">Trouvez votre prochaine mission,</span>

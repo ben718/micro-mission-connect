@@ -1,8 +1,23 @@
-
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionFilters, MissionStats } from "@/types/mission";
 import { toast } from "sonner";
+
+// Hook pour récupérer les catégories de missions
+export const useCategories = () => {
+  return useQuery({
+    queryKey: ["mission-categories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mission_types")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+};
 
 export const useMissions = (filters?: MissionFilters) => {
   return useQuery({
@@ -75,16 +90,26 @@ export const useUserMissions = (userId?: string) => {
   });
 };
 
-export const useAssociationMissions = (organizationId?: string) => {
+export const useAssociationMissions = (organizationId?: string, filterStatus?: string | string[]) => {
   return useQuery({
-    queryKey: ["association-missions", organizationId],
+    queryKey: ["association-missions", organizationId, filterStatus],
     queryFn: async () => {
       if (!organizationId) return [];
 
-      const { data, error } = await supabase
+      let query = supabase
         .from("missions")
         .select("*")
         .eq("organization_id", organizationId);
+        
+      if (filterStatus) {
+        if (Array.isArray(filterStatus)) {
+          query = query.in("status", filterStatus);
+        } else {
+          query = query.eq("status", filterStatus);
+        }
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data || [];

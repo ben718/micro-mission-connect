@@ -45,7 +45,7 @@ const OrganizationImpact = ({ organizationId }: OrganizationImpactProps) => {
       // Récupérer les inscriptions
       const { data: registrations } = await supabase
         .from("mission_registrations")
-        .select("mission_id, status, volunteer_rating, volunteer_feedback")
+        .select("mission_id, status, volunteer_rating, volunteer_feedback, created_at")
         .in(
           "mission_id",
           missions?.map((m) => m.id) || []
@@ -228,4 +228,4 @@ const OrganizationImpact = ({ organizationId }: OrganizationImpactProps) => {
   );
 };
 
-export default OrganizationImpact; 
+export default OrganizationImpact;

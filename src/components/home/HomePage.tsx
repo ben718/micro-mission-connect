@@ -8,27 +8,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { Search, MapPin, Clock, Users, Target } from "lucide-react";
 import "leaflet/dist/leaflet.css";
-
-interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  format: string;
-  difficulty_level: string;
-  engagement_level: string;
-  desired_impact: string;
-  location: string;
-  latitude: number;
-  longitude: number;
-  start_date: string;
-  duration_minutes: number;
-  available_spots: number;
-  organization: {
-    organization_name: string;
-    logo_url: string;
-  };
-  required_skills: string[];
-}
+import { Mission } from "@/types/mission";
 
 const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,7 +33,19 @@ const HomePage = () => {
         .order("start_date", { ascending: true });
 
       if (error) throw error;
-      setMissions(data || []);
+      
+      // Transformer les données pour correspondre au type Mission
+      const transformedMissions = data?.map(item => ({
+        ...item,
+        id: item.mission_id,
+        organization: {
+          organization_name: item.organization_name,
+          logo_url: item.logo_url
+        },
+        required_skills: item.required_skills || []
+      })) as Mission[];
+      
+      setMissions(transformedMissions || []);
     } catch (error) {
       console.error("Erreur lors de la récupération des missions:", error);
     } finally {
@@ -70,13 +62,24 @@ const HomePage = () => {
         .limit(3);
 
       if (popularSkills) {
-        const { data: missions } = await supabase
+        const { data } = await supabase
           .from("available_missions_details")
           .select("*")
           .contains("required_skills", popularSkills.map(s => s.name))
           .limit(6);
-
-        setPopularMissions(missions || []);
+          
+        // Transformer les données pour correspondre au type Mission
+        const transformedMissions = data?.map(item => ({
+          ...item,
+          id: item.mission_id,
+          organization: {
+            organization_name: item.organization_name,
+            logo_url: item.logo_url
+          },
+          required_skills: item.required_skills || []
+        })) as Mission[];
+        
+        setPopularMissions(transformedMissions || []);
       }
     } catch (error) {
       console.error("Erreur lors de la récupération des missions populaires:", error);
@@ -256,4 +259,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage; 
+export default HomePage;
