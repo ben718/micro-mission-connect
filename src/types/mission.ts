@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 import type { CompleteProfile, OrganizationProfile } from './profile';
 
@@ -11,6 +12,9 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   participants?: string; // Pour la compatibilité avec le code existant
   requiredSkills?: string[]; // Pour la compatibilité avec le code existant
   associationId?: string; // Alias pour organization_id
+  required_skills: string[]; // Required property
+  organization: Organization; // Required property
+  id: string; // Required property
 };
 
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
@@ -30,11 +34,13 @@ export type MissionWithOrganization = Mission & {
   mission_type?: MissionType;
 };
 
+export type MissionWithAssociation = MissionWithOrganization;
+
 export type MissionFormat = "présentiel" | "à distance" | "hybride";
 export type MissionDifficulty = "débutant" | "intermédiaire" | "expert";
 export type MissionEngagement = "ultra-rapide" | "petit coup de main" | "mission avec suivi" | "projet long";
-export type MissionStatus = 'active' | 'terminée' | 'annulée';
-export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé';
+export type MissionStatus = 'active' | 'terminée' | 'annulée' | 'open' | 'completed' | 'cancelled';
+export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé' | 'registered' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
 
 export type MissionWithDetails = MissionWithOrganization & {
   required_skills: string[];

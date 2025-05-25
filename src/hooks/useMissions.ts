@@ -1,187 +1,137 @@
 
-import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Mission, MissionFilters, MissionStats } from "@/types/mission";
 import { toast } from "sonner";
 
-interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  format: string;
-  difficulty_level: string;
-  engagement_level: string;
-  desired_impact: string;
-  location: string;
-  latitude: number;
-  longitude: number;
-  start_date: string;
-  duration_minutes: number;
-  available_spots: number;
-  organization_id: string;
-}
-
-interface MissionFilters {
-  query?: string;
-  city?: string;
-  categoryIds?: string[];
-  dateRange?: {
-    start?: Date;
-    end?: Date;
-  };
-  remote?: boolean;
-  page?: number;
-  pageSize?: number;
-}
-
-interface UserMission {
-  id: string;
-  title: string;
-  description: string;
-  starts_at: string;
-  duration: string;
-  city: string;
-  participant_status: string;
-  association?: {
-    first_name: string;
-    avatar_url?: string;
-  };
-  category?: string;
-}
-
 export const useMissions = (filters?: MissionFilters) => {
-  const [data, setData] = useState<{ data: Mission[]; count: number } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  return useQuery({
+    queryKey: ["missions", filters],
+    queryFn: async () => {
+      let query = supabase
+        .from("missions")
+        .select(`
+          *,
+          organization_profiles!organization_id (
+            id,
+            name,
+            description,
+            website_url,
+            logo_url,
+            organization_sectors (
+              id,
+              name
+            )
+          )
+        `);
 
-  useEffect(() => {
-    const fetchMissions = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        let query = supabase
-          .from("missions")
-          .select("*", { count: 'exact' })
-          .eq("status", "active")
-          .order("start_date", { ascending: true });
-
-        // Apply filters
-        if (filters?.query) {
-          query = query.ilike("title", `%${filters.query}%`);
-        }
-
-        if (filters?.city) {
-          query = query.eq("location", filters.city);
-        }
-
-        if (filters?.page !== undefined && filters?.pageSize) {
-          const from = filters.page * filters.pageSize;
-          const to = from + filters.pageSize - 1;
-          query = query.range(from, to);
-        }
-
-        const { data: missions, error, count } = await query;
-
-        if (error) throw error;
-
-        setData({ data: missions || [], count: count || 0 });
-      } catch (err: any) {
-        console.error("Error fetching missions:", err);
-        setError(err);
-        toast.error("Error loading missions");
-      } finally {
-        setIsLoading(false);
+      if (filters?.query) {
+        query = query.ilike("title", `%${filters.query}%`);
       }
-    };
 
-    fetchMissions();
-  }, [filters]);
+      if (filters?.location) {
+        query = query.ilike("address", `%${filters.location}%`);
+      }
 
-  return { data, isLoading, error };
+      const { data, error, count } = await query;
+
+      if (error) throw error;
+
+      return {
+        data: data || [],
+        count: count || 0,
+      };
+    },
+  });
 };
 
 export const useUserMissions = (userId?: string) => {
-  const [data, setData] = useState<UserMission[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  return useQuery({
+    queryKey: ["user-missions", userId],
+    queryFn: async () => {
+      if (!userId) return [];
 
-  useEffect(() => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
-
-    const fetchUserMissions = async () => {
-      try {
-        setIsLoading(true);
-        const { data: registrations, error } = await supabase
-          .from("mission_registrations")
-          .select(`
-            status,
-            missions (
+      const { data, error } = await supabase
+        .from("mission_registrations")
+        .select(`
+          *,
+          missions (
+            *,
+            organization_profiles!organization_id (
               id,
-              title,
+              name,
               description,
-              start_date,
-              duration_minutes,
-              location
+              website_url,
+              logo_url
             )
-          `)
-          .eq("user_id", userId)
-          .order("created_at", { ascending: false });
+          )
+        `)
+        .eq("user_id", userId);
 
-        if (error) throw error;
-
-        const userMissions = registrations?.map((reg: any) => ({
-          id: reg.missions.id,
-          title: reg.missions.title,
-          description: reg.missions.description,
-          starts_at: reg.missions.start_date,
-          duration: `${reg.missions.duration_minutes} minutes`,
-          city: reg.missions.location,
-          participant_status: reg.status,
-          association: {
-            first_name: "Association"
-          }
-        })) || [];
-
-        setData(userMissions);
-      } catch (err: any) {
-        setError(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchUserMissions();
-  }, [userId]);
-
-  return { data, isLoading, error };
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!userId,
+  });
 };
 
-export const useMissionStats = (userId?: string, isOrganization?: boolean) => {
-  const [data, setData] = useState<{ totalHours: number } | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export const useAssociationMissions = (organizationId?: string) => {
+  return useQuery({
+    queryKey: ["association-missions", organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
 
-  useEffect(() => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
+      const { data, error } = await supabase
+        .from("missions")
+        .select("*")
+        .eq("organization_id", organizationId);
 
-    const fetchStats = async () => {
-      try {
-        // Simple mock stats for now
-        setData({ totalHours: 0 });
-      } catch (err) {
-        console.error("Error fetching stats:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!organizationId,
+  });
+};
 
-    fetchStats();
-  }, [userId, isOrganization]);
+export const useMissionStats = (userId?: string) => {
+  return useQuery({
+    queryKey: ["mission-stats", userId],
+    queryFn: async (): Promise<MissionStats> => {
+      // Mock data for now
+      return {
+        totalMissions: 0,
+        activeMissions: 0,
+        completedMissions: 0,
+        totalParticipants: 0,
+        totalHours: 0,
+      };
+    },
+    enabled: !!userId,
+  });
+};
 
-  return { data, isLoading };
+export const useMissionActions = () => {
+  const queryClient = useQueryClient();
+
+  const updateMissionStatus = useMutation({
+    mutationFn: async ({ missionId, status }: { missionId: string; status: string }) => {
+      const { error } = await supabase
+        .from("missions")
+        .update({ status })
+        .eq("id", missionId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      toast.success("Statut de la mission mis à jour");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la mise à jour du statut");
+    },
+  });
+
+  return {
+    updateMissionStatus,
+  };
 };
