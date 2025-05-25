@@ -10,7 +10,10 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   phone?: string;
   bio?: string;
   email?: string;
-  website?: string; // Add this property
+  website?: string;
+  skills?: UserSkill[];
+  badges?: UserBadge[];
+  location?: any; // Geography type
 };
 
 // Type pour un profil d'organisation
@@ -25,8 +28,6 @@ export type OrganizationSector = Database["public"]["Tables"]["organization_sect
 export interface CompleteProfile extends Profile {
   is_organization: boolean;
   organization?: OrganizationProfile;
-  skills?: UserSkill[];
-  badges?: UserBadge[];
   
   // Propriétés synthétiques pour la compatibilité avec le code existant
   name?: string; // Calculé à partir de first_name + last_name
@@ -34,9 +35,6 @@ export interface CompleteProfile extends Profile {
   location?: string; // Calculé à partir de city et postal_code
   email?: string; // Pour la compatibilité avec useAuth
   role?: string; // 'organization' ou 'volunteer' calculé à partir de is_organization
-  phone?: string; // Numéro de téléphone
-  bio?: string; // Biographie
-  website?: string; // Website URL
 }
 
 // Types pour les compétences et badges

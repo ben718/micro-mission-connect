@@ -87,23 +87,38 @@ export const useMissions = (filters?: MissionFilters) => {
               id,
               name
             )
+          ),
+          mission_types (
+            id,
+            name,
+            description
           )
-        `);
+        `)
+        .eq("status", "active");
 
       if (filters?.query) {
         query = query.ilike("title", `%${filters.query}%`);
       }
 
       if (filters?.location) {
-        query = query.ilike("address", `%${filters.location}%`);
+        query = query.ilike("location", `%${filters.location}%`);
       }
 
       const { data, error, count } = await query;
 
       if (error) throw error;
 
+      // Transform data to match expected interface
+      const transformedData = (data || []).map(mission => ({
+        ...mission,
+        organization: mission.organization_profiles || {},
+        mission_type: mission.mission_types || {},
+        required_skills: [],
+        participants_count: 0,
+      }));
+
       return {
-        data: data || [],
+        data: transformedData,
         count: count || 0,
       };
     },

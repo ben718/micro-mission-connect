@@ -43,7 +43,8 @@ export default function UserProfile() {
   // Calcul des heures réelles à partir de la durée des missions passées
   const heuresBenevolat = (missionsPassees || []).reduce((acc, m) => acc + (m.duration_minutes || 0), 0) / 60;
   const heuresBenevolatAffiche = Math.round(heuresBenevolat * 10) / 10;
-  const badges = profile.badges || [];
+  const badges = profile.user_badges || [];
+  const skills = profile.user_skills || [];
 
   // Mapping local des badges (nom -> description)
   const badgeDescriptions: Record<string, string> = {
@@ -61,7 +62,7 @@ export default function UserProfile() {
       <Card className="mb-6 relative border border-gray-200 border-opacity-60 bg-white p-6">
         <CardContent className="flex flex-col md:flex-row items-center gap-6">
           <img
-            src={profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.first_name}+${profile.last_name}`}
+            src={profile.profile_picture_url || `https://ui-avatars.com/api/?name=${profile.first_name}+${profile.last_name}`}
             alt="Avatar"
             className="w-24 h-24 rounded-full object-cover border"
           />
@@ -72,7 +73,7 @@ export default function UserProfile() {
             </h2>
             <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
               <span className="flex items-center gap-1 text-gray-500 text-sm"><Mail className="h-4 w-4 text-bleu" />{user.email}</span>
-              {profile.location && <span className="flex items-center gap-1 text-gray-500 text-sm"><MapPin className="h-4 w-4 text-bleu" />{profile.location}</span>}
+              {profile.city && <span className="flex items-center gap-1 text-gray-500 text-sm"><MapPin className="h-4 w-4 text-bleu" />{profile.city}</span>}
             </div>
           </div>
           {/* Sticky bouton éditer sur desktop, visible sous l'avatar sur mobile */}
@@ -96,10 +97,10 @@ export default function UserProfile() {
         <CardContent className="p-6">
           <h3 className="font-semibold mb-2">À propos</h3>
           <p className="text-muted-foreground mb-2">{profile.bio || "Ajoutez une bio pour vous présenter."}</p>
-          {profile.skills && profile.skills.length > 0 && (
+          {skills && skills.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {profile.skills.map((userSkill: UserSkill) => (
-                <Badge key={userSkill.id} variant="secondary">{userSkill.skill?.name}</Badge>
+              {skills.map((userSkill: UserSkill) => (
+                <Badge key={userSkill.id} variant="secondary">{userSkill.skills?.name}</Badge>
               ))}
             </div>
           )}
@@ -118,8 +119,7 @@ export default function UserProfile() {
                 <li key={m.id} className="flex items-center gap-2">
                   <span className="font-medium">{m.title}</span>
                   <Badge className="bg-blue-100 text-blue-800 border-blue-200">À venir</Badge>
-                  <Badge variant="outline">{m.date}</Badge>
-                  <Badge variant="outline">{m.timeSlot}</Badge>
+                  <Badge variant="outline">{new Date(m.start_date).toLocaleDateString()}</Badge>
                 </li>
               ))}
             </ul>
@@ -139,7 +139,7 @@ export default function UserProfile() {
                 <li key={m.id} className="flex items-center gap-2">
                   <span className="font-medium">{m.title}</span>
                   <Badge className="bg-green-100 text-green-800 border-green-200">Passée</Badge>
-                  <Badge variant="outline">{m.date}</Badge>
+                  <Badge variant="outline">{new Date(m.start_date).toLocaleDateString()}</Badge>
                 </li>
               ))}
             </ul>
@@ -158,9 +158,9 @@ export default function UserProfile() {
               {badges.map((userBadge: UserBadge) => (
                 <Tooltip key={userBadge.id}>
                   <TooltipTrigger asChild>
-                    <Badge variant="default" className="cursor-help">{userBadge.badge?.name}</Badge>
+                    <Badge variant="default" className="cursor-help">{userBadge.badges?.name}</Badge>
                   </TooltipTrigger>
-                  <TooltipContent>{badgeDescriptions[userBadge.badge?.name || ''] || 'Badge obtenu'}</TooltipContent>
+                  <TooltipContent>{badgeDescriptions[userBadge.badges?.name || ''] || 'Badge obtenu'}</TooltipContent>
                 </Tooltip>
               ))}
             </div>

@@ -1,106 +1,96 @@
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import type { User } from '@supabase/supabase-js';
-import type { CompleteProfile } from '@/types/profile';
+import { useQuery } from '@tanstack/react-query';
+import type { Profile } from '@/types/profile';
 
 interface AuthContextType {
   user: User | null;
-  profile: CompleteProfile | null;
+  session: Session | null;
+  profile: Profile | null;
   loading: boolean;
-  isLoading: boolean; // Add this property
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
+  signIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string, userData?: any) => Promise<any>;
   signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<CompleteProfile | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Fetch user profile
+  const { data: profile } = useQuery({
+    queryKey: ['profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          user_skills (
+            *,
+            skills (*)
+          ),
+          user_badges (
+            *,
+            badges (*)
+          )
+        `)
+        .eq('id', user.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
       setLoading(false);
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        await fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    );
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId: string) => {
-    try {
-      // First try to get user profile
-      const { data: userProfile, error: userError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      if (userError) throw userError;
-
-      // Check if this is an organization
-      const { data: orgProfile, error: orgError } = await supabase
-        .from('organization_profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      const completeProfile: CompleteProfile = {
-        ...userProfile,
-        is_organization: !!orgProfile,
-        organization: orgProfile || undefined,
-        name: userProfile.first_name && userProfile.last_name 
-          ? `${userProfile.first_name} ${userProfile.last_name}` 
-          : undefined,
-        avatar: userProfile.profile_picture_url || undefined,
-        location: userProfile.city && userProfile.postal_code 
-          ? `${userProfile.city}, ${userProfile.postal_code}` 
-          : undefined,
-        role: orgProfile ? 'organization' : 'volunteer'
-      };
-
-      setProfile(completeProfile);
-    } catch (error) {
-      console.error('Error fetching profile:', error);
-      setProfile(null);
-    }
-  };
-
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    return { error };
+    return { data, error };
   };
 
-  const signUp = async (email: string, password: string, userData: any) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (email: string, password: string, userData?: any) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: userData
-      }
+        data: userData,
+      },
     });
-    return { error };
+    return { data, error };
   };
 
   const signOut = async () => {
@@ -109,12 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = {
     user,
+    session,
     profile,
     loading,
-    isLoading: loading, // Map loading to isLoading
     signIn,
     signUp,
-    signOut
+    signOut,
   };
 
   return (

@@ -1,3 +1,4 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -39,15 +40,15 @@ export function MissionCard({ mission }: MissionCardProps) {
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{mission.participants_count} participant(s)</span>
+              <span className="text-sm">{mission.participants_count || 0} participant(s)</span>
             </div>
             <div className="flex items-center gap-2">
               <Briefcase className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">{mission.mission_type.name}</span>
+              <span className="text-sm">{mission.mission_type?.name || 'Non spécifié'}</span>
             </div>
           </div>
 
-          {mission.required_skills.length > 0 && (
+          {mission.required_skills && mission.required_skills.length > 0 && (
             <div>
               <h4 className="text-sm font-medium mb-2">Compétences requises</h4>
               <div className="flex flex-wrap gap-2">

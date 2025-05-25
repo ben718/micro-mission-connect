@@ -14,8 +14,8 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   associationId?: string; // Alias pour organization_id
   required_skills: string[]; // Required property
   organization: Organization; // Required property
-  id: string; // Required property
   participants_count?: number; // Add this property
+  mission_type?: MissionType;
 };
 
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
