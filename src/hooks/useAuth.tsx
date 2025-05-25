@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { CompleteProfile } from "@/types/profile";
 import { toast } from "sonner";
+import { createContext, useContext, ReactNode } from "react";
 
 export interface SignUpData {
   email: string;
@@ -19,7 +20,31 @@ export interface SignInData {
   password: string;
 }
 
-export function useAuth() {
+interface AuthContextType {
+  user: User | null;
+  profile: CompleteProfile | null;
+  isLoading: boolean;
+  loading: boolean;
+  error: string;
+  signUp: (data: SignUpData) => Promise<any>;
+  signIn: (data: SignInData) => Promise<any>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const authData = useAuthData();
+  
+  return (
+    <AuthContext.Provider value={authData}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function useAuthData() {
   const queryClient = useQueryClient();
 
   // Get current session
@@ -108,7 +133,7 @@ export function useAuth() {
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -128,7 +153,7 @@ export function useAuth() {
       queryClient.invalidateQueries({ queryKey: ["session"] });
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -142,7 +167,7 @@ export function useAuth() {
       toast.success("Déconnexion réussie !");
       queryClient.clear();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -155,7 +180,7 @@ export function useAuth() {
     onSuccess: () => {
       toast.success("Email de réinitialisation envoyé !");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -171,4 +196,12 @@ export function useAuth() {
     signOut: signOut.mutateAsync,
     resetPassword: resetPassword.mutateAsync,
   };
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

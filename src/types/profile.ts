@@ -4,8 +4,12 @@ import { Database } from "@/integrations/supabase/types";
 // Type de base pour un profil utilisateur
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   is_association?: boolean;
+  is_organization?: boolean;
   avatar_url?: string;
   profile_picture_url?: string;
+  phone?: string;
+  bio?: string;
+  email?: string;
 };
 
 // Type pour un profil d'organisation
@@ -29,6 +33,8 @@ export interface CompleteProfile extends Profile {
   location?: string; // Calculé à partir de city et postal_code
   email?: string; // Pour la compatibilité avec useAuth
   role?: string; // 'organization' ou 'volunteer' calculé à partir de is_organization
+  phone?: string; // Numéro de téléphone
+  bio?: string; // Biographie
 }
 
 // Types pour les compétences et badges

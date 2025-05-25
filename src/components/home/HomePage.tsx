@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import HeroSection from './HeroSection';
 import FeatureSection from './FeatureSection';
-import SearchSection from './SearchSection';
+import { SearchSection } from './SearchSection';
 import TestimonialsSection from './TestimonialsSection';
 import CtaSection from './CtaSection';
 import type { MissionWithOrganization } from '@/types/mission';
@@ -31,6 +31,16 @@ const HomePage = () => {
               logo_url: mission.logo_url,
             },
             required_skills: mission.required_skills || [],
+            // Map missing properties with defaults
+            address: mission.address || '',
+            created_at: mission.created_at || new Date().toISOString(),
+            end_date: mission.end_date || mission.start_date,
+            geo_location: null,
+            image_url: mission.image_url || '',
+            latitude: mission.latitude || 0,
+            longitude: mission.longitude || 0,
+            participants: mission.participants_count || 0,
+            updated_at: mission.updated_at || new Date().toISOString(),
           })) as MissionWithOrganization[];
           setRecentMissions(formattedRecent);
         }
@@ -51,6 +61,16 @@ const HomePage = () => {
               logo_url: mission.logo_url,
             },
             required_skills: mission.required_skills || [],
+            // Map missing properties with defaults
+            address: mission.address || '',
+            created_at: mission.created_at || new Date().toISOString(),
+            end_date: mission.end_date || mission.start_date,
+            geo_location: null,
+            image_url: mission.image_url || '',
+            latitude: mission.latitude || 0,
+            longitude: mission.longitude || 0,
+            participants: mission.participants_count || 0,
+            updated_at: mission.updated_at || new Date().toISOString(),
           })) as MissionWithOrganization[];
           setNearbyMissions(formattedNearby);
         }

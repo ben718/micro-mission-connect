@@ -14,7 +14,7 @@ interface MissionCardProps {
 export function MissionCard({ mission }: MissionCardProps) {
   // Préparer les valeurs à afficher
   const organizationName = mission.organization ? 
-    mission.organization.organization_name || `${mission.organization.first_name || ''} ${mission.organization.last_name || ''}`.trim() : 
+    mission.organization.organization_name || 'Organisation' : 
     'Organisation';
   
   const categoryName = mission.category || 'Général';
@@ -38,7 +38,7 @@ export function MissionCard({ mission }: MissionCardProps) {
     (mission.address ? mission.address : '');
   
   const formattedParticipants = mission.participants || 
-    `${mission.participants_count || 0}/${mission.available_spots || 0}`;
+    `${mission.participants || 0}/${mission.available_spots || 0}`;
   
   const skills = mission.required_skills || [];
 
