@@ -44,12 +44,12 @@ export function useMissionDetails(missionId: string) {
       // Transformer les données pour inclure les informations supplémentaires
       const transformedMission: MissionWithDetails = {
         ...data,
-        required_skills: data.mission_skills.map((ms: any) => ms.skill.name),
-        participants_count: data.mission_registrations.length,
-        is_registered: data.mission_registrations.some(
+        required_skills: data.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+        participants_count: data.mission_registrations?.length || 0,
+        is_registered: data.mission_registrations?.some(
           (reg: any) => reg.user_id === user?.id
-        ),
-        registration_status: data.mission_registrations.find(
+        ) || false,
+        registration_status: data.mission_registrations?.find(
           (reg: any) => reg.user_id === user?.id
         )?.status as ParticipationStatus
       };
@@ -96,11 +96,26 @@ export function useMissionDetails(missionId: string) {
     }
   });
 
+  const validateParticipationMutation = useMutation({
+    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status })
+        .eq("id", registrationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+    }
+  });
+
   return {
     mission,
     isLoading,
     participate: participateMutation.mutate,
     updateRegistrationStatus: updateRegistrationStatusMutation.mutate,
+    validateParticipation: validateParticipationMutation.mutate,
     isParticipating: participateMutation.isPending,
     isUpdatingStatus: updateRegistrationStatusMutation.isPending
   };

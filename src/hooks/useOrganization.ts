@@ -1,236 +1,100 @@
-import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
-interface OrganizationProfile {
-  id: string;
-  user_id: string;
-  organization_name: string;
-  description: string;
-  logo_url: string;
-  website_url: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  sector_id: string;
-  siret_number: string;
-  creation_date: string;
-}
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Mission } from '@/types/mission';
 
-interface MissionData {
-  title: string;
-  description: string;
-  start_date: string;
-  end_date?: string;
-  duration_minutes: number;
-  format: string;
-  location: string;
-  available_spots: number;
-  difficulty_level: string;
-  engagement_level: string;
-  desired_impact: string;
-  status: string;
-  organization_id: string;
-}
+export const useOrganization = (organizationId?: string) => {
+  const queryClient = useQueryClient();
 
-export const useOrganization = () => {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchOrganizationProfile = async (userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  const { data: organization, isLoading: isLoadingOrganization } = useQuery({
+    queryKey: ['organization', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      
       const { data, error } = await supabase
-        .from("organization_profiles")
+        .from('organization_profiles')
+        .select('*')
+        .eq('id', organizationId)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!organizationId,
+  });
+
+  const { data: missions, isLoading: isLoadingMissions } = useQuery({
+    queryKey: ['organization-missions', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      
+      const { data, error } = await supabase
+        .from('missions')
         .select(`
           *,
-          sector:organization_sectors (*)
+          mission_skills(
+            skill:skill_id(name)
+          ),
+          mission_registrations(count)
         `)
-        .eq("user_id", userId)
-        .single();
-
+        .eq('organization_id', organizationId);
+      
       if (error) throw error;
+      
+      return data.map(mission => ({
+        ...mission,
+        required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+        participants_count: mission.mission_registrations?.length || 0,
+        organization: organization || {} as any
+      }));
+    },
+    enabled: !!organizationId,
+  });
 
-      return data;
-    } catch (error: any) {
-      console.error("Erreur lors de la récupération du profil organisation:", error);
-      setError(error.message);
-      toast.error("Erreur lors du chargement du profil");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateOrganizationProfile = async (profileId: string, updates: Partial<OrganizationProfile>) => {
-    try {
-      setLoading(true);
-      setError(null);
-
+  const updateMissionStatusMutation = useMutation({
+    mutationFn: async ({ missionId, status }: { missionId: string; status: string }) => {
       const { error } = await supabase
-        .from("organization_profiles")
-        .update(updates)
-        .eq("id", profileId);
-
-      if (error) throw error;
-
-      toast.success("Profil mis à jour avec succès !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de la mise à jour du profil:", error);
-      setError(error.message);
-      toast.error("Erreur lors de la mise à jour du profil");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const createMission = async (missionData: MissionData) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("missions")
-        .insert([missionData])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      toast.success("Mission créée avec succès !");
-      return { success: true, mission: data };
-    } catch (error: any) {
-      console.error("Erreur lors de la création de la mission:", error);
-      setError(error.message);
-      toast.error("Erreur lors de la création de la mission");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateMission = async (missionId: string, updates: Partial<Mission>) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from("missions")
-        .update(updates)
-        .eq("id", missionId);
-
-      if (error) throw error;
-
-      toast.success("Mission mise à jour avec succès !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de la mise à jour de la mission:", error);
-      setError(error.message);
-      toast.error("Erreur lors de la mise à jour de la mission");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const deleteMission = async (missionId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from("missions")
-        .delete()
-        .eq("id", missionId);
-
-      if (error) throw error;
-
-      toast.success("Mission supprimée avec succès !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de la suppression de la mission:", error);
-      setError(error.message);
-      toast.error("Erreur lors de la suppression de la mission");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchOrganizationMissions = async (organizationId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("missions")
-        .select(`
-          *,
-          registrations:mission_registrations (
-            *,
-            user:user_id (
-              first_name,
-              last_name,
-              profile_picture_url
-            )
-          )
-        `)
-        .eq("organization_id", organizationId)
-        .order("start_date", { ascending: false });
-
-      if (error) throw error;
-
-      return data;
-    } catch (error: any) {
-      console.error("Erreur lors de la récupération des missions:", error);
-      setError(error.message);
-      toast.error("Erreur lors du chargement des missions");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const updateRegistrationStatus = async (
-    registrationId: string,
-    status: "confirmé" | "annulé" | "terminé"
-  ) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from("mission_registrations")
+        .from('missions')
         .update({ status })
-        .eq("id", registrationId);
-
+        .eq('id', missionId);
+      
       if (error) throw error;
-
-      toast.success("Statut de l'inscription mis à jour avec succès !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de la mise à jour du statut:", error);
-      setError(error.message);
-      toast.error("Erreur lors de la mise à jour du statut");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization-missions', organizationId] });
     }
-  };
+  });
+
+  const createMissionsMutation = useMutation({
+    mutationFn: async (missionsData: Omit<Mission, 'id'>[]) => {
+      const { data, error } = await supabase
+        .from('missions')
+        .insert(missionsData.map(mission => ({
+          title: mission.title,
+          description: mission.description,
+          organization_id: mission.organization_id,
+          start_date: mission.start_date,
+          duration_minutes: mission.duration_minutes,
+          available_spots: mission.available_spots || 1,
+          format: mission.format || 'présentiel',
+          difficulty_level: mission.difficulty_level || 'débutant',
+          engagement_level: mission.engagement_level || 'petit coup de main'
+        })))
+        .select();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organization-missions', organizationId] });
+    }
+  });
 
   return {
-    loading,
-    error,
-    fetchOrganizationProfile,
-    updateOrganizationProfile,
-    createMission,
-    updateMission,
-    deleteMission,
-    fetchOrganizationMissions,
-    updateRegistrationStatus,
+    organization,
+    missions,
+    isLoading: isLoadingOrganization || isLoadingMissions,
+    updateMissionStatus: updateMissionStatusMutation,
+    createMissions: createMissionsMutation
   };
 };

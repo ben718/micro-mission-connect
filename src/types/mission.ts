@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 import type { CompleteProfile, OrganizationProfile } from './profile';
 

@@ -13,7 +13,7 @@ import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
 import { addDays } from 'date-fns';
 import { cn } from "@/lib/utils"
-import { Category, MissionFilters, DateRangeSelection } from "@/types/mission";
+import { Category, MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
 import { DateRange } from "react-day-picker";
 
 const MissionsPage = () => {
@@ -78,6 +78,14 @@ const MissionsPage = () => {
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
+
+  // Transform missions data to match expected type
+  const transformedMissions: MissionWithDetails[] = missions.map(mission => ({
+    ...mission,
+    required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+    organization: mission.organization_profiles || {} as any,
+    participants_count: mission.mission_registrations?.length || 0,
+  }));
 
   if (isLoading) return <div>Chargement...</div>;
   if (error) return <div>Erreur: {error.message}</div>;
@@ -216,7 +224,7 @@ const MissionsPage = () => {
 
       {/* Mission Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {missions.map(mission => (
+        {transformedMissions.map(mission => (
           <MissionCard key={mission.id} mission={mission} />
         ))}
       </div>
