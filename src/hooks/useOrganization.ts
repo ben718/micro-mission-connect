@@ -17,12 +17,11 @@ interface OrganizationProfile {
   creation_date: string;
 }
 
-interface Mission {
-  id: string;
+interface MissionData {
   title: string;
   description: string;
   start_date: string;
-  end_date: string;
+  end_date?: string;
   duration_minutes: number;
   format: string;
   location: string;
@@ -31,6 +30,7 @@ interface Mission {
   engagement_level: string;
   desired_impact: string;
   status: string;
+  organization_id: string;
 }
 
 export const useOrganization = () => {
@@ -88,7 +88,7 @@ export const useOrganization = () => {
     }
   };
 
-  const createMission = async (missionData: Omit<Mission, "id">) => {
+  const createMission = async (missionData: MissionData) => {
     try {
       setLoading(true);
       setError(null);
@@ -233,4 +233,4 @@ export const useOrganization = () => {
     fetchOrganizationMissions,
     updateRegistrationStatus,
   };
-}; 
+};

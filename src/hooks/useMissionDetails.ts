@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
@@ -37,17 +38,20 @@ export function useMissionDetails(missionId: string) {
 
       if (error) throw error;
 
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Transformer les données pour inclure les informations supplémentaires
       const transformedMission: MissionWithDetails = {
         ...data,
         required_skills: data.mission_skills.map((ms: any) => ms.skill.name),
-        participant_count: data.mission_registrations.length,
+        participants_count: data.mission_registrations.length,
         is_registered: data.mission_registrations.some(
-          (reg: any) => reg.user_id === (await supabase.auth.getUser()).data.user?.id
+          (reg: any) => reg.user_id === user?.id
         ),
         registration_status: data.mission_registrations.find(
-          (reg: any) => reg.user_id === (await supabase.auth.getUser()).data.user?.id
-        )?.status
+          (reg: any) => reg.user_id === user?.id
+        )?.status as ParticipationStatus
       };
 
       return transformedMission;
@@ -100,4 +104,4 @@ export function useMissionDetails(missionId: string) {
     isParticipating: participateMutation.isPending,
     isUpdatingStatus: updateRegistrationStatusMutation.isPending
   };
-} 
+}

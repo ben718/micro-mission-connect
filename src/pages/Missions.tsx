@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMissions } from '@/hooks/useMissions';
 import { useCategories, useCities } from '@/hooks/useDynamicLists';
-import MissionCard from '@/components/missions/MissionCard';
+import { MissionCard } from '@/components/missions/MissionCard';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar"
@@ -19,7 +19,7 @@ import { DateRange } from "react-day-picker";
 const MissionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState(searchParams.get('query') || '');
-  const [city, setCity] = useState(searchParams.get('city') || '');
+  const [location, setLocation] = useState(searchParams.get('location') || '');
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     searchParams.getAll('category')
   );
@@ -34,7 +34,7 @@ const MissionsPage = () => {
   // Fetch data using hooks
   const { data: missionsData, isLoading, error } = useMissions({
     query,
-    city,
+    location,
     categoryIds: selectedCategories,
     dateRange: dateRange ? {
       start: dateRange.from,
@@ -51,14 +51,14 @@ const MissionsPage = () => {
   useEffect(() => {
     const params = new URLSearchParams();
     if (query) params.set('query', query);
-    if (city) params.set('city', city);
+    if (location) params.set('location', location);
     selectedCategories.forEach(category => params.append('category', category));
     if (dateRange?.from) params.set('startDate', dateRange.from.toISOString());
     if (dateRange?.to) params.set('endDate', dateRange.to.toISOString());
     if (remote) params.set('remote', 'true');
     setSearchParams(params);
     setPage(0); // Reset page when filters change
-  }, [query, city, selectedCategories, dateRange, remote, setSearchParams]);
+  }, [query, location, selectedCategories, dateRange, remote, setSearchParams]);
 
   // Handle category selection
   const handleCategorySelect = (category: string | Category) => {
@@ -100,11 +100,11 @@ const MissionsPage = () => {
             <Button
               variant="outline"
               role="combobox"
-              aria-expanded={city !== ""}
+              aria-expanded={location !== ""}
               className="w-[200px] justify-between"
             >
-              {city
-                ? cities?.find(c => c.name === city)?.name
+              {location
+                ? cities?.find(c => c.name === location)?.name
                 : "Sélectionner une ville"}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
@@ -119,13 +119,13 @@ const MissionsPage = () => {
                     <CommandItem
                       key={cityItem.id}
                       value={cityItem.name}
-                      onSelect={() => setCity(cityItem.name)}
+                      onSelect={() => setLocation(cityItem.name)}
                     >
                       {cityItem.name}
                       <Check
                         className={cn(
                           "ml-auto h-4 w-4",
-                          city === cityItem.name ? "opacity-100" : "opacity-0"
+                          location === cityItem.name ? "opacity-100" : "opacity-0"
                         )}
                       />
                     </CommandItem>

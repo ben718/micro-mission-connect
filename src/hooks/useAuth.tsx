@@ -8,6 +8,7 @@ interface AuthContextType {
   user: User | null;
   profile: CompleteProfile | null;
   loading: boolean;
+  isLoading: boolean; // Add this property
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
@@ -110,6 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     profile,
     loading,
+    isLoading: loading, // Map loading to isLoading
     signIn,
     signUp,
     signOut

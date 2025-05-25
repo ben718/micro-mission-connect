@@ -148,7 +148,10 @@ export const useOrganizationMissions = (organizationId?: string, filterStatus?: 
 
       let query = supabase
         .from("missions")
-        .select("*")
+        .select(`
+          *,
+          mission_registrations(count)
+        `)
         .eq("organization_id", organizationId);
         
       if (filterStatus) {
@@ -162,7 +165,21 @@ export const useOrganizationMissions = (organizationId?: string, filterStatus?: 
       const { data, error } = await query;
 
       if (error) throw error;
-      return data || [];
+      
+      // Add participants_count to each mission
+      const missionsWithCount = await Promise.all((data || []).map(async (mission) => {
+        const { count } = await supabase
+          .from("mission_registrations")
+          .select("*", { count: "exact", head: true })
+          .eq("mission_id", mission.id);
+
+        return {
+          ...mission,
+          participants_count: count || 0,
+        };
+      }));
+
+      return missionsWithCount;
     },
     enabled: !!organizationId,
   });
@@ -209,7 +226,26 @@ export const useMissionActions = () => {
     },
   });
 
+  const validateParticipation = useMutation({
+    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status })
+        .eq("id", registrationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      toast.success("Participation validée");
+    },
+    onError: () => {
+      toast.error("Erreur lors de la validation");
+    },
+  });
+
   return {
     updateMissionStatus,
+    validateParticipation,
   };
 };

@@ -1,4 +1,3 @@
-
 import { Database } from "@/integrations/supabase/types";
 import type { CompleteProfile, OrganizationProfile } from './profile';
 
@@ -15,6 +14,7 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   required_skills: string[]; // Required property
   organization: Organization; // Required property
   id: string; // Required property
+  participants_count?: number; // Add this property
 };
 
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
@@ -24,6 +24,12 @@ export type MissionRegistration = Database["public"]["Tables"]["mission_registra
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
 export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
+
+// Add Category type
+export type Category = {
+  id: string;
+  name: string;
+};
 
 // Type pour l'organisation
 export type Organization = OrganizationProfile;
@@ -59,6 +65,7 @@ export type DateRangeSelection = {
 export type MissionFilters = {
   query?: string;
   location?: string;
+  categoryIds?: string[]; // Change from category to categoryIds
   missionTypeIds?: string[];
   dateRange?: {
     start?: Date;
@@ -77,6 +84,7 @@ export type MissionFilters = {
   engagement_level?: MissionEngagement | MissionEngagement[];
   requiredSkills?: string[];
   organization_sector?: string | string[];
+  remote?: boolean;
 };
 
 // Interface pour les statistiques de missions dans le tableau de bord
