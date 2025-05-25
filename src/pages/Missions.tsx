@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { useMissions, useCategories, useCities } from '@/hooks/useMissions';
+import { useMissions } from '@/hooks/useMissions';
+import { useCategories, useCities } from '@/hooks/useDynamicLists';
 import MissionCard from '@/components/missions/MissionCard';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -42,8 +44,8 @@ const MissionsPage = () => {
     page,
     pageSize: 12,
   });
-  const { data: categories } = useCategories();
-  const { data: cities } = useCities();
+  const { categories } = useCategories();
+  const { cities } = useCities();
 
   // Update URL parameters
   useEffect(() => {
@@ -102,7 +104,7 @@ const MissionsPage = () => {
               className="w-[200px] justify-between"
             >
               {city
-                ? cities?.find(c => c === city)
+                ? cities?.find(c => c.name === city)?.name
                 : "Sélectionner une ville"}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
@@ -115,15 +117,15 @@ const MissionsPage = () => {
                 <CommandGroup>
                   {cities?.map((cityItem) => (
                     <CommandItem
-                      key={cityItem}
-                      value={cityItem}
-                      onSelect={() => setCity(cityItem)}
+                      key={cityItem.id}
+                      value={cityItem.name}
+                      onSelect={() => setCity(cityItem.name)}
                     >
-                      {cityItem}
+                      {cityItem.name}
                       <Check
                         className={cn(
                           "ml-auto h-4 w-4",
-                          city === cityItem ? "opacity-100" : "opacity-0"
+                          city === cityItem.name ? "opacity-100" : "opacity-0"
                         )}
                       />
                     </CommandItem>
