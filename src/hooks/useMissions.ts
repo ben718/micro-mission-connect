@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionFilters, MissionStats } from "@/types/mission";
@@ -15,6 +16,55 @@ export const useCategories = () => {
 
       if (error) throw error;
       return data || [];
+    },
+  });
+};
+
+export const useMissionTypes = () => {
+  return useQuery({
+    queryKey: ["mission-types"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("mission_types")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+};
+
+export const useSkills = () => {
+  return useQuery({
+    queryKey: ["skills"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("skills")
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return data || [];
+    },
+  });
+};
+
+export const useLocations = () => {
+  return useQuery({
+    queryKey: ["locations"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("missions")
+        .select("location")
+        .eq("status", "active")
+        .not("location", "is", null);
+
+      if (error) throw error;
+
+      // Extraire et dédupliquer les localisations
+      const locations = [...new Set(data?.map(item => item.location).filter(Boolean) || [])];
+      return locations.sort();
     },
   });
 };
