@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/lib/supabase";
+import { useUserMissions, useMissionStats } from "@/hooks/useMissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search } from "lucide-react";
-import { useUserMissions, useMissionStats } from "@/hooks/useMissions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -17,7 +16,7 @@ const DashboardBenevole = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
   
-  // Utiliser les hooks personnalisés pour récupérer les données
+  // Use custom hooks for fetching data
   const { data: missions, isLoading: missionsLoading } = useUserMissions(user?.id);
   const { data: stats, isLoading: statsLoading } = useMissionStats(user?.id, false);
   
@@ -27,26 +26,26 @@ const DashboardBenevole = () => {
     }
   }, [missionsLoading, statsLoading]);
 
-  // Séparer missions à venir et passées
+  // Separate upcoming and past missions
   const now = new Date();
-  const missionsAVenir = missions?.filter(
+  const upcomingMissions = missions?.filter(
     (m) => new Date(m.starts_at) >= now && ["registered", "confirmed"].includes(m.participant_status || '')
   ) || [];
-  const missionsPassees = missions?.filter(
+  const pastMissions = missions?.filter(
     (m) => new Date(m.starts_at) < now || m.participant_status === "completed"
   ) || [];
 
-  // Statistiques
-  const nbMissions = missions?.length || 0;
-  const nbMissionsPassees = missionsPassees?.length || 0;
-  const nbMissionsAVenir = missionsAVenir?.length || 0;
-  const heuresTotal = stats?.totalHours || 0;
+  // Statistics
+  const totalMissions = missions?.length || 0;
+  const pastMissionsCount = pastMissions?.length || 0;
+  const upcomingMissionsCount = upcomingMissions?.length || 0;
+  const totalHours = stats?.totalHours || 0;
 
-  // Badges simples
+  // Simple badges
   const badges = [];
-  if (nbMissionsPassees >= 1) badges.push({ label: "Nouveau bénévole", icon: <Star className="w-4 h-4 mr-1" /> });
-  if (nbMissionsPassees >= 5) badges.push({ label: "Engagé", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> });
-  if (heuresTotal >= 20) badges.push({ label: "Super bénévole", icon: <User className="w-4 h-4 mr-1" /> });
+  if (pastMissionsCount >= 1) badges.push({ label: "New volunteer", icon: <Star className="w-4 h-4 mr-1" /> });
+  if (pastMissionsCount >= 5) badges.push({ label: "Engaged", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> });
+  if (totalHours >= 20) badges.push({ label: "Super volunteer", icon: <User className="w-4 h-4 mr-1" /> });
 
   const getInitials = (firstName?: string, lastName?: string) => {
     if (!firstName && !lastName) return "?";
@@ -60,42 +59,39 @@ const DashboardBenevole = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "registered":
-        return <Badge className="bg-blue-100 text-blue-800">Inscrit</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">Registered</Badge>;
       case "confirmed":
-        return <Badge className="bg-green-100 text-green-800">Confirmé</Badge>;
+        return <Badge className="bg-green-100 text-green-800">Confirmed</Badge>;
       case "completed":
-        return <Badge className="bg-purple-100 text-purple-800">Validé</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800">Completed</Badge>;
       case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Annulé</Badge>;
-      case "no_show":
-        return <Badge className="bg-red-100 text-red-800">Absence</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
   
   const getIcon = (missionType: string | undefined) => {
-    // Logique pour retourner l'icône appropriée selon le type de mission
     return <Calendar className="h-4 w-4 text-bleu" />;
   };
 
   return (
     <div className="container-custom py-10">
-      {/* En-tête */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={profile?.avatar_url || ""} />
+            <AvatarImage src={profile?.profile_picture_url || ""} />
             <AvatarFallback className="text-2xl">
               {getInitials(profile?.first_name, profile?.last_name)}
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold mb-1">Bonjour {profile?.first_name || user?.email} !</h1>
-            <p className="text-gray-600">Bienvenue sur votre espace bénévole</p>
+            <h1 className="text-3xl font-bold mb-1">Hello {profile?.first_name || user?.email}!</h1>
+            <p className="text-gray-600">Welcome to your volunteer space</p>
             {(!profile?.first_name || !profile?.last_name) && (
               <Button asChild variant="outline" size="sm" className="mt-2">
-                <Link to="/profile">Compléter mon profil</Link>
+                <Link to="/profile">Complete my profile</Link>
               </Button>
             )}
           </div>
@@ -104,27 +100,27 @@ const DashboardBenevole = () => {
           <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3">
             <Link to="/missions">
               <Search className="w-5 h-5 mr-2" />
-              Trouver une mission
+              Find a mission
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Statistiques */}
+      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Calendar className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Missions à venir</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Upcoming missions</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{nbMissionsAVenir}</span>
+            <span className="text-3xl font-bold text-bleu">{upcomingMissionsCount}</span>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <CheckCircle2 className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Missions validées</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Completed missions</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">
@@ -135,10 +131,10 @@ const DashboardBenevole = () => {
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Heures bénévolat</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Volunteer hours</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{Math.round(heuresTotal)}</span>
+            <span className="text-3xl font-bold text-bleu">{Math.round(totalHours)}</span>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-bleu/20">
@@ -148,7 +144,7 @@ const DashboardBenevole = () => {
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2">
             {badges.length === 0 ? (
-              <span className="text-gray-400">Aucun badge</span>
+              <span className="text-gray-400">No badges</span>
             ) : (
               badges.map((b, i) => (
                 <Badge key={i} className="flex items-center gap-1 bg-bleu/10 text-bleu font-medium">
@@ -161,27 +157,27 @@ const DashboardBenevole = () => {
         </Card>
       </div>
 
-      {/* Onglets pour les missions */}
+      {/* Mission tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
         <TabsList className="mb-6">
-          <TabsTrigger value="upcoming">Missions à venir ({nbMissionsAVenir})</TabsTrigger>
-          <TabsTrigger value="past">Historique ({nbMissionsPassees})</TabsTrigger>
+          <TabsTrigger value="upcoming">Upcoming missions ({upcomingMissionsCount})</TabsTrigger>
+          <TabsTrigger value="past">History ({pastMissionsCount})</TabsTrigger>
         </TabsList>
 
-        {/* Missions à venir */}
+        {/* Upcoming missions */}
         <TabsContent value="upcoming">
           {loading ? (
-            <p>Chargement…</p>
-          ) : nbMissionsAVenir === 0 ? (
+            <p>Loading…</p>
+          ) : upcomingMissionsCount === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Vous n'avez pas de missions à venir.</p>
+              <p className="text-gray-500 mb-4">You have no upcoming missions.</p>
               <Button asChild>
-                <Link to="/missions">Trouver une mission</Link>
+                <Link to="/missions">Find a mission</Link>
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {missionsAVenir.map((m) => (
+              {upcomingMissions.map((m) => (
                 <Card key={m.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
@@ -205,7 +201,7 @@ const DashboardBenevole = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4 text-gray-400" />
-                            <span>Durée: {m.duration}</span>
+                            <span>Duration: {m.duration}</span>
                           </div>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-3">{m.description}</p>
@@ -218,7 +214,7 @@ const DashboardBenevole = () => {
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-xs text-gray-500">
-                              Par {m.association?.first_name}
+                              By {m.association?.first_name}
                             </span>
                           </div>
                           {getStatusBadge(m.participant_status || 'registered')}
@@ -232,20 +228,20 @@ const DashboardBenevole = () => {
           )}
         </TabsContent>
 
-        {/* Historique missions */}
+        {/* Mission history */}
         <TabsContent value="past">
           {loading ? (
-            <p>Chargement…</p>
-          ) : nbMissionsPassees === 0 ? (
+            <p>Loading…</p>
+          ) : pastMissionsCount === 0 ? (
             <div className="text-center py-8">
-              <p className="text-gray-500 mb-4">Vous n'avez pas encore réalisé de mission.</p>
+              <p className="text-gray-500 mb-4">You haven't completed any missions yet.</p>
               <Button asChild>
-                <Link to="/missions">Trouver une mission</Link>
+                <Link to="/missions">Find a mission</Link>
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {missionsPassees.map((m) => (
+              {pastMissions.map((m) => (
                 <Card key={m.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-6">
                     <div className="flex justify-between items-start">
@@ -269,7 +265,7 @@ const DashboardBenevole = () => {
                           </div>
                           <div className="flex items-center gap-1">
                             <Clock className="w-4 h-4 text-gray-400" />
-                            <span>Durée: {m.duration}</span>
+                            <span>Duration: {m.duration}</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
@@ -281,7 +277,7 @@ const DashboardBenevole = () => {
                               </AvatarFallback>
                             </Avatar>
                             <span className="text-xs text-gray-500">
-                              Par {m.association?.first_name}
+                              By {m.association?.first_name}
                             </span>
                           </div>
                           {getStatusBadge(m.participant_status || 'completed')}

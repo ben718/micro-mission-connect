@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,16 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
 import { toast } from 'sonner';
 
-// Types simplifiés pour éviter les références circulaires
 type SimpleProfile = {
   id: string;
   first_name?: string;
   last_name?: string;
-  email?: string;
-  avatar_url?: string;
+  profile_picture_url?: string;
 };
 
-type MissionParticipant = {
+type MissionRegistration = {
   id: string;
   status: string;
   user_id: string;
@@ -31,11 +30,11 @@ type SimpleMission = {
   id: string;
   title: string;
   description: string;
-  starts_at: string;
-  city: string;
+  start_date: string;
+  location: string;
   status: string;
   duration_minutes?: number;
-  participants?: MissionParticipant[];
+  registrations?: MissionRegistration[];
 };
 
 interface Stats {
@@ -63,89 +62,80 @@ const DashboardAssociation = () => {
     }
   }, [user]);
 
-  // Fonction modifiée pour éviter les types récursifs infinis
   const fetchAssociationMissions = async () => {
     setLoading(true);
     setError(null);
     try {
-      // 1. Récupérer les missions de base sans les participants imbriqués
+      // Fetch missions for this organization
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select(`
           id, 
           title, 
           description,
-          starts_at,
-          city,
+          start_date,
+          location,
           status,
           duration_minutes
         `)
-        .eq("association_id", user?.id)
-        .order("starts_at", { ascending: true });
+        .eq("organization_id", user?.id)
+        .order("start_date", { ascending: true });
       
       if (missionsError) throw missionsError;
       
-      // 2. Initialiser le tableau de missions
-      let missionsWithParticipants: SimpleMission[] = missionsData || [];
+      let missionsWithRegistrations: SimpleMission[] = missionsData || [];
       
-      // 3. Pour chaque mission, récupérer séparément ses participants
-      for (const mission of missionsWithParticipants) {
-        // Récupérer les participants pour cette mission
-        const { data: participantsData, error: participantsError } = await supabase
-          .from("mission_participants")
+      // For each mission, fetch its registrations
+      for (const mission of missionsWithRegistrations) {
+        const { data: registrationsData, error: registrationsError } = await supabase
+          .from("mission_registrations")
           .select("id, status, user_id")
           .eq("mission_id", mission.id);
           
-        if (participantsError) {
-          console.error("Erreur lors de la récupération des participants:", participantsError);
-          continue; // Continuer avec la mission suivante en cas d'erreur
+        if (registrationsError) {
+          console.error("Error fetching registrations:", registrationsError);
+          continue;
         }
         
-        // Initialiser les participants pour cette mission
-        mission.participants = participantsData || [];
+        mission.registrations = registrationsData || [];
         
-        // Si des participants existent, récupérer leurs profils
-        if (participantsData && participantsData.length > 0) {
-          // Extraire les IDs utilisateurs uniques
-          const userIds = participantsData.map(p => p.user_id);
+        // If registrations exist, fetch their profiles
+        if (registrationsData && registrationsData.length > 0) {
+          const userIds = registrationsData.map(r => r.user_id);
           
-          // Récupérer les profils correspondants
           const { data: profilesData, error: profilesError } = await supabase
             .from("profiles")
-            .select("id, first_name, last_name, email, avatar_url")
+            .select("id, first_name, last_name, profile_picture_url")
             .in("id", userIds);
             
           if (profilesError) {
-            console.error("Erreur lors de la récupération des profils:", profilesError);
+            console.error("Error fetching profiles:", profilesError);
             continue;
           }
             
           if (profilesData) {
-            // Créer un dictionnaire pour associer les profils aux participants
             const profilesMap: Record<string, SimpleProfile> = {};
             profilesData.forEach(profile => {
               profilesMap[profile.id] = {
                 id: profile.id,
                 first_name: profile.first_name,
                 last_name: profile.last_name,
-                email: profile.email,
-                avatar_url: profile.avatar_url
+                profile_picture_url: profile.profile_picture_url
               };
             });
             
-            // Associer les profils aux participants
-            mission.participants = mission.participants.map(p => ({
-              ...p,
-              profile: profilesMap[p.user_id]
+            mission.registrations = mission.registrations.map(r => ({
+              ...r,
+              profile: profilesMap[r.user_id]
             }));
           }
         }
       }
       
-      setMissions(missionsWithParticipants);
+      setMissions(missionsWithRegistrations);
     } catch (err: any) {
-      console.error("Erreur lors du chargement des missions:", err);
-      setError(err.message || "Une erreur est survenue lors du chargement des missions");
+      console.error("Error loading missions:", err);
+      setError(err.message || "An error occurred while loading missions");
     } finally {
       setLoading(false);
     }
@@ -154,44 +144,44 @@ const DashboardAssociation = () => {
   const fetchStats = async () => {
     try {
       if (!user) {
-        console.error("Aucun utilisateur connecté pour récupérer les statistiques");
+        console.error("No user connected to fetch stats");
         return;
       }
 
-      // Nombre total de bénévoles uniques
-      const { data: participants, error: participantsError } = await supabase
-        .from("mission_participants")
+      // Count unique volunteers
+      const { data: registrations, error: registrationsError } = await supabase
+        .from("mission_registrations")
         .select("user_id");
       
-      if (participantsError) {
-        console.error("Erreur lors de la récupération des participants:", participantsError);
+      if (registrationsError) {
+        console.error("Error fetching registrations:", registrationsError);
         return;
       }
 
-      const uniqueBenevoles = new Set(participants?.map(p => p.user_id) || []).size;
+      const uniqueVolunteers = new Set(registrations?.map(r => r.user_id) || []).size;
       
-      // Heures totales
+      // Total hours
       const { data: missionsData, error: missionsError } = await supabase
         .from("missions")
         .select("duration_minutes")
-        .eq("association_id", user.id);
+        .eq("organization_id", user.id);
 
       if (missionsError) {
-        console.error("Erreur lors de la récupération des missions pour les statistiques:", missionsError);
+        console.error("Error fetching missions for stats:", missionsError);
         return;
       }
 
       const totalMinutes = missionsData?.reduce((acc, m) => acc + (m.duration_minutes || 0), 0) || 0;
-      const totalHeures = Math.round(totalMinutes / 60);
+      const totalHours = Math.round(totalMinutes / 60);
       
-      // Taux de complétion
+      // Completion rate
       const totalMissions = missions.length;
       const completedMissions = missions.filter(m => m.status === "completed").length;
-      const tauxCompletion = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
+      const completionRate = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
       
-      setStats({ totalBenevoles: uniqueBenevoles, totalHeures, tauxCompletion });
+      setStats({ totalBenevoles: uniqueVolunteers, totalHeures: totalHours, tauxCompletion: completionRate });
     } catch (err) {
-      console.error("Erreur lors de la récupération des statistiques:", err);
+      console.error("Error fetching stats:", err);
     }
   };
 
@@ -203,28 +193,28 @@ const DashboardAssociation = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "open":
-        return <Badge className="bg-green-100 text-green-800">Ouverte</Badge>;
-      case "closed":
-        return <Badge className="bg-red-100 text-red-800">Fermée</Badge>;
+      case "active":
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case "completed":
-        return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+      case "cancelled":
+        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{String(status)}</Badge>;
     }
   };
 
-  const handleCandidature = async (participantId: string, status: 'confirmed' | 'refused') => {
+  const handleApplication = async (registrationId: string, status: 'confirmed' | 'cancelled') => {
     try {
       await supabase
-        .from('mission_participants')
+        .from('mission_registrations')
         .update({ status })
-        .eq('id', participantId);
-      fetchAssociationMissions(); // Rafraîchir les données après mise à jour
-      toast.success(status === 'confirmed' ? 'Candidature acceptée' : 'Candidature refusée');
+        .eq('id', registrationId);
+      fetchAssociationMissions();
+      toast.success(status === 'confirmed' ? 'Application accepted' : 'Application rejected');
     } catch (error) {
-      console.error("Erreur lors du traitement de la candidature:", error);
-      toast.error("Une erreur est survenue lors du traitement de la candidature");
+      console.error("Error processing application:", error);
+      toast.error("An error occurred while processing the application");
     }
   };
 
@@ -252,10 +242,10 @@ const DashboardAssociation = () => {
       <div className="container-custom py-10">
         <Card>
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Erreur</h2>
+            <h2 className="text-xl font-bold mb-2">Error</h2>
             <p className="text-gray-500 mb-4">{error}</p>
             <Button asChild>
-              <Link to="/missions">Voir toutes les missions</Link>
+              <Link to="/missions">View all missions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -264,27 +254,27 @@ const DashboardAssociation = () => {
   }
 
   const currentDate = new Date();
-  const upcomingMissions = missions.filter((m) => new Date(m.starts_at) >= currentDate && m.status === 'open');
-  const pastMissions = missions.filter((m) => new Date(m.starts_at) < currentDate || m.status !== 'open');
+  const upcomingMissions = missions.filter((m) => new Date(m.start_date) >= currentDate && m.status === 'active');
+  const pastMissions = missions.filter((m) => new Date(m.start_date) < currentDate || m.status !== 'active');
 
   return (
     <div className="container-custom py-10">
-      {/* En-tête association */}
+      {/* Association header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
         <div className="flex items-center gap-4">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={profile?.avatar_url || ""} />
+            <AvatarImage src={profile?.profile_picture_url || ""} />
             <AvatarFallback className="text-2xl">
               {profile?.first_name?.[0] || "A"}
             </AvatarFallback>
           </Avatar>
           <div>
             <h1 className="text-3xl font-bold mb-1 text-bleu">{profile?.first_name} {profile?.last_name}</h1>
-            <p className="text-gray-600">Bienvenue sur votre espace association !</p>
-            {profile?.location && (
+            <p className="text-gray-600">Welcome to your association dashboard!</p>
+            {profile?.city && (
               <div className="flex items-center text-gray-500 mt-1">
                 <MapPin className="w-4 h-4 mr-1 text-bleu" />
-                <span>{profile.location}</span>
+                <span>{profile.city}</span>
               </div>
             )}
           </div>
@@ -292,17 +282,17 @@ const DashboardAssociation = () => {
         <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
           <Link to="/missions/new">
             <Plus className="w-5 h-5 mr-2" />
-            Créer une mission
+            Create Mission
           </Link>
         </Button>
       </div>
 
-      {/* Statistiques */}
+      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Calendar className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Created Missions</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{missions.length}</span>
@@ -311,7 +301,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Users className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Bénévoles mobilisés</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Volunteers Engaged</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.totalBenevoles}</span>
@@ -320,7 +310,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Heures bénévolat</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Volunteer Hours</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.totalHeures}</span>
@@ -329,56 +319,10 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <BarChart2 className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Taux de complétion</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Completion Rate</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.tauxCompletion}%</span>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Actions rapides */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-bleu">
-              <Plus className="w-5 h-5 text-bleu" />
-              Créer une mission
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">Publiez de nouvelles missions pour mobiliser des bénévoles.</p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/missions/new">Créer une mission</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-bleu">
-              <Users className="w-5 h-5 text-bleu" />
-              Voir les inscriptions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">Consultez la liste des bénévoles inscrits à vos missions.</p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/dashboard/inscriptions">Voir les inscriptions</Link>
-            </Button>
-          </CardContent>
-        </Card>
-        <Card className="hover:shadow-lg transition-shadow border border-gray-200 border-opacity-60 bg-white p-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-bleu">
-              <BarChart2 className="w-5 h-5 text-bleu" />
-              Statistiques détaillées
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-gray-600 mb-4">Analysez l'impact de votre association grâce à des statistiques détaillées.</p>
-            <Button asChild variant="outline" className="w-full">
-              <Link to="/dashboard/statistiques">Voir les statistiques</Link>
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -388,13 +332,13 @@ const DashboardAssociation = () => {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full border-b rounded-none">
-              <TabsTrigger value="missions" className="flex-1">Missions à venir ({upcomingMissions.length})</TabsTrigger>
-              <TabsTrigger value="past-missions" className="flex-1">Missions passées ({pastMissions.length})</TabsTrigger>
+              <TabsTrigger value="missions" className="flex-1">Upcoming Missions ({upcomingMissions.length})</TabsTrigger>
+              <TabsTrigger value="past-missions" className="flex-1">Past Missions ({pastMissions.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="missions" className="p-6">
-              <h2 className="text-xl font-bold mb-4">Missions à venir</h2>
+              <h2 className="text-xl font-bold mb-4">Upcoming Missions</h2>
               {upcomingMissions.length === 0 ? (
-                <p className="text-gray-500">Aucune mission à venir.</p>
+                <p className="text-gray-500">No upcoming missions.</p>
               ) : (
                 <div className="space-y-4">
                   {upcomingMissions.map((mission) => (
@@ -405,41 +349,16 @@ const DashboardAssociation = () => {
                         </Link>
                         <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
                           <Calendar className="w-4 h-4 mr-1" />
-                          <span>{formatDate(mission.starts_at)}</span>
+                          <span>{formatDate(mission.start_date)}</span>
                           <span className="mx-2">•</span>
                           <MapPin className="w-4 h-4 mr-1" />
-                          <span>{mission.city}</span>
+                          <span>{mission.location}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2 mb-2">{mission.description}</p>
-                        {mission.participants && mission.participants.length > 0 && (
-                          <div className="mt-4">
-                            <h4 className="font-semibold mb-2 text-sm text-gray-700">Candidatures en attente</h4>
-                            <div className="space-y-2">
-                              {mission.participants.filter((p) => p.status === 'pending').length === 0 && (
-                                <span className="text-gray-400 text-sm">Aucune candidature en attente</span>
-                              )}
-                              {mission.participants.filter((p) => p.status === 'pending').map((p) => (
-                                <div key={p.id} className="flex items-center justify-between bg-gray-50 rounded px-3 py-2">
-                                  <div className="flex items-center gap-2">
-                                    <Avatar className="h-8 w-8">
-                                      <AvatarFallback>{p.profile?.first_name?.[0] || '?'}</AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{p.profile?.first_name} {p.profile?.last_name}</span>
-                                    <span className="text-xs text-gray-500">{p.profile?.email}</span>
-                                  </div>
-                                  <div className="flex gap-2">
-                                    <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleCandidature(p.id, 'confirmed')}>Accepter</Button>
-                                    <Button size="sm" variant="outline" className="border-red-400 text-red-600 hover:bg-red-50" onClick={() => handleCandidature(p.id, 'refused')}>Refuser</Button>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.participants?.length || 0}</span>
+                            <span>{mission.registrations?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
@@ -450,9 +369,9 @@ const DashboardAssociation = () => {
               )}
             </TabsContent>
             <TabsContent value="past-missions" className="p-6">
-              <h2 className="text-xl font-bold mb-4">Missions passées</h2>
+              <h2 className="text-xl font-bold mb-4">Past Missions</h2>
               {pastMissions.length === 0 ? (
-                <p className="text-gray-500">Aucune mission passée.</p>
+                <p className="text-gray-500">No past missions.</p>
               ) : (
                 <div className="space-y-4">
                   {pastMissions.map((mission) => (
@@ -463,16 +382,16 @@ const DashboardAssociation = () => {
                         </Link>
                         <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
                           <Calendar className="w-4 h-4 mr-1" />
-                          <span>{formatDate(mission.starts_at)}</span>
+                          <span>{formatDate(mission.start_date)}</span>
                           <span className="mx-2">•</span>
                           <MapPin className="w-4 h-4 mr-1" />
-                          <span>{mission.city}</span>
+                          <span>{mission.location}</span>
                         </div>
                         <p className="text-gray-600 text-sm line-clamp-2">{mission.description}</p>
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.participants?.length || 0}</span>
+                            <span>{mission.registrations?.length || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>

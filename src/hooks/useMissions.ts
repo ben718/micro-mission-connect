@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -16,202 +17,171 @@ interface Mission {
   start_date: string;
   duration_minutes: number;
   available_spots: number;
-  organization: {
-    organization_name: string;
-    logo_url: string;
-  };
-  required_skills: string[];
+  organization_id: string;
 }
 
 interface MissionFilters {
-  searchQuery: string;
-  format: string[];
-  difficulty: string[];
-  engagement: string[];
-  distance: number;
-  skills: string[];
-  sectors: string[];
-  types: string[];
+  query?: string;
+  city?: string;
+  categoryIds?: string[];
+  dateRange?: {
+    start?: Date;
+    end?: Date;
+  };
+  remote?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
-export const useMissions = () => {
-  const [missions, setMissions] = useState<Mission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+interface UserMission {
+  id: string;
+  title: string;
+  description: string;
+  starts_at: string;
+  duration: string;
+  city: string;
+  participant_status: string;
+  association?: {
+    first_name: string;
+    avatar_url?: string;
+  };
+  category?: string;
+}
 
-  const fetchMissions = async (filters?: MissionFilters) => {
-    try {
-      setLoading(true);
-      setError(null);
+export const useMissions = (filters?: MissionFilters) => {
+  const [data, setData] = useState<{ data: Mission[]; count: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-      let query = supabase
-        .from("available_missions_details")
-        .select("*")
-        .order("start_date", { ascending: true });
+  useEffect(() => {
+    const fetchMissions = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      // Appliquer les filtres si présents
-      if (filters) {
-        if (filters.searchQuery) {
-          query = query.ilike("title", `%${filters.searchQuery}%`);
+        let query = supabase
+          .from("missions")
+          .select("*", { count: 'exact' })
+          .eq("status", "active")
+          .order("start_date", { ascending: true });
+
+        // Apply filters
+        if (filters?.query) {
+          query = query.ilike("title", `%${filters.query}%`);
         }
 
-        if (filters.format.length > 0) {
-          query = query.in("format", filters.format);
+        if (filters?.city) {
+          query = query.eq("location", filters.city);
         }
 
-        if (filters.difficulty.length > 0) {
-          query = query.in("difficulty_level", filters.difficulty);
+        if (filters?.page !== undefined && filters?.pageSize) {
+          const from = filters.page * filters.pageSize;
+          const to = from + filters.pageSize - 1;
+          query = query.range(from, to);
         }
 
-        if (filters.engagement.length > 0) {
-          query = query.in("engagement_level", filters.engagement);
-        }
+        const { data: missions, error, count } = await query;
 
-        if (filters.skills.length > 0) {
-          query = query.contains("required_skills", filters.skills);
-        }
+        if (error) throw error;
 
-        if (filters.sectors.length > 0) {
-          query = query.in("sector_name", filters.sectors);
-        }
-
-        if (filters.types.length > 0) {
-          query = query.in("mission_type_name", filters.types);
-        }
+        setData({ data: missions || [], count: count || 0 });
+      } catch (err: any) {
+        console.error("Error fetching missions:", err);
+        setError(err);
+        toast.error("Error loading missions");
+      } finally {
+        setIsLoading(false);
       }
+    };
 
-      const { data, error } = await query;
+    fetchMissions();
+  }, [filters]);
 
-      if (error) throw error;
+  return { data, isLoading, error };
+};
 
-      setMissions(data || []);
-    } catch (error: any) {
-      console.error("Erreur lors de la récupération des missions:", error);
-      setError(error.message);
-      toast.error("Erreur lors du chargement des missions");
-    } finally {
-      setLoading(false);
+export const useUserMissions = (userId?: string) => {
+  const [data, setData] = useState<UserMission[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
     }
-  };
 
-  const fetchMissionById = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("available_missions_details")
-        .select("*")
-        .eq("mission_id", id)
-        .single();
-
-      if (error) throw error;
-
-      return data;
-    } catch (error: any) {
-      console.error("Erreur lors de la récupération de la mission:", error);
-      setError(error.message);
-      toast.error("Erreur lors du chargement de la mission");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const registerToMission = async (missionId: string, userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from("mission_registrations")
-        .insert([
-          {
-            user_id: userId,
-            mission_id: missionId,
-            status: "inscrit",
-          },
-        ]);
-
-      if (error) throw error;
-
-      toast.success("Inscription à la mission réussie !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de l'inscription à la mission:", error);
-      setError(error.message);
-      toast.error("Erreur lors de l'inscription à la mission");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const cancelRegistration = async (missionId: string, userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status: "annulé" })
-        .match({ mission_id: missionId, user_id: userId });
-
-      if (error) throw error;
-
-      toast.success("Inscription annulée avec succès !");
-      return { success: true };
-    } catch (error: any) {
-      console.error("Erreur lors de l'annulation de l'inscription:", error);
-      setError(error.message);
-      toast.error("Erreur lors de l'annulation de l'inscription");
-      return { success: false, error: error.message };
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUserMissions = async (userId: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("mission_registrations")
-        .select(`
-          *,
-          missions:mission_id (
-            *,
-            organization:organization_id (
-              organization_name,
-              logo_url
+    const fetchUserMissions = async () => {
+      try {
+        setIsLoading(true);
+        const { data: registrations, error } = await supabase
+          .from("mission_registrations")
+          .select(`
+            status,
+            missions (
+              id,
+              title,
+              description,
+              start_date,
+              duration_minutes,
+              location
             )
-          )
-        `)
-        .eq("user_id", userId)
-        .order("registration_date", { ascending: false });
+          `)
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      return data;
-    } catch (error: any) {
-      console.error("Erreur lors de la récupération des missions de l'utilisateur:", error);
-      setError(error.message);
-      toast.error("Erreur lors du chargement de vos missions");
-      return null;
-    } finally {
-      setLoading(false);
+        const userMissions = registrations?.map((reg: any) => ({
+          id: reg.missions.id,
+          title: reg.missions.title,
+          description: reg.missions.description,
+          starts_at: reg.missions.start_date,
+          duration: `${reg.missions.duration_minutes} minutes`,
+          city: reg.missions.location,
+          participant_status: reg.status,
+          association: {
+            first_name: "Association"
+          }
+        })) || [];
+
+        setData(userMissions);
+      } catch (err: any) {
+        setError(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserMissions();
+  }, [userId]);
+
+  return { data, isLoading, error };
+};
+
+export const useMissionStats = (userId?: string, isOrganization?: boolean) => {
+  const [data, setData] = useState<{ totalHours: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!userId) {
+      setIsLoading(false);
+      return;
     }
-  };
 
-  return {
-    missions,
-    loading,
-    error,
-    fetchMissions,
-    fetchMissionById,
-    registerToMission,
-    cancelRegistration,
-    fetchUserMissions,
-  };
-}; 
+    const fetchStats = async () => {
+      try {
+        // Simple mock stats for now
+        setData({ totalHours: 0 });
+      } catch (err) {
+        console.error("Error fetching stats:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, [userId, isOrganization]);
+
+  return { data, isLoading };
+};

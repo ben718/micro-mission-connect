@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -25,10 +26,10 @@ const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
-  console.log("[PrivateRoute] État:", { user: !!user, isLoading });
+  console.log("[PrivateRoute] State:", { user: !!user, isLoading });
 
   if (isLoading) {
-    console.log("[PrivateRoute] Chargement en cours...");
+    console.log("[PrivateRoute] Loading...");
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin" />
@@ -37,11 +38,11 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    console.log("[PrivateRoute] Pas d'utilisateur, redirection vers login");
+    console.log("[PrivateRoute] No user, redirecting to login");
     return <Navigate to="/auth/login" />;
   }
 
-  console.log("[PrivateRoute] Utilisateur authentifié, affichage du contenu");
+  console.log("[PrivateRoute] User authenticated, showing content");
   return <>{children}</>;
 };
 
@@ -60,8 +61,8 @@ const ProfileRoute = () => {
     return <Navigate to="/auth/login" />;
   }
 
-  // Rediriger vers le bon profil selon le type d'utilisateur
-  return profile?.is_association ? (
+  // Redirect to the appropriate profile based on user type
+  return profile?.first_name ? (
     <Navigate to="/profile/association" />
   ) : (
     <Navigate to="/profile/benevole" />
@@ -70,7 +71,7 @@ const ProfileRoute = () => {
 
 const App = () => {
   useEffect(() => {
-    console.log("[App] Initialisation du composant App");
+    console.log("[App] App component initialization");
   }, []);
 
   return (
