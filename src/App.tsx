@@ -25,10 +25,10 @@ import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
-  console.log("[PrivateRoute] State:", { user: !!user, isLoading });
+  const { user, loading } = useAuth();
+  console.log("[PrivateRoute] State:", { user: !!user, loading });
 
-  if (isLoading) {
+  if (loading) {
     console.log("[PrivateRoute] Loading...");
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -47,9 +47,9 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const ProfileRoute = () => {
-  const { user, profile, isLoading } = useAuth();
+  const { user, profile, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin" />

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -201,20 +201,6 @@ const DashboardAssociation = () => {
         return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
       default:
         return <Badge variant="outline">{String(status)}</Badge>;
-    }
-  };
-
-  const handleApplication = async (registrationId: string, status: 'confirmed' | 'cancelled') => {
-    try {
-      await supabase
-        .from('mission_registrations')
-        .update({ status })
-        .eq('id', registrationId);
-      fetchAssociationMissions();
-      toast.success(status === 'confirmed' ? 'Application accepted' : 'Application rejected');
-    } catch (error) {
-      console.error("Error processing application:", error);
-      toast.error("An error occurred while processing the application");
     }
   };
 

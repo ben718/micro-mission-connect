@@ -11,23 +11,19 @@ import { toast } from "sonner";
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { signIn } = useAuth();
+  const { signIn, isLoading } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsLoading(true);
     
     // Vérification basique des champs
     if (!email || !email.includes('@')) {
       toast.error("Veuillez entrer une adresse e-mail valide");
-      setIsLoading(false);
       return;
     }
     
     if (!password || password.length < 6) {
       toast.error("Le mot de passe doit contenir au moins 6 caractères");
-      setIsLoading(false);
       return;
     }
 
@@ -37,8 +33,6 @@ const LoginForm = () => {
     } catch (error: any) {
       console.error("[LoginForm] Erreur lors de la connexion:", error);
       // Les erreurs sont déjà affichées dans useAuth
-    } finally {
-      setIsLoading(false);
     }
   };
 
