@@ -33,8 +33,8 @@ export default function AssociationProfile() {
     ? missionsResponse 
     : (missionsResponse?.data || []);
     
-  // Missions créées par l'association
-  const myMissions = missions.filter(m => m.association_id === profile.id);
+  // Missions créées par l'association - use organization_id instead of association_id
+  const myMissions = missions.filter(m => m.organization_id === profile.id);
   // Nombre total de bénévoles mobilisés (somme des participants)
   const benevoles = myMissions.reduce((acc, m) => {
     const participants = typeof m.participants === 'string' 
@@ -47,7 +47,7 @@ export default function AssociationProfile() {
   const heures = myMissions.reduce((acc, m) => acc + (m.duration_minutes || 0), 0) / 60;
   const heuresAffiche = Math.round(heures * 10) / 10;
   // Taux de complétion (missions passées / total)
-  const missionsPassees = myMissions.filter(m => new Date(m.starts_at) < new Date());
+  const missionsPassees = myMissions.filter(m => new Date(m.start_date) < new Date());
   const tauxCompletion = myMissions.length > 0 ? Math.round((missionsPassees.length / myMissions.length) * 100) : 0;
 
   // Mapping local des badges (nom -> description)
@@ -126,7 +126,7 @@ export default function AssociationProfile() {
                 if (m.status === 'cancelled') {
                   statut = 'Annulée';
                   badgeClass = 'bg-red-100 text-red-800 border-red-200';
-                } else if (new Date(m.starts_at) < new Date()) {
+                } else if (new Date(m.start_date) < new Date()) {
                   statut = 'Passée';
                   badgeClass = 'bg-green-100 text-green-800 border-green-200';
                 } else {
@@ -137,7 +137,7 @@ export default function AssociationProfile() {
                   <li key={m.id} className="flex flex-col md:flex-row md:items-center md:gap-4 border-b py-2">
                     <span className="font-medium">{m.title}</span>
                     <Badge className={badgeClass}>{statut}</Badge>
-                    <span className="text-xs text-muted-foreground">{m.starts_at}</span>
+                    <span className="text-xs text-muted-foreground">{m.start_date}</span>
                     <Badge variant="outline">{m.category}</Badge>
                     <span className="text-xs text-muted-foreground">{m.spots_taken} bénévoles</span>
                     <Button size="sm" variant="outline" className="ml-auto mt-2 md:mt-0">Gérer</Button>

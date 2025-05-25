@@ -23,8 +23,13 @@ export type Skill = Database["public"]["Tables"]["skills"]["Row"];
 export type MissionSkill = Database["public"]["Tables"]["mission_skills"]["Row"];
 export type MissionRegistration = Database["public"]["Tables"]["mission_registrations"]["Row"];
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
-export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"];
-export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"];
+export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"] & {
+  badge?: Badge;
+  acquired_at?: string; // Add compatibility property
+};
+export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"] & {
+  skill?: Skill;
+};
 
 // Add Category type
 export type Category = {
@@ -54,6 +59,7 @@ export type MissionWithDetails = MissionWithOrganization & {
   participants_count: number;
   is_registered?: boolean;
   registration_status?: ParticipationStatus;
+  mission_registrations?: MissionRegistration[];
 };
 
 // Type for date range selection used in calendar component

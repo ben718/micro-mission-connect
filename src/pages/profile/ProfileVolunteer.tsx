@@ -234,7 +234,7 @@ const ProfileVolunteer = () => {
                           <div>
                             <h3 className="font-semibold">{userBadge.badge.name}</h3>
                             <p className="text-sm text-muted-foreground">
-                              Obtenu le {formatDate(userBadge.acquired_at)}
+                              Obtenu le {formatDate(userBadge.acquired_at || userBadge.acquisition_date)}
                             </p>
                           </div>
                           <Award className="h-5 w-5 text-blue-500" />
@@ -252,4 +252,4 @@ const ProfileVolunteer = () => {
   );
 };
 
-export default ProfileVolunteer; 
+export default ProfileVolunteer;

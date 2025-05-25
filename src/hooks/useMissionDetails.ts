@@ -51,7 +51,8 @@ export function useMissionDetails(missionId: string) {
         ) || false,
         registration_status: data.mission_registrations?.find(
           (reg: any) => reg.user_id === user?.id
-        )?.status as ParticipationStatus
+        )?.status as ParticipationStatus,
+        mission_registrations: data.mission_registrations || []
       };
 
       return transformedMission;
@@ -115,7 +116,7 @@ export function useMissionDetails(missionId: string) {
     isLoading,
     participate: participateMutation.mutate,
     updateRegistrationStatus: updateRegistrationStatusMutation.mutate,
-    validateParticipation: validateParticipationMutation.mutate,
+    validateParticipation: validateParticipationMutation,
     isParticipating: participateMutation.isPending,
     isUpdatingStatus: updateRegistrationStatusMutation.isPending
   };

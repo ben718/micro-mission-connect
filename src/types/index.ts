@@ -4,15 +4,14 @@ import { Database } from "@/integrations/supabase/types";
 // Use Supabase generated types as a base
 export type Profile = Database['public']['Tables']['profiles']['Row'];
 export type Mission = Database['public']['Tables']['missions']['Row'];
-export type Category = Database['public']['Tables']['categories']['Row'];
 export type Badge = Database['public']['Tables']['badges']['Row'];
-export type MissionParticipant = Database['public']['Tables']['mission_participants']['Row'];
+export type MissionRegistration = Database['public']['Tables']['mission_registrations']['Row'];
 
 // Add any custom types here
 export type MissionWithCategories = Mission & {
-  categories: Category[];
+  mission_type?: Database['public']['Tables']['mission_types']['Row'];
 };
 
 export type ProfileWithBadges = Profile & {
-  badges: Badge[];
+  badges: Database['public']['Tables']['user_badges']['Row'][];
 };

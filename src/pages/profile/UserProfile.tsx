@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Edit, LogOut, Users, Clock, Award, Mail, MapPin } from 'lucide-react';
 import { useMissions } from '@/hooks/useMissions';
 import type { Profile } from '@/types/profile';
-import { MissionWithAssociation } from '@/types/mission';
+import { MissionWithAssociation, UserSkill, UserBadge } from '@/types/mission';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -33,10 +33,10 @@ export default function UserProfile() {
     ? missionsResponse 
     : (missionsResponse?.data || []);
 
-  // Missions du bénévole
-  const myMissions = (missions || []).filter(m => m.participants?.includes(user.id));
-  const missionsAVenir = (myMissions || []).filter(m => new Date(m.starts_at) >= new Date());
-  const missionsPassees = (myMissions || []).filter(m => new Date(m.starts_at) < new Date());
+  // Missions du bénévole - updated to use spots_taken instead of participants
+  const myMissions = (missions || []).filter(m => m.spots_taken > 0);
+  const missionsAVenir = (myMissions || []).filter(m => new Date(m.start_date) >= new Date());
+  const missionsPassees = (myMissions || []).filter(m => new Date(m.start_date) < new Date());
 
   // Statistiques
   // Calcul des heures réelles à partir de la durée des missions passées
@@ -97,8 +97,8 @@ export default function UserProfile() {
           <p className="text-muted-foreground mb-2">{profile.bio || "Ajoutez une bio pour vous présenter."}</p>
           {profile.skills && profile.skills.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {profile.skills.map((skill: string) => (
-                <Badge key={skill} variant="secondary">{skill}</Badge>
+              {profile.skills.map((userSkill: UserSkill) => (
+                <Badge key={userSkill.id} variant="secondary">{userSkill.skill?.name}</Badge>
               ))}
             </div>
           )}
@@ -154,12 +154,12 @@ export default function UserProfile() {
             <p className="text-muted-foreground">Aucun badge obtenu pour l'instant.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {badges.map((badge: string) => (
-                <Tooltip key={badge}>
+              {badges.map((userBadge: UserBadge) => (
+                <Tooltip key={userBadge.id}>
                   <TooltipTrigger asChild>
-                    <Badge variant="default" className="cursor-help">{badge}</Badge>
+                    <Badge variant="default" className="cursor-help">{userBadge.badge?.name}</Badge>
                   </TooltipTrigger>
-                  <TooltipContent>{badgeDescriptions[badge] || 'Badge obtenu'}</TooltipContent>
+                  <TooltipContent>{badgeDescriptions[userBadge.badge?.name || ''] || 'Badge obtenu'}</TooltipContent>
                 </Tooltip>
               ))}
             </div>

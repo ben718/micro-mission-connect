@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,7 +35,7 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
 
   const handleValidation = (registrationId: string, status: string) => {
     if (validateParticipation) {
-      validateParticipation({ registrationId, status });
+      validateParticipation.mutate({ registrationId, status });
     }
   };
 

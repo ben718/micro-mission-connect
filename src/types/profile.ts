@@ -10,6 +10,7 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   phone?: string;
   bio?: string;
   email?: string;
+  website?: string; // Add this property
 };
 
 // Type pour un profil d'organisation
@@ -35,6 +36,7 @@ export interface CompleteProfile extends Profile {
   role?: string; // 'organization' ou 'volunteer' calculé à partir de is_organization
   phone?: string; // Numéro de téléphone
   bio?: string; // Biographie
+  website?: string; // Website URL
 }
 
 // Types pour les compétences et badges
@@ -44,6 +46,7 @@ export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"] & {
 
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"] & {
   badge?: Badge;
+  acquired_at?: string; // Add compatibility property
 };
 
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
