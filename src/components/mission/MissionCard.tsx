@@ -111,3 +111,5 @@ export function MissionCard({ mission }: MissionCardProps) {
     </Card>
   );
 }
+
+export default MissionCard;

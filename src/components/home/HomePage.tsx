@@ -26,12 +26,15 @@ const HomePage = () => {
           const formattedRecent = recentData.map((mission) => ({
             ...mission,
             id: mission.mission_id,
+            mission_type_id: mission.mission_type_id || '',
+            organization_id: mission.organization_id || '',
+            postal_code: mission.postal_code || '',
+            status: mission.status || 'active',
             organization: {
               organization_name: mission.organization_name,
               logo_url: mission.logo_url,
             },
             required_skills: mission.required_skills || [],
-            // Map missing properties with defaults
             address: mission.address || '',
             created_at: mission.created_at || new Date().toISOString(),
             end_date: mission.end_date || mission.start_date,
@@ -56,12 +59,15 @@ const HomePage = () => {
           const formattedNearby = nearbyData.map((mission) => ({
             ...mission,
             id: mission.mission_id,
+            mission_type_id: mission.mission_type_id || '',
+            organization_id: mission.organization_id || '',
+            postal_code: mission.postal_code || '',
+            status: mission.status || 'active',
             organization: {
               organization_name: mission.organization_name,
               logo_url: mission.logo_url,
             },
             required_skills: mission.required_skills || [],
-            // Map missing properties with defaults
             address: mission.address || '',
             created_at: mission.created_at || new Date().toISOString(),
             end_date: mission.end_date || mission.start_date,
