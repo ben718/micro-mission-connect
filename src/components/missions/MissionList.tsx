@@ -1,6 +1,6 @@
 import { useMissions } from "@/hooks/useMissions";
 import { MissionCard } from "./MissionCard";
-import { MissionFilters } from "./MissionFilters";
+import MissionFilters from "./MissionFilters";
 import { useState } from "react";
 import { MissionWithDetails } from "@/types/mission";
 
@@ -41,4 +41,4 @@ export function MissionList() {
       )}
     </div>
   );
-} 
+}
