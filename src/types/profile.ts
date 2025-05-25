@@ -5,6 +5,7 @@ import { Database } from "@/integrations/supabase/types";
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   is_association?: boolean;
   avatar_url?: string;
+  profile_picture_url?: string;
 };
 
 // Type pour un profil d'organisation

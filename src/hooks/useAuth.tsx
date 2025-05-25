@@ -1,161 +1,174 @@
 
-import { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
-import { User, Session } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
+import { CompleteProfile } from "@/types/profile";
 import { toast } from "sonner";
 
-interface Profile {
-  id: string;
-  first_name?: string;
-  last_name?: string;
-  profile_picture_url?: string;
-  city?: string;
-  postal_code?: string;
-  address?: string;
-  latitude?: number;
-  longitude?: number;
-  created_at?: string;
-  updated_at?: string;
-  last_login?: string;
+export interface SignUpData {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  isOrganization?: boolean;
+  organizationName?: string;
 }
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  profile: Profile | null;
-  loading: boolean;
-  isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, metadata: any) => Promise<void>;
-  signOut: () => Promise<void>;
+export interface SignInData {
+  email: string;
+  password: string;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export function useAuth() {
+  const queryClient = useQueryClient();
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-};
+  // Get current session
+  const { data: session } = useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+  });
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const navigate = useNavigate();
+  // Get user profile
+  const { data: profile, isLoading } = useQuery({
+    queryKey: ["profile", session?.user?.id],
+    queryFn: async (): Promise<CompleteProfile | null> => {
+      if (!session?.user?.id) return null;
 
-  useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  async function fetchProfile(userId: string) {
-    try {
       const { data: profileData, error } = await supabase
         .from("profiles")
         .select("*")
-        .eq("id", userId)
+        .eq("id", session.user.id)
         .single();
 
       if (error) throw error;
-      setProfile(profileData);
-    } catch (error) {
-      console.error("Error fetching profile:", error);
-    }
-  }
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      // Check if user has an organization profile
+      const { data: orgProfile } = await supabase
+        .from("organization_profiles")
+        .select(`
+          *,
+          sector:sector_id(*)
+        `)
+        .eq("user_id", session.user.id)
+        .single();
+
+      return {
+        ...profileData,
+        is_organization: !!orgProfile,
+        organization: orgProfile || undefined,
+        email: session.user.email,
+        avatar_url: profileData.profile_picture_url,
+        is_association: !!orgProfile,
+      } as CompleteProfile;
+    },
+    enabled: !!session?.user?.id,
+  });
+
+  const signUp = useMutation({
+    mutationFn: async (data: SignUpData) => {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
       });
-      if (error) throw error;
-      navigate("/");
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const signUp = async (email: string, password: string, metadata: any) => {
-    try {
-      setIsLoading(true);
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-        },
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Create profile
+        const { error: profileError } = await supabase
+          .from("profiles")
+          .insert({
+            id: authData.user.id,
+            first_name: data.firstName,
+            last_name: data.lastName,
+          });
+
+        if (profileError) throw profileError;
+
+        // Create organization profile if needed
+        if (data.isOrganization && data.organizationName) {
+          const { error: orgError } = await supabase
+            .from("organization_profiles")
+            .insert({
+              user_id: authData.user.id,
+              organization_name: data.organizationName,
+            });
+
+          if (orgError) throw orgError;
+        }
+      }
+
+      return authData;
+    },
+    onSuccess: () => {
+      toast.success("Compte créé avec succès !");
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const signIn = useMutation({
+    mutationFn: async (data: SignInData) => {
+      const { data: authData, error } = await supabase.auth.signInWithPassword({
+        email: data.email,
+        password: data.password,
       });
-      if (error) throw error;
-      toast.success("Registration successful! Check your email to confirm your account.");
-      navigate("/auth/login");
-    } catch (error: any) {
-      toast.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
-  const signOut = async () => {
-    try {
-      setIsLoading(true);
+      if (error) throw error;
+      return authData;
+    },
+    onSuccess: () => {
+      toast.success("Connexion réussie !");
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const signOut = useMutation({
+    mutationFn: async () => {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      setProfile(null);
-      navigate("/auth/login");
-    } catch (error: any) {
+    },
+    onSuccess: () => {
+      toast.success("Déconnexion réussie !");
+      queryClient.clear();
+    },
+    onError: (error) => {
       toast.error(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        session,
-        profile,
-        loading,
-        isLoading,
-        signIn,
-        signUp,
-        signOut,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const resetPassword = useMutation({
+    mutationFn: async (email: string) => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Email de réinitialisation envoyé !");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  return {
+    user: session?.user || null,
+    profile,
+    isLoading,
+    loading: isLoading,
+    error: "",
+    signUp: signUp.mutateAsync,
+    signIn: signIn.mutateAsync,
+    signOut: signOut.mutateAsync,
+    resetPassword: resetPassword.mutateAsync,
+  };
+}
