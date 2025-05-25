@@ -112,7 +112,13 @@ export const useMissions = (filters?: MissionFilters) => {
       const transformedData = (data || []).map(mission => ({
         ...mission,
         organization: mission.organization_profiles || {},
-        mission_type: mission.mission_types || {},
+        mission_type: mission.mission_types || {
+          id: '',
+          name: '',
+          description: '',
+          created_at: '',
+          updated_at: ''
+        },
         required_skills: [],
         participants_count: 0,
       }));

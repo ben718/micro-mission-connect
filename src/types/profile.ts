@@ -11,8 +11,8 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   bio?: string;
   email?: string;
   website?: string;
-  skills?: UserSkill[];
-  badges?: UserBadge[];
+  user_skills?: UserSkill[];
+  user_badges?: UserBadge[];
   location?: any; // Geography type
 };
 
@@ -27,7 +27,7 @@ export type OrganizationSector = Database["public"]["Tables"]["organization_sect
 // Type combiné pour un profil complet
 export interface CompleteProfile extends Profile {
   is_organization: boolean;
-  organization?: OrganizationProfile;
+  organization_profile?: OrganizationProfile;
   
   // Propriétés synthétiques pour la compatibilité avec le code existant
   name?: string; // Calculé à partir de first_name + last_name

@@ -10,6 +10,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
+  isLoading: boolean; // Add this property
   signIn: (email: string, password: string) => Promise<any>;
   signUp: (email: string, password: string, userData?: any) => Promise<any>;
   signOut: () => Promise<void>;
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   // Fetch user profile
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
@@ -34,11 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           *,
           user_skills (
             *,
-            skills (*)
+            skill:skill_id (*)
           ),
           user_badges (
             *,
-            badges (*)
+            badge:badge_id (*)
           )
         `)
         .eq('id', user.id)
@@ -102,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     profile,
     loading,
+    isLoading: loading || profileLoading,
     signIn,
     signUp,
     signOut,

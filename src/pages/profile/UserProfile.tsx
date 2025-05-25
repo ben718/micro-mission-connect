@@ -100,7 +100,7 @@ export default function UserProfile() {
           {skills && skills.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
               {skills.map((userSkill: UserSkill) => (
-                <Badge key={userSkill.id} variant="secondary">{userSkill.skills?.name}</Badge>
+                <Badge key={userSkill.id} variant="secondary">{userSkill.skill?.name}</Badge>
               ))}
             </div>
           )}
@@ -158,9 +158,9 @@ export default function UserProfile() {
               {badges.map((userBadge: UserBadge) => (
                 <Tooltip key={userBadge.id}>
                   <TooltipTrigger asChild>
-                    <Badge variant="default" className="cursor-help">{userBadge.badges?.name}</Badge>
+                    <Badge variant="default" className="cursor-help">{userBadge.badge?.name}</Badge>
                   </TooltipTrigger>
-                  <TooltipContent>{badgeDescriptions[userBadge.badges?.name || ''] || 'Badge obtenu'}</TooltipContent>
+                  <TooltipContent>{badgeDescriptions[userBadge.badge?.name || ''] || 'Badge obtenu'}</TooltipContent>
                 </Tooltip>
               ))}
             </div>

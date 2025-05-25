@@ -1,6 +1,8 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -15,47 +17,48 @@ import { formatDate, formatDuration } from "@/utils/date";
 
 const ProfileOrganization = () => {
   const { user, profile } = useAuth();
+  const { data: organizationProfile, isLoading: orgLoading } = useOrganizationProfile(user?.id);
   const [missions, setMissions] = useState<MissionWithDetails[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("missions");
 
   useEffect(() => {
     const fetchMissions = async () => {
-      if (!user || !profile?.organization) return;
+      if (!user || !organizationProfile) return;
 
       try {
         const { data: missionsData, error: missionsError } = await supabase
           .from("missions")
           .select(`
             *,
-            organization:organization_id(
+            organization_profiles:organization_id(
               *,
-              sector:organization_sectors(*)
+              organization_sectors(*)
             ),
-            mission_type:mission_types(*),
+            mission_types(*),
             mission_skills(
               *,
-              skill:skills(*)
+              skills(*)
             ),
             mission_registrations(
               *,
-              user:user_id(
+              profiles:user_id(
                 *,
                 user_skills(
                   *,
-                  skill:skills(*)
+                  skills(*)
                 )
               )
             )
           `)
-          .eq("organization_id", profile.organization.id)
+          .eq("organization_id", organizationProfile.id)
           .order("created_at", { ascending: false });
 
         if (missionsError) throw missionsError;
 
         const transformedMissions = missionsData.map((mission: any) => ({
           ...mission,
-          required_skills: mission.mission_skills.map((ms: any) => ms.skill.name),
+          required_skills: mission.mission_skills.map((ms: any) => ms.skills.name),
           participants_count: mission.mission_registrations.filter((r: any) => r.status === "confirmé").length,
           is_registered: false,
           available_spots: mission.available_spots - mission.mission_registrations.filter((r: any) => r.status === "confirmé").length
@@ -71,9 +74,9 @@ const ProfileOrganization = () => {
     };
 
     fetchMissions();
-  }, [user, profile]);
+  }, [user, organizationProfile]);
 
-  if (!profile?.organization) {
+  if (orgLoading || !organizationProfile) {
     return (
       <div className="container py-8">
         <div className="text-center">
@@ -92,14 +95,14 @@ const ProfileOrganization = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16">
-              <AvatarImage src={profile.organization.logo_url || undefined} />
+              <AvatarImage src={organizationProfile.logo_url || undefined} />
               <AvatarFallback>
-                {profile.organization.organization_name.charAt(0)}
+                {organizationProfile.organization_name.charAt(0)}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold">{profile.organization.organization_name}</h1>
-              <p className="text-muted-foreground">{profile.organization.sector?.name}</p>
+              <h1 className="text-2xl font-bold">{organizationProfile.organization_name}</h1>
+              <p className="text-muted-foreground">{organizationProfile.sector?.name}</p>
             </div>
           </div>
           <Button asChild>
@@ -217,4 +220,4 @@ const ProfileOrganization = () => {
   );
 };
 
-export default ProfileOrganization; 
+export default ProfileOrganization;
