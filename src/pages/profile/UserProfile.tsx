@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
@@ -33,8 +34,8 @@ export default function UserProfile() {
     ? missionsResponse 
     : (missionsResponse?.data || []);
 
-  // Missions du bénévole - updated to use spots_taken instead of participants
-  const myMissions = (missions || []).filter(m => m.spots_taken > 0);
+  // Missions du bénévole - using available_spots instead of spots_taken
+  const myMissions = (missions || []).filter(m => m.available_spots > 0);
   const missionsAVenir = (myMissions || []).filter(m => new Date(m.start_date) >= new Date());
   const missionsPassees = (myMissions || []).filter(m => new Date(m.start_date) < new Date());
 
