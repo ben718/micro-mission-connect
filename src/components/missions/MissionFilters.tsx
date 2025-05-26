@@ -43,7 +43,7 @@ const MissionFilters = ({ onFiltersChange, userLocation }: MissionFiltersProps) 
   const [availableTypes, setAvailableTypes] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Collapsible states for mobile
+  // Collapsible states
   const [isFormatOpen, setIsFormatOpen] = useState(false);
   const [isDifficultyOpen, setIsDifficultyOpen] = useState(false);
   const [isEngagementOpen, setIsEngagementOpen] = useState(false);
@@ -119,12 +119,12 @@ const MissionFilters = ({ onFiltersChange, userLocation }: MissionFiltersProps) 
   };
 
   return (
-    <Card className="w-full">
+    <Card className="w-full max-w-sm">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4" />
-            <CardTitle className="text-lg">Filtres</CardTitle>
+            <CardTitle className="text-base">Filtres</CardTitle>
             {getActiveFiltersCount() > 0 && (
               <Badge variant="secondary" className="text-xs">
                 {getActiveFiltersCount()}
@@ -132,192 +132,207 @@ const MissionFilters = ({ onFiltersChange, userLocation }: MissionFiltersProps) 
             )}
           </div>
           <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="w-4 h-4 mr-1" />
-            Réinitialiser
+            <X className="w-4 h-4" />
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3">
         {/* Barre de recherche */}
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Rechercher une mission..."
-              value={filters.searchQuery}
-              onChange={(e) => handleFilterChange("searchQuery", e.target.value)}
-              className="pl-10"
-            />
-          </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Rechercher..."
+            value={filters.searchQuery}
+            onChange={(e) => handleFilterChange("searchQuery", e.target.value)}
+            className="pl-10 h-9"
+          />
         </div>
 
-        {/* Format - Responsive */}
-        <div className="space-y-2">
-          <Collapsible open={isFormatOpen} onOpenChange={setIsFormatOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Format {filters.format.length > 0 && `(${filters.format.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isFormatOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {["Présentiel", "À distance", "Hybride"].map((format) => (
-                  <div key={format} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`format-${format}`}
-                      checked={filters.format.includes(format)}
-                      onCheckedChange={() => toggleArrayFilter('format', format)}
-                    />
-                    <label htmlFor={`format-${format}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {format}
-                    </label>
-                  </div>
-                ))}
+        {/* Format */}
+        <Collapsible open={isFormatOpen} onOpenChange={setIsFormatOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Format {filters.format.length > 0 && `(${filters.format.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isFormatOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            {["Présentiel", "À distance", "Hybride"].map((format) => (
+              <div key={format} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`format-${format}`}
+                  checked={filters.format.includes(format)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      toggleArrayFilter('format', format);
+                    } else {
+                      toggleArrayFilter('format', format);
+                    }
+                  }}
+                />
+                <label htmlFor={`format-${format}`} className="text-sm cursor-pointer">
+                  {format}
+                </label>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Difficulté */}
-        <div className="space-y-2">
-          <Collapsible open={isDifficultyOpen} onOpenChange={setIsDifficultyOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Niveau de difficulté {filters.difficulty.length > 0 && `(${filters.difficulty.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isDifficultyOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {["débutant", "intermédiaire", "expert"].map((level) => (
-                  <div key={level} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`difficulty-${level}`}
-                      checked={filters.difficulty.includes(level)}
-                      onCheckedChange={() => toggleArrayFilter('difficulty', level)}
-                    />
-                    <label htmlFor={`difficulty-${level}`} className="text-sm font-medium leading-none cursor-pointer capitalize">
-                      {level}
-                    </label>
-                  </div>
-                ))}
+        <Collapsible open={isDifficultyOpen} onOpenChange={setIsDifficultyOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Difficulté {filters.difficulty.length > 0 && `(${filters.difficulty.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isDifficultyOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            {["débutant", "intermédiaire", "expert"].map((level) => (
+              <div key={level} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`difficulty-${level}`}
+                  checked={filters.difficulty.includes(level)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      toggleArrayFilter('difficulty', level);
+                    } else {
+                      toggleArrayFilter('difficulty', level);
+                    }
+                  }}
+                />
+                <label htmlFor={`difficulty-${level}`} className="text-sm cursor-pointer capitalize">
+                  {level}
+                </label>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Engagement */}
-        <div className="space-y-2">
-          <Collapsible open={isEngagementOpen} onOpenChange={setIsEngagementOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Niveau d'engagement {filters.engagement.length > 0 && `(${filters.engagement.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isEngagementOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {["Ultra-rapide", "Petit coup de main", "Mission avec suivi", "Projet long"].map((level) => (
-                  <div key={level} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`engagement-${level}`}
-                      checked={filters.engagement.includes(level)}
-                      onCheckedChange={() => toggleArrayFilter('engagement', level)}
-                    />
-                    <label htmlFor={`engagement-${level}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {level}
-                    </label>
-                  </div>
-                ))}
+        <Collapsible open={isEngagementOpen} onOpenChange={setIsEngagementOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Engagement {filters.engagement.length > 0 && `(${filters.engagement.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isEngagementOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            {["Ultra-rapide", "Petit coup de main", "Mission avec suivi", "Projet long"].map((level) => (
+              <div key={level} className="flex items-center space-x-2">
+                <Checkbox
+                  id={`engagement-${level}`}
+                  checked={filters.engagement.includes(level)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      toggleArrayFilter('engagement', level);
+                    } else {
+                      toggleArrayFilter('engagement', level);
+                    }
+                  }}
+                />
+                <label htmlFor={`engagement-${level}`} className="text-sm cursor-pointer">
+                  {level}
+                </label>
               </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Compétences */}
-        <div className="space-y-2">
-          <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Compétences requises {filters.skills.length > 0 && `(${filters.skills.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isSkillsOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {availableSkills.map((skill) => (
-                  <div key={skill} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`skill-${skill}`}
-                      checked={filters.skills.includes(skill)}
-                      onCheckedChange={() => toggleArrayFilter('skills', skill)}
-                    />
-                    <label htmlFor={`skill-${skill}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {skill}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Compétences {filters.skills.length > 0 && `(${filters.skills.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isSkillsOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            <div className="max-h-32 overflow-y-auto space-y-2">
+              {availableSkills.map((skill) => (
+                <div key={skill} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`skill-${skill}`}
+                    checked={filters.skills.includes(skill)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        toggleArrayFilter('skills', skill);
+                      } else {
+                        toggleArrayFilter('skills', skill);
+                      }
+                    }}
+                  />
+                  <label htmlFor={`skill-${skill}`} className="text-sm cursor-pointer">
+                    {skill}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Secteurs */}
-        <div className="space-y-2">
-          <Collapsible open={isSectorsOpen} onOpenChange={setIsSectorsOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Secteurs d'action {filters.sectors.length > 0 && `(${filters.sectors.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isSectorsOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {availableSectors.map((sector) => (
-                  <div key={sector} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`sector-${sector}`}
-                      checked={filters.sectors.includes(sector)}
-                      onCheckedChange={() => toggleArrayFilter('sectors', sector)}
-                    />
-                    <label htmlFor={`sector-${sector}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {sector}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        <Collapsible open={isSectorsOpen} onOpenChange={setIsSectorsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Secteurs {filters.sectors.length > 0 && `(${filters.sectors.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isSectorsOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            <div className="max-h-32 overflow-y-auto space-y-2">
+              {availableSectors.map((sector) => (
+                <div key={sector} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`sector-${sector}`}
+                    checked={filters.sectors.includes(sector)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        toggleArrayFilter('sectors', sector);
+                      } else {
+                        toggleArrayFilter('sectors', sector);
+                      }
+                    }}
+                  />
+                  <label htmlFor={`sector-${sector}`} className="text-sm cursor-pointer">
+                    {sector}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Types de mission */}
-        <div className="space-y-2">
-          <Collapsible open={isTypesOpen} onOpenChange={setIsTypesOpen}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" className="w-full justify-between p-0 h-auto font-medium text-sm">
-                <span>Types de mission {filters.types.length > 0 && `(${filters.types.length})`}</span>
-                <ChevronDown className={`w-4 h-4 transition-transform ${isTypesOpen ? 'rotate-180' : ''}`} />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="space-y-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                {availableTypes.map((type) => (
-                  <div key={type} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`type-${type}`}
-                      checked={filters.types.includes(type)}
-                      onCheckedChange={() => toggleArrayFilter('types', type)}
-                    />
-                    <label htmlFor={`type-${type}`} className="text-sm font-medium leading-none cursor-pointer">
-                      {type}
-                    </label>
-                  </div>
-                ))}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
+        <Collapsible open={isTypesOpen} onOpenChange={setIsTypesOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-sm">
+              <span>Types {filters.types.length > 0 && `(${filters.types.length})`}</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${isTypesOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-2 mt-2">
+            <div className="max-h-32 overflow-y-auto space-y-2">
+              {availableTypes.map((type) => (
+                <div key={type} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`type-${type}`}
+                    checked={filters.types.includes(type)}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        toggleArrayFilter('types', type);
+                      } else {
+                        toggleArrayFilter('types', type);
+                      }
+                    }}
+                  />
+                  <label htmlFor={`type-${type}`} className="text-sm cursor-pointer">
+                    {type}
+                  </label>
+                </div>
+              ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );

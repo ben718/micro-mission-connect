@@ -160,6 +160,12 @@ const RegisterForm = () => {
       case 'phone':
         setPhone(value);
         break;
+      case 'location':
+        setLocation(value);
+        break;
+      case 'assoDesc':
+        setAssoDesc(value);
+        break;
     }
   };
 
@@ -211,16 +217,31 @@ const RegisterForm = () => {
 
   const handleNext = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (validateStep()) setStep((s) => s + 1);
+    if (validateStep()) {
+      saveFormData({
+        firstName, lastName, email, password, confirmPassword, bio, 
+        website, phone, userType, step: step + 1, location, assoDesc
+      });
+      setStep((s) => s + 1);
+    }
   };
-  const handlePrev = () => setStep((s) => s - 1);
+
+  const handlePrev = () => {
+    const newStep = step - 1;
+    saveFormData({
+      firstName, lastName, email, password, confirmPassword, bio, 
+      website, phone, userType, step: newStep, location, assoDesc
+    });
+    setStep(newStep);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError("");
     setIsLoading(true);
+    
     try {
-      await signUp(email, password, {
+      const userData = {
         first_name: firstName,
         last_name: lastName,
         bio,
@@ -231,19 +252,24 @@ const RegisterForm = () => {
         website,
         phone,
         categories: selectedCategories,
-      });
+      };
+
+      console.log("Tentative d'inscription avec les données:", userData);
+      
+      const result = await signUp(email, password, userData);
+      
+      if (result.error) {
+        console.error("Erreur d'inscription:", result.error);
+        throw new Error(result.error.message);
+      }
+      
       toast.success("Inscription réussie ! Bienvenue sur MicroBénévole.");
-      clearFormData(); // Effacer les données sauvegardées après une inscription réussie
+      clearFormData();
     } catch (err: any) {
+      console.error("Erreur lors de l'inscription:", err);
       const errorMessage = err.message || "Erreur lors de l'inscription";
       setFormError(errorMessage);
       toast.error(errorMessage);
-      
-      if (!navigator.onLine) {
-        toast.error("Pas de connexion internet. Veuillez vérifier votre connexion.");
-      } else if (err.message?.includes("network")) {
-        toast.error("Problème de connexion au serveur. Veuillez réessayer.");
-      }
     } finally {
       setIsLoading(false);
     }
@@ -266,8 +292,26 @@ const RegisterForm = () => {
         <div className="flex flex-col gap-6 items-center">
           <h2 className="text-xl font-bold text-bleu">Quel est votre rôle ?</h2>
           <div className="flex gap-6">
-            <Button type="button" className={`px-8 py-4 rounded-lg border ${userType === 'benevole' ? 'bg-bleu text-white' : 'bg-white text-bleu border-bleu'}`} onClick={() => setUserType('benevole')}>Bénévole</Button>
-            <Button type="button" className={`px-8 py-4 rounded-lg border ${userType === 'association' ? 'bg-bleu text-white' : 'bg-white text-bleu border-bleu'}`} onClick={() => setUserType('association')}>Association</Button>
+            <Button 
+              type="button" 
+              className={`px-8 py-4 rounded-lg border ${userType === 'benevole' ? 'bg-bleu text-white' : 'bg-white text-bleu border-bleu'}`} 
+              onClick={() => {
+                setUserType('benevole');
+                updateField('userType', 'benevole');
+              }}
+            >
+              Bénévole
+            </Button>
+            <Button 
+              type="button" 
+              className={`px-8 py-4 rounded-lg border ${userType === 'association' ? 'bg-bleu text-white' : 'bg-white text-bleu border-bleu'}`} 
+              onClick={() => {
+                setUserType('association');
+                updateField('userType', 'association');
+              }}
+            >
+              Association
+            </Button>
           </div>
           <Button type="button" className="mt-8 w-full bg-bleu text-white" onClick={handleNext}>Suivant</Button>
         </div>
@@ -450,13 +494,14 @@ const RegisterForm = () => {
               <>
                 <li><b>Bio :</b> {bio}</li>
                 <li><b>Localisation :</b> {location}</li>
-                <li><b>Compétences :</b> {skills.join(", ")}</li>
+                <li><b>Compétences :</b> {selectedSkills.length} sélectionnées</li>
               </>
             ) : (
               <>
                 <li><b>Description :</b> {assoDesc}</li>
                 <li><b>Site web :</b> {website}</li>
                 <li><b>Téléphone :</b> {phone}</li>
+                <li><b>Catégories :</b> {selectedCategories.length} sélectionnées</li>
               </>
             )}
           </ul>

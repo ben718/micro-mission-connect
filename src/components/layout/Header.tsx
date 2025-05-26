@@ -27,6 +27,10 @@ const Header = () => {
     }
   };
 
+  const handleSearchClick = () => {
+    navigate("/missions");
+  };
+
   const isOrganization = profile?.is_organization || profile?.is_association;
 
   return (
@@ -69,7 +73,7 @@ const Header = () => {
         {/* Actions */}
         <div className="flex items-center space-x-4">
           {/* Recherche */}
-          <Button variant="ghost" size="sm" className="hidden sm:flex">
+          <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={handleSearchClick}>
             <Search className="h-4 w-4" />
           </Button>
 
