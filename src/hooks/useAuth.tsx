@@ -10,7 +10,7 @@ interface AuthContextType {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  isLoading: boolean; // Add this property
+  isLoading: boolean;
   signIn: (email: string, password: string) => Promise<any>;
   signUp: (email: string, password: string, userData?: any) => Promise<any>;
   signOut: () => Promise<void>;
@@ -23,34 +23,76 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile
-  const { data: profile, isLoading: profileLoading } = useQuery({
+  // Fetch user profile with proper error handling
+  const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ['profile', user?.id],
-    queryFn: async () => {
+    queryFn: async (): Promise<Profile | null> => {
       if (!user?.id) return null;
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          *,
-          user_skills (
+      try {
+        // First get basic profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.error('Error fetching profile:', profileError);
+          return null;
+        }
+
+        // Get user skills
+        const { data: skillsData, error: skillsError } = await supabase
+          .from('user_skills')
+          .select(`
             *,
             skill:skill_id (*)
-          ),
-          user_badges (
+          `)
+          .eq('user_id', user.id);
+
+        if (skillsError) {
+          console.error('Error fetching skills:', skillsError);
+        }
+
+        // Get user badges
+        const { data: badgesData, error: badgesError } = await supabase
+          .from('user_badges')
+          .select(`
             *,
             badge:badge_id (*)
-          )
-        `)
-        .eq('id', user.id)
-        .single();
+          `)
+          .eq('user_id', user.id);
 
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error fetching profile:', error);
+        if (badgesError) {
+          console.error('Error fetching badges:', badgesError);
+        }
+
+        // Check if user is organization
+        const { data: orgData, error: orgError } = await supabase
+          .from('organization_profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (orgError && orgError.code !== 'PGRST116') {
+          console.error('Error fetching organization:', orgError);
+        }
+
+        // Construct complete profile
+        const completeProfile: Profile = {
+          ...profileData,
+          user_skills: skillsData || [],
+          user_badges: badgesData || [],
+          is_organization: !!orgData,
+          email: user.email || '',
+        };
+
+        return completeProfile;
+      } catch (error) {
+        console.error('Unexpected error fetching profile:', error);
         return null;
       }
-
-      return data;
     },
     enabled: !!user?.id,
   });
@@ -101,7 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = {
     user,
     session,
-    profile,
+    profile: profileError ? null : profile,
     loading,
     isLoading: loading || profileLoading,
     signIn,

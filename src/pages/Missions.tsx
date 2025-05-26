@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
+import { MissionFilters, DateRangeSelection, MissionWithOrganization } from "@/types/mission";
 import { DateRange } from "react-day-picker";
 
 const MissionsPage = () => {
@@ -75,16 +75,44 @@ const MissionsPage = () => {
     setPage(newPage);
   };
 
-  // Transform missions data to match expected type
-  const transformedMissions: MissionWithDetails[] = missions.map(mission => ({
-    ...mission,
-    required_skills: (mission as any).mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
-    organization: (mission as any).organization_profiles || {} as any,
-    participants_count: (mission as any).mission_registrations?.length || 0,
-  }));
+  // Transform missions data to match expected type with proper typing
+  const transformedMissions: MissionWithOrganization[] = missions.map(mission => {
+    // Ensure mission_type has all required properties
+    const missionType = mission.mission_type ? {
+      id: mission.mission_type.id,
+      name: mission.mission_type.name,
+      description: mission.mission_type.description,
+      created_at: mission.mission_type.created_at || new Date().toISOString(),
+      updated_at: mission.mission_type.updated_at || new Date().toISOString(),
+    } : undefined;
 
-  if (isLoading) return <div>Chargement...</div>;
-  if (error) return <div>Erreur: {error.message}</div>;
+    return {
+      ...mission,
+      required_skills: mission.required_skills || [],
+      organization: mission.organization || {
+        id: '',
+        organization_name: 'Organisation inconnue',
+        user_id: '',
+        created_at: '',
+        updated_at: '',
+        description: null,
+        website_url: null,
+        logo_url: null,
+        siret_number: null,
+        address: null,
+        creation_date: null,
+        sector_id: null,
+        location: null,
+        longitude: null,
+        latitude: null,
+      },
+      participants_count: mission.participants_count || 0,
+      mission_type: missionType,
+    };
+  });
+
+  if (isLoading) return <div className="flex justify-center p-8">Chargement...</div>;
+  if (error) return <div className="flex justify-center p-8 text-red-500">Erreur: {error.message}</div>;
 
   return (
     <div className="container mx-auto py-8">
@@ -224,6 +252,12 @@ const MissionsPage = () => {
           <MissionCard key={mission.id} mission={mission} />
         ))}
       </div>
+
+      {transformedMissions.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          Aucune mission ne correspond à vos critères de recherche.
+        </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (
