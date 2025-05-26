@@ -171,10 +171,22 @@ const RegisterForm = () => {
     setFormError("");
     
     if (step === 1) {
-      if (!firstName || !lastName || !email || !password || !confirmPassword) {
-        setFormError("Tous les champs sont obligatoires.");
+      const missingFields = [];
+      if (userType === "association") {
+        if (!organizationName) missingFields.push("Nom de l'association");
+      } else {
+        if (!firstName) missingFields.push("Prénom");
+        if (!lastName) missingFields.push("Nom");
+      }
+      if (!email) missingFields.push("Email");
+      if (!password) missingFields.push("Mot de passe");
+      if (!confirmPassword) missingFields.push("Confirmation du mot de passe");
+
+      if (missingFields.length > 0) {
+        setFormError(`Veuillez remplir les champs obligatoires suivants : ${missingFields.join(", ")}`);
         return false;
       }
+
       if (password !== confirmPassword) {
         setPasswordError("Les mots de passe ne correspondent pas");
         return false;
