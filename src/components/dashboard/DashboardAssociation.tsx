@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -34,6 +33,11 @@ type SimpleMission = {
   location: string;
   status: string;
   duration_minutes?: number;
+  latitude?: number;
+  longitude?: number;
+  format?: string;
+  difficulty_level?: string;
+  engagement_level?: string;
   registrations?: MissionRegistration[];
 };
 
@@ -76,7 +80,12 @@ const DashboardAssociation = () => {
           start_date,
           location,
           status,
-          duration_minutes
+          duration_minutes,
+          latitude,
+          longitude,
+          format,
+          difficulty_level,
+          engagement_level
         `)
         .eq("organization_id", user?.id)
         .order("start_date", { ascending: true });

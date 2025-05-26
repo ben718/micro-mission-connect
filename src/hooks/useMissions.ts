@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionFilters, MissionStats } from "@/types/mission";
@@ -69,6 +68,13 @@ export const useLocations = () => {
   });
 };
 
+interface MissionFilters {
+  query?: string;
+  location?: string;
+  status?: string;
+  organization_id?: string;
+}
+
 export const useMissions = (filters?: MissionFilters) => {
   return useQuery({
     queryKey: ["missions", filters],
@@ -92,6 +98,17 @@ export const useMissions = (filters?: MissionFilters) => {
             id,
             name,
             description
+          ),
+          mission_skills (
+            skill:skill_id (
+              id,
+              name,
+              description
+            )
+          ),
+          mission_registrations (
+            id,
+            status
           )
         `)
         .eq("status", "active");
@@ -104,23 +121,20 @@ export const useMissions = (filters?: MissionFilters) => {
         query = query.ilike("location", `%${filters.location}%`);
       }
 
+      if (filters?.organization_id) {
+        query = query.eq("organization_id", filters.organization_id);
+      }
+
       const { data, error, count } = await query;
 
       if (error) throw error;
 
-      // Transform data to match expected interface
       const transformedData = (data || []).map(mission => ({
         ...mission,
-        organization: mission.organization_profiles || {},
-        mission_type: mission.mission_types || {
-          id: '',
-          name: '',
-          description: '',
-          created_at: '',
-          updated_at: ''
-        },
-        required_skills: [],
-        participants_count: 0,
+        organization: mission.organization_profiles,
+        mission_type: mission.mission_types,
+        required_skills: mission.mission_skills?.map(ms => ms.skill?.name).filter(Boolean) || [],
+        participants_count: mission.mission_registrations?.filter(mr => mr.status === 'accepté').length || 0,
       }));
 
       return {
@@ -149,13 +163,34 @@ export const useUserMissions = (userId?: string) => {
               description,
               website_url,
               logo_url
+            ),
+            mission_types (
+              id,
+              name,
+              description
+            ),
+            mission_skills (
+              skill:skill_id (
+                id,
+                name,
+                description
+              )
             )
           )
         `)
         .eq("user_id", userId);
 
       if (error) throw error;
-      return data || [];
+
+      return (data || []).map(registration => ({
+        ...registration,
+        mission: {
+          ...registration.missions,
+          organization: registration.missions.organization_profiles,
+          mission_type: registration.missions.mission_types,
+          required_skills: registration.missions.mission_skills?.map(ms => ms.skill?.name).filter(Boolean) || [],
+        }
+      }));
     },
     enabled: !!userId,
   });
@@ -171,7 +206,22 @@ export const useOrganizationMissions = (organizationId?: string, filterStatus?: 
         .from("missions")
         .select(`
           *,
-          mission_registrations(count)
+          mission_types (
+            id,
+            name,
+            description
+          ),
+          mission_skills (
+            skill:skill_id (
+              id,
+              name,
+              description
+            )
+          ),
+          mission_registrations (
+            id,
+            status
+          )
         `)
         .eq("organization_id", organizationId);
         
@@ -187,20 +237,12 @@ export const useOrganizationMissions = (organizationId?: string, filterStatus?: 
 
       if (error) throw error;
       
-      // Add participants_count to each mission
-      const missionsWithCount = await Promise.all((data || []).map(async (mission) => {
-        const { count } = await supabase
-          .from("mission_registrations")
-          .select("*", { count: "exact", head: true })
-          .eq("mission_id", mission.id);
-
-        return {
-          ...mission,
-          participants_count: count || 0,
-        };
+      return (data || []).map(mission => ({
+        ...mission,
+        mission_type: mission.mission_types,
+        required_skills: mission.mission_skills?.map(ms => ms.skill?.name).filter(Boolean) || [],
+        participants_count: mission.mission_registrations?.filter(mr => mr.status === 'accepté').length || 0,
       }));
-
-      return missionsWithCount;
     },
     enabled: !!organizationId,
   });

@@ -1,21 +1,16 @@
-
 import { Database } from "@/integrations/supabase/types";
 import type { CompleteProfile, OrganizationProfile } from './profile';
 
 // Types dérivés de la base de données Supabase
 export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
-  // Propriétés synthétiques pour la compatibilité avec le code existant
-  category?: string; 
-  date?: string; // Pour la compatibilité avec le code existant (dérivé de start_date)
-  timeSlot?: string; // Pour la compatibilité avec le code existant
-  duration?: string; // Pour la compatibilité avec le code existant (dérivé de duration_minutes)
-  participants?: string; // Pour la compatibilité avec le code existant
-  requiredSkills?: string[]; // Pour la compatibilité avec le code existant
-  associationId?: string; // Alias pour organization_id
-  required_skills: string[]; // Required property
-  organization: Organization; // Required property
-  participants_count?: number; // Add this property
+  organization: Organization;
   mission_type?: MissionType;
+  required_skills: string[];
+  participants_count: number;
+  geo_location?: {
+    type: "Point";
+    coordinates: [number, number];
+  };
 };
 
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
@@ -44,23 +39,21 @@ export type Organization = OrganizationProfile;
 export type MissionWithOrganization = Mission & {
   organization: Organization;
   mission_type?: MissionType;
-  participants_count: number; // Make this required
 };
 
 export type MissionWithAssociation = MissionWithOrganization;
 
-export type MissionFormat = "présentiel" | "à distance" | "hybride";
+export type MissionFormat = "Présentiel" | "À distance" | "Hybride";
 export type MissionDifficulty = "débutant" | "intermédiaire" | "expert";
-export type MissionEngagement = "ultra-rapide" | "petit coup de main" | "mission avec suivi" | "projet long";
-export type MissionStatus = 'active' | 'terminée' | 'annulée' | 'open' | 'completed' | 'cancelled' | 'draft' | 'in_progress' | 'filled';
-export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé' | 'registered' | 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+export type MissionEngagement = "Ultra-rapide" | "Petit coup de main" | "Mission avec suivi" | "Projet long";
+export type MissionStatus = 'active' | 'terminée' | 'annulée';
+export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé' | 'no_show';
 
 export type MissionWithDetails = MissionWithOrganization & {
   required_skills: string[];
-  participants_count: number; // Required property
+  participants_count: number;
   is_registered?: boolean;
   registration_status?: ParticipationStatus;
-  mission_registrations?: MissionRegistration[];
 };
 
 // Type for date range selection used in calendar component
@@ -73,7 +66,7 @@ export type DateRangeSelection = {
 export type MissionFilters = {
   query?: string;
   location?: string;
-  categoryIds?: string[]; // Change from category to categoryIds
+  categoryIds?: string[];
   missionTypeIds?: string[];
   dateRange?: {
     start?: Date;
@@ -85,7 +78,7 @@ export type MissionFilters = {
   coordinates?: {
     latitude: number;
     longitude: number;
-    radius?: number; // Rayon de recherche en kilomètres
+    radius?: number;
   };
   status?: MissionStatus | MissionStatus[];
   difficulty_level?: MissionDifficulty | MissionDifficulty[];
@@ -93,9 +86,10 @@ export type MissionFilters = {
   requiredSkills?: string[];
   organization_sector?: string | string[];
   remote?: boolean;
+  postal_code?: string;
 };
 
-// Interface pour les statistiques de missions dans le tableau de bord
+// Interface pour les statistiques de missions
 export interface MissionStats {
   totalMissions: number;
   activeMissions: number;
@@ -115,6 +109,7 @@ export interface MissionNotification {
   link_url?: string;
 }
 
-export const MISSION_FORMATS: MissionFormat[] = ["présentiel", "à distance", "hybride"];
+export const MISSION_FORMATS: MissionFormat[] = ["Présentiel", "À distance", "Hybride"];
 export const MISSION_DIFFICULTIES: MissionDifficulty[] = ["débutant", "intermédiaire", "expert"];
-export const MISSION_ENGAGEMENTS: MissionEngagement[] = ["ultra-rapide", "petit coup de main", "mission avec suivi", "projet long"];
+export const MISSION_ENGAGEMENTS: MissionEngagement[] = ["Ultra-rapide", "Petit coup de main", "Mission avec suivi", "Projet long"];
+export const MISSION_STATUSES: MissionStatus[] = ['active', 'terminée', 'annulée'];

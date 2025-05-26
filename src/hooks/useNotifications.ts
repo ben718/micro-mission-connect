@@ -1,102 +1,87 @@
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
-import { useState, useCallback } from 'react';
-
-export interface Notification {
+interface Notification {
   id: string;
   user_id: string;
+  type: 'inscription' | 'annulation' | 'confirmation' | 'reminder';
   title: string;
-  content: string;
-  is_read: boolean;
+  message: string;
+  related_id: string;
+  read: boolean;
   created_at: string;
-  link_url?: string;
 }
 
-export const useNotifications = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string>('');
-  const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
-  const [isMarkingAllAsRead, setIsMarkingAllAsRead] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [isDeletingAll, setIsDeletingAll] = useState(false);
+export const useNotifications = (userId?: string) => {
+  const queryClient = useQueryClient();
 
-  const unreadCount = notifications.filter(n => !n.is_read).length;
+  const { data: notifications, isLoading } = useQuery({
+    queryKey: ["notifications", userId],
+    queryFn: async () => {
+      if (!userId) return [];
 
-  const fetchNotifications = useCallback(async (userId: string) => {
-    setLoading(true);
-    try {
-      // Simuler un appel API
-      setNotifications([]);
-    } catch (err) {
-      setError('Erreur lors du chargement');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-  const markAsRead = useCallback(async (notificationId: string) => {
-    setIsMarkingAsRead(true);
-    try {
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-    } catch (err) {
-      setError('Erreur lors du marquage');
-    } finally {
-      setIsMarkingAsRead(false);
-    }
-  }, []);
+      if (error) throw error;
+      return data as Notification[];
+    },
+    enabled: !!userId,
+  });
 
-  const markAllAsRead = useCallback(async (userId: string) => {
-    setIsMarkingAllAsRead(true);
-    try {
-      setNotifications(prev =>
-        prev.map(n => ({ ...n, is_read: true }))
-      );
-    } catch (err) {
-      setError('Erreur lors du marquage');
-    } finally {
-      setIsMarkingAllAsRead(false);
-    }
-  }, []);
+  const markAsRead = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("id", notificationId);
 
-  const deleteNotification = useCallback(async (notificationId: string) => {
-    setIsDeleting(true);
-    try {
-      setNotifications(prev =>
-        prev.filter(n => n.id !== notificationId)
-      );
-    } catch (err) {
-      setError('Erreur lors de la suppression');
-    } finally {
-      setIsDeleting(false);
-    }
-  }, []);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+    },
+  });
 
-  const deleteAllNotifications = useCallback(async (userId: string) => {
-    setIsDeletingAll(true);
-    try {
-      setNotifications([]);
-    } catch (err) {
-      setError('Erreur lors de la suppression');
-    } finally {
-      setIsDeletingAll(false);
-    }
-  }, []);
+  const markAllAsRead = useMutation({
+    mutationFn: async () => {
+      if (!userId) return;
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", userId)
+        .eq("read", false);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+    },
+  });
+
+  const deleteNotification = useMutation({
+    mutationFn: async (notificationId: string) => {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("id", notificationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications", userId] });
+    },
+  });
 
   return {
     notifications,
-    loading,
-    error,
-    unreadCount,
-    fetchNotifications,
+    isLoading,
     markAsRead,
     markAllAsRead,
     deleteNotification,
-    deleteAllNotifications,
-    isMarkingAsRead,
-    isMarkingAllAsRead,
-    isDeleting,
-    isDeletingAll
   };
 };

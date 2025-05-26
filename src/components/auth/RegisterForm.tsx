@@ -264,44 +264,66 @@ const RegisterForm = () => {
     setIsLoading(true);
     
     try {
+      // Créer le compte utilisateur
+      const { data: authData, error: authError } = await signUp(email, password);
+      
+      if (authError) {
+        throw new Error(authError.message);
+      }
+
+      if (!authData.user) {
+        throw new Error("Erreur lors de la création du compte");
+      }
+
+      // Créer le profil de base
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: email,
+          first_name: userType === "association" ? organizationName : firstName,
+          last_name: userType === "association" ? "Association" : lastName,
+          is_association: userType === "association",
+          is_organization: userType === "association",
+          phone: phone,
+          created_at: new Date().toISOString()
+        });
+
+      if (profileError) {
+        throw new Error("Erreur lors de la création du profil: " + profileError.message);
+      }
+
       if (userType === "association") {
-        // Créer le profil d'association
-        const userData = {
-          first_name: organizationName,
-          last_name: "Association",
-          is_association: true,
-          is_organization: true,
-          organization_data: {
+        // Créer les données de l'association
+        const { error: orgError } = await supabase
+          .from('organization_profiles')
+          .insert({
+            user_id: authData.user.id,
             organization_name: organizationName,
             description: assoDesc,
             website_url: website,
             phone: phone,
             sector_id: sectorId
-          }
-        };
-        
-        const result = await signUp(email, password, userData);
-        
-        if (result.error) {
-          throw new Error(result.error.message);
+          });
+
+        if (orgError) {
+          throw new Error("Erreur lors de la création des données de l'association: " + orgError.message);
         }
       } else {
-        // Créer le profil de bénévole
-        const userData = {
-          first_name: firstName,
-          last_name: lastName,
-          bio,
-          location,
-          skills: selectedSkills,
-          is_association: false,
-          is_organization: false,
-          phone: phone
-        };
+        // Ajouter les compétences du bénévole
+        if (selectedSkills.length > 0) {
+          const { error: skillsError } = await supabase
+            .from('user_skills')
+            .insert(
+              selectedSkills.map(skillId => ({
+                user_id: authData.user.id,
+                skill_id: skillId
+              }))
+            );
 
-        const result = await signUp(email, password, userData);
-        
-        if (result.error) {
-          throw new Error(result.error.message);
+          if (skillsError) {
+            throw new Error("Erreur lors de l'ajout des compétences: " + skillsError.message);
+          }
         }
       }
       
