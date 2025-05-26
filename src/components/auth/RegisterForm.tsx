@@ -191,6 +191,10 @@ const RegisterForm = () => {
           setFormError("Merci de compléter tous les champs obligatoires.");
           return false;
         }
+        if (!validateMinLength(bio, 10)) {
+          setFormError("La biographie doit contenir au moins 10 caractères");
+          return false;
+        }
       } else {
         const missingFields = [];
         if (!organizationName) missingFields.push("Nom de l'association");
@@ -199,6 +203,11 @@ const RegisterForm = () => {
         
         if (missingFields.length > 0) {
           setFormError(`Veuillez remplir les champs obligatoires suivants : ${missingFields.join(", ")}`);
+          return false;
+        }
+
+        if (!validateMinLength(assoDesc, 20)) {
+          setFormError("La description doit contenir au moins 20 caractères");
           return false;
         }
       }
