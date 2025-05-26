@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
@@ -19,7 +18,7 @@ import type { MissionStatus } from "@/types/mission";
 const MissionManagement = () => {
   const { user } = useAuth();
   const { data: organizationProfile } = useOrganizationProfile(user?.id);
-  const [statusFilter, setStatusFilter] = useState<MissionStatus[]>(['active', 'draft']);
+  const [statusFilter, setStatusFilter] = useState<MissionStatus[]>(['active']);
   
   const organizationId = organizationProfile?.id;
   const { data: missions, isLoading } = useOrganizationMissions(organizationId, statusFilter);
@@ -35,11 +34,9 @@ const MissionManagement = () => {
 
   const getStatusBadge = (status: string) => {
     const statusMap = {
-      'draft': { label: 'Brouillon', variant: 'secondary' as const },
       'active': { label: 'Active', variant: 'default' as const },
-      'in_progress': { label: 'En cours', variant: 'default' as const },
-      'completed': { label: 'Terminée', variant: 'outline' as const },
-      'cancelled': { label: 'Annulée', variant: 'destructive' as const },
+      'terminée': { label: 'Terminée', variant: 'outline' as const },
+      'annulée': { label: 'Annulée', variant: 'destructive' as const },
     };
     
     const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
@@ -71,10 +68,10 @@ const MissionManagement = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Gestion des missions</h1>
-        <Button asChild>
+    <div className="space-y-4 sm:space-y-6 px-4 sm:px-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <h1 className="text-xl sm:text-2xl font-bold">Gestion des missions</h1>
+        <Button asChild className="w-full sm:w-auto">
           <Link to="/missions/new">
             <Plus className="w-4 h-4 mr-2" />
             Créer une mission
@@ -82,34 +79,32 @@ const MissionManagement = () => {
         </Button>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <Button
           variant={statusFilter.includes('active') ? 'default' : 'outline'}
           onClick={() => setStatusFilter(['active'])}
+          className="flex-1 sm:flex-none"
         >
           Missions actives
         </Button>
         <Button
-          variant={statusFilter.includes('draft') ? 'default' : 'outline'}
-          onClick={() => setStatusFilter(['draft'])}
-        >
-          Brouillons
-        </Button>
-        <Button
-          variant={statusFilter.includes('completed') ? 'default' : 'outline'}
-          onClick={() => setStatusFilter(['completed'])}
+          variant={statusFilter.includes('terminée') ? 'default' : 'outline'}
+          onClick={() => setStatusFilter(['terminée'])}
+          className="flex-1 sm:flex-none"
         >
           Terminées
         </Button>
         <Button
-          variant={statusFilter.includes('cancelled') ? 'default' : 'outline'}
-          onClick={() => setStatusFilter(['cancelled'])}
+          variant={statusFilter.includes('annulée') ? 'default' : 'outline'}
+          onClick={() => setStatusFilter(['annulée'])}
+          className="flex-1 sm:flex-none"
         >
           Annulées
         </Button>
         <Button
           variant={statusFilter.length > 1 ? 'default' : 'outline'}
-          onClick={() => setStatusFilter(['active', 'draft', 'completed', 'cancelled'])}
+          onClick={() => setStatusFilter(['active', 'terminée', 'annulée'])}
+          className="flex-1 sm:flex-none"
         >
           Toutes
         </Button>
@@ -118,39 +113,48 @@ const MissionManagement = () => {
       <div className="grid gap-4">
         {missions?.map((mission) => (
           <Card key={mission.id}>
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div className="space-y-2">
-                  <CardTitle className="line-clamp-1">{mission.title}</CardTitle>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <span>📅 {formatDate(mission.start_date)}</span>
-                    <span>⏱️ {formatDuration(mission.duration_minutes)}</span>
-                    <span>👥 {mission.participants_count || 0}/{mission.available_spots} participants</span>
+            <CardHeader className="px-4 sm:px-6">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div className="space-y-2 w-full sm:w-auto">
+                  <CardTitle className="line-clamp-1 text-lg sm:text-xl">{mission.title}</CardTitle>
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <span className="hidden sm:inline">📅</span>
+                      {formatDate(mission.start_date)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="hidden sm:inline">⏱️</span>
+                      {formatDuration(mission.duration_minutes)}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <span className="hidden sm:inline">👥</span>
+                      {mission.participants_count || 0}/{mission.available_spots} participants
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
                   {getStatusBadge(mission.status)}
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
+                      <Button variant="ghost" size="sm" className="ml-auto sm:ml-0">
                         <MoreHorizontal className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent>
+                    <DropdownMenuContent align="end">
                       <DropdownMenuItem asChild>
-                        <Link to={`/missions/${mission.id}`}>
+                        <Link to={`/missions/${mission.id}`} className="flex items-center">
                           <Eye className="w-4 h-4 mr-2" />
                           Voir
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to={`/missions/${mission.id}/edit`}>
+                        <Link to={`/missions/${mission.id}/edit`} className="flex items-center">
                           <Edit className="w-4 h-4 mr-2" />
                           Modifier
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to={`/missions/${mission.id}/participants`}>
+                        <Link to={`/missions/${mission.id}/participants`} className="flex items-center">
                           <Eye className="w-4 h-4 mr-2" />
                           Participants ({mission.participants_count || 0})
                         </Link>
@@ -160,7 +164,7 @@ const MissionManagement = () => {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="px-4 sm:px-6">
               <p className="text-sm text-muted-foreground line-clamp-2">
                 {mission.description}
               </p>
@@ -171,9 +175,9 @@ const MissionManagement = () => {
 
       {missions?.length === 0 && (
         <Card>
-          <CardContent className="py-8 text-center">
+          <CardContent className="py-8 text-center px-4 sm:px-6">
             <p className="text-muted-foreground mb-4">Aucune mission trouvée</p>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link to="/missions/new">
                 <Plus className="w-4 h-4 mr-2" />
                 Créer votre première mission

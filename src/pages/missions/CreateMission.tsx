@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,12 +28,12 @@ const CreateMission = () => {
     start_date: '',
     duration_minutes: 60,
     available_spots: 1,
-    format: 'présentiel',
+    format: 'Présentiel',
     difficulty_level: 'débutant',
-    engagement_level: 'petit coup de main',
+    engagement_level: 'Petit coup de main',
     desired_impact: '',
     mission_type_id: '',
-    status: 'draft'
+    status: 'active'
   });
 
   useEffect(() => {
@@ -148,104 +147,111 @@ const CreateMission = () => {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Créer une nouvelle mission</CardTitle>
+    <div className="container mx-auto py-4 px-4 sm:px-6 lg:px-8">
+      <Card className="w-full max-w-4xl mx-auto">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="text-xl sm:text-2xl">Créer une nouvelle mission</CardTitle>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             <div>
-              <label className="block text-sm font-medium mb-2">Titre de la mission *</label>
+              <label className="block text-sm font-medium mb-1 sm:mb-2">Titre de la mission *</label>
               <Input
                 value={formData.title}
                 onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                 required
+                className="w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Description *</label>
+              <label className="block text-sm font-medium mb-1 sm:mb-2">Description *</label>
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 rows={4}
                 required
+                className="w-full"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Lieu</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Lieu</label>
                 <Input
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Adresse complète</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Adresse complète</label>
                 <Input
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Date et heure de début *</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Date et heure de début *</label>
                 <Input
                   type="datetime-local"
                   value={formData.start_date}
                   onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                   required
+                  className="w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Durée (minutes) *</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Durée (minutes) *</label>
                 <Input
                   type="number"
                   value={formData.duration_minutes}
                   onChange={(e) => setFormData({ ...formData, duration_minutes: parseInt(e.target.value) })}
                   min={15}
                   required
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Places disponibles</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Places disponibles</label>
                 <Input
                   type="number"
                   value={formData.available_spots}
                   onChange={(e) => setFormData({ ...formData, available_spots: parseInt(e.target.value) })}
                   min={1}
+                  className="w-full"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Format</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Format</label>
                 <Select
                   value={formData.format}
                   onValueChange={(value) => setFormData({ ...formData, format: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="présentiel">Présentiel</SelectItem>
-                    <SelectItem value="à distance">À distance</SelectItem>
-                    <SelectItem value="hybride">Hybride</SelectItem>
+                    <SelectItem value="Présentiel">Présentiel</SelectItem>
+                    <SelectItem value="À distance">À distance</SelectItem>
+                    <SelectItem value="Hybride">Hybride</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Niveau de difficulté</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Niveau de difficulté</label>
                 <Select
                   value={formData.difficulty_level}
                   onValueChange={(value) => setFormData({ ...formData, difficulty_level: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -257,31 +263,31 @@ const CreateMission = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
-                <label className="block text-sm font-medium mb-2">Niveau d'engagement</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Niveau d'engagement</label>
                 <Select
                   value={formData.engagement_level}
                   onValueChange={(value) => setFormData({ ...formData, engagement_level: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="ultra-rapide">Ultra-rapide</SelectItem>
-                    <SelectItem value="petit coup de main">Petit coup de main</SelectItem>
-                    <SelectItem value="mission avec suivi">Mission avec suivi</SelectItem>
-                    <SelectItem value="projet long">Projet long</SelectItem>
+                    <SelectItem value="Ultra-rapide">Ultra-rapide</SelectItem>
+                    <SelectItem value="Petit coup de main">Petit coup de main</SelectItem>
+                    <SelectItem value="Mission avec suivi">Mission avec suivi</SelectItem>
+                    <SelectItem value="Projet long">Projet long</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">Type de mission</label>
+                <label className="block text-sm font-medium mb-1 sm:mb-2">Type de mission</label>
                 <Select
                   value={formData.mission_type_id}
                   onValueChange={(value) => setFormData({ ...formData, mission_type_id: value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="Sélectionner un type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -296,19 +302,20 @@ const CreateMission = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Impact souhaité</label>
+              <label className="block text-sm font-medium mb-1 sm:mb-2">Impact souhaité</label>
               <Textarea
                 value={formData.desired_impact}
                 onChange={(e) => setFormData({ ...formData, desired_impact: e.target.value })}
                 rows={3}
                 placeholder="Décrivez l'impact que vous espérez de cette mission..."
+                className="w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Compétences requises</label>
+              <label className="block text-sm font-medium mb-1 sm:mb-2">Compétences requises</label>
               <Select onValueChange={addSkill}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Ajouter une compétence" />
                 </SelectTrigger>
                 <SelectContent>
@@ -337,11 +344,11 @@ const CreateMission = () => {
               )}
             </div>
 
-            <div className="flex gap-4">
-              <Button type="submit" disabled={loading}>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4">
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
                 {loading ? 'Création...' : 'Créer la mission'}
               </Button>
-              <Button type="button" variant="outline" onClick={() => navigate('/dashboard')}>
+              <Button type="button" variant="outline" onClick={() => navigate('/dashboard')} className="w-full sm:w-auto">
                 Annuler
               </Button>
             </div>
