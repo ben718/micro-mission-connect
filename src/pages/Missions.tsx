@@ -86,23 +86,24 @@ const MissionsPage = () => {
       updated_at: 'updated_at' in mission.mission_type ? mission.mission_type.updated_at : new Date().toISOString(),
     } : undefined;
 
-    // Ensure organization has all required properties from OrganizationProfile
+    // Safely handle organization_profiles with only available properties
     const organization = mission.organization_profiles ? {
       id: mission.organization_profiles.id || '',
       organization_name: mission.organization_profiles.organization_name || 'Organisation inconnue',
-      user_id: mission.organization_profiles.user_id || '',
-      created_at: mission.organization_profiles.created_at || new Date().toISOString(),
-      updated_at: mission.organization_profiles.updated_at || new Date().toISOString(),
       description: mission.organization_profiles.description || null,
       website_url: mission.organization_profiles.website_url || null,
       logo_url: mission.organization_profiles.logo_url || null,
-      siret_number: mission.organization_profiles.siret_number || null,
-      address: mission.organization_profiles.address || null,
-      creation_date: mission.organization_profiles.creation_date || null,
-      sector_id: mission.organization_profiles.sector_id || null,
-      location: mission.organization_profiles.location || null,
-      longitude: mission.organization_profiles.longitude || null,
-      latitude: mission.organization_profiles.latitude || null,
+      // Provide safe defaults for properties not in the query
+      user_id: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      siret_number: null,
+      address: null,
+      creation_date: null,
+      sector_id: mission.organization_profiles.organization_sectors?.id || null,
+      location: null,
+      longitude: null,
+      latitude: null,
     } : {
       id: '',
       organization_name: 'Organisation inconnue',
