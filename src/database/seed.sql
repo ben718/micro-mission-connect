@@ -66,11 +66,61 @@ INSERT INTO volunteer_skills (profile_id, skill_id) VALUES
 INSERT INTO missions (id, title, description, organization_id, status, created_at) VALUES
 (1, 'Animation sportive', 'Animation d''activités sportives pour enfants', 'asso1', 'open', NOW()),
 (2, 'Cours de piano', 'Donner des cours de piano débutant', 'asso2', 'open', NOW()),
-(3, 'Soins aux animaux', 'Aide aux soins des animaux du refuge', 'asso3', 'open', NOW());
+(3, 'Soins aux animaux', 'Aide aux soins des animaux du refuge', 'asso3', 'open', NOW()),
+(4, 'Tournoi de football', 'Organisation d''un tournoi de football pour jeunes', 'asso1', 'open', NOW()),
+(5, 'Cours de guitare', 'Enseignement de la guitare pour débutants', 'asso2', 'open', NOW()),
+(6, 'Promenade des chiens', 'Promenade quotidienne des chiens du refuge', 'asso3', 'open', NOW()),
+(7, 'Entraînement basket', 'Encadrement d''une séance d''entraînement de basket', 'asso1', 'open', NOW()),
+(8, 'Concert caritatif', 'Organisation d''un concert pour financer les activités', 'asso2', 'open', NOW()),
+(9, 'Nettoyage du refuge', 'Aide au nettoyage et à l''entretien des locaux', 'asso3', 'open', NOW()),
+(10, 'Stage multisports', 'Animation d''un stage multisports pendant les vacances', 'asso1', 'open', NOW());
 
 -- Insertion des compétences requises pour les missions
 INSERT INTO mission_skills (mission_id, skill_id) VALUES
 (1, 3), -- Animation sportive - Animation
 (1, 6), -- Animation sportive - Premiers secours
 (2, 8), -- Cours de piano - Éducation
-(3, 6); -- Soins aux animaux - Premiers secours 
+(3, 6), -- Soins aux animaux - Premiers secours
+(4, 2), -- Tournoi de football - Gestion de projet
+(4, 3), -- Tournoi de football - Animation
+(5, 8), -- Cours de guitare - Éducation
+(6, 6), -- Promenade des chiens - Premiers secours
+(7, 3), -- Entraînement basket - Animation
+(8, 2), -- Concert caritatif - Gestion de projet
+(8, 9), -- Concert caritatif - Marketing
+(9, 1), -- Nettoyage du refuge - Communication
+(10, 3), -- Stage multisports - Animation
+(10, 6); -- Stage multisports - Premiers secours
+
+-- Insertion des candidatures de test
+INSERT INTO mission_applications (mission_id, volunteer_id, status, created_at) VALUES
+(1, 'bene1', 'pending', NOW()),
+(2, 'bene2', 'accepted', NOW()),
+(3, 'bene3', 'pending', NOW()),
+(4, 'bene1', 'accepted', NOW()),
+(5, 'bene2', 'pending', NOW()),
+(6, 'bene3', 'accepted', NOW());
+
+-- Insertion des disponibilités des missions
+INSERT INTO mission_availability (mission_id, day_of_week, start_time, end_time) VALUES
+(1, 'monday', '14:00', '16:00'),
+(1, 'wednesday', '14:00', '16:00'),
+(2, 'tuesday', '17:00', '19:00'),
+(2, 'thursday', '17:00', '19:00'),
+(3, 'monday', '09:00', '12:00'),
+(3, 'wednesday', '09:00', '12:00'),
+(3, 'friday', '09:00', '12:00'),
+(4, 'saturday', '10:00', '18:00'),
+(5, 'monday', '18:00', '20:00'),
+(5, 'wednesday', '18:00', '20:00'),
+(6, 'tuesday', '14:00', '16:00'),
+(6, 'thursday', '14:00', '16:00'),
+(7, 'friday', '17:00', '19:00'),
+(8, 'saturday', '19:00', '23:00'),
+(9, 'monday', '10:00', '12:00'),
+(9, 'wednesday', '10:00', '12:00'),
+(10, 'monday', '09:00', '17:00'),
+(10, 'tuesday', '09:00', '17:00'),
+(10, 'wednesday', '09:00', '17:00'),
+(10, 'thursday', '09:00', '17:00'),
+(10, 'friday', '09:00', '17:00'); 
