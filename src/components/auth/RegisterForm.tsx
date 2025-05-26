@@ -173,14 +173,14 @@ const RegisterForm = () => {
     if (step === 1) {
       const missingFields = [];
       if (userType === "association") {
-        if (!organizationName) missingFields.push("Nom de l'association");
+        if (!organizationName || organizationName.trim() === '') missingFields.push("Nom de l'association");
       } else {
-        if (!firstName) missingFields.push("Prénom");
-        if (!lastName) missingFields.push("Nom");
+        if (!firstName || firstName.trim() === '') missingFields.push("Prénom");
+        if (!lastName || lastName.trim() === '') missingFields.push("Nom");
       }
-      if (!email) missingFields.push("Email");
-      if (!password) missingFields.push("Mot de passe");
-      if (!confirmPassword) missingFields.push("Confirmation du mot de passe");
+      if (!email || email.trim() === '') missingFields.push("Email");
+      if (!password || password.trim() === '') missingFields.push("Mot de passe");
+      if (!confirmPassword || confirmPassword.trim() === '') missingFields.push("Confirmation du mot de passe");
 
       if (missingFields.length > 0) {
         setFormError(`Veuillez remplir les champs obligatoires suivants : ${missingFields.join(", ")}`);
