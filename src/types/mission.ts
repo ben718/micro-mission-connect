@@ -44,6 +44,7 @@ export type Organization = OrganizationProfile;
 export type MissionWithOrganization = Mission & {
   organization: Organization;
   mission_type?: MissionType;
+  participants_count: number; // Make this required
 };
 
 export type MissionWithAssociation = MissionWithOrganization;
@@ -56,7 +57,7 @@ export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'termin�
 
 export type MissionWithDetails = MissionWithOrganization & {
   required_skills: string[];
-  participants_count: number;
+  participants_count: number; // Required property
   is_registered?: boolean;
   registration_status?: ParticipationStatus;
   mission_registrations?: MissionRegistration[];

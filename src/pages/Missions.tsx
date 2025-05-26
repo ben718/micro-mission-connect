@@ -12,7 +12,7 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 import { Check, ChevronsUpDown } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { MissionFilters, DateRangeSelection, MissionWithOrganization } from "@/types/mission";
+import { MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
 import { DateRange } from "react-day-picker";
 
 const MissionsPage = () => {
@@ -76,39 +76,46 @@ const MissionsPage = () => {
   };
 
   // Transform missions data to match expected type with proper typing
-  const transformedMissions: MissionWithOrganization[] = missions.map(mission => {
-    // Ensure mission_type has all required properties
+  const transformedMissions: MissionWithDetails[] = missions.map(mission => {
+    // Ensure mission_type has all required properties with defaults
     const missionType = mission.mission_type ? {
       id: mission.mission_type.id,
       name: mission.mission_type.name,
-      description: mission.mission_type.description,
+      description: mission.mission_type.description || '',
       created_at: mission.mission_type.created_at || new Date().toISOString(),
       updated_at: mission.mission_type.updated_at || new Date().toISOString(),
     } : undefined;
 
+    // Ensure organization has all required properties
+    const organization = mission.organization || {
+      id: '',
+      organization_name: 'Organisation inconnue',
+      user_id: '',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      description: null,
+      website_url: null,
+      logo_url: null,
+      siret_number: null,
+      address: null,
+      creation_date: null,
+      sector_id: null,
+      location: null,
+      longitude: null,
+      latitude: null,
+    };
+
     return {
       ...mission,
       required_skills: mission.required_skills || [],
-      organization: mission.organization || {
-        id: '',
-        organization_name: 'Organisation inconnue',
-        user_id: '',
-        created_at: '',
-        updated_at: '',
-        description: null,
-        website_url: null,
-        logo_url: null,
-        siret_number: null,
-        address: null,
-        creation_date: null,
-        sector_id: null,
-        location: null,
-        longitude: null,
-        latitude: null,
-      },
+      organization,
       participants_count: mission.participants_count || 0,
       mission_type: missionType,
-    };
+      // Ensure these required properties for MissionWithDetails
+      is_registered: false,
+      registration_status: undefined,
+      mission_registrations: undefined,
+    } as MissionWithDetails;
   });
 
   if (isLoading) return <div className="flex justify-center p-8">Chargement...</div>;

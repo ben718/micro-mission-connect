@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
 import { useOrganizationMissions, useMissionActions } from "@/hooks/useMissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,10 +17,11 @@ import { Link } from "react-router-dom";
 import type { MissionStatus } from "@/types/mission";
 
 const MissionManagement = () => {
-  const { profile } = useAuth();
+  const { user } = useAuth();
+  const { data: organizationProfile } = useOrganizationProfile(user?.id);
   const [statusFilter, setStatusFilter] = useState<MissionStatus[]>(['active', 'draft']);
   
-  const organizationId = profile?.organization?.id;
+  const organizationId = organizationProfile?.id;
   const { data: missions, isLoading } = useOrganizationMissions(organizationId, statusFilter);
   const { updateMissionStatus } = useMissionActions();
 
