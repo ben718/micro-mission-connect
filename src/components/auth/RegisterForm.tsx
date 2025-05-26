@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -193,8 +192,13 @@ const RegisterForm = () => {
           return false;
         }
       } else {
-        if (!organizationName || !assoDesc || !sectorId) {
-          setFormError("Merci de compléter tous les champs obligatoires de l'association.");
+        const missingFields = [];
+        if (!organizationName) missingFields.push("Nom de l'association");
+        if (!assoDesc) missingFields.push("Description");
+        if (!sectorId) missingFields.push("Secteur d'activité");
+        
+        if (missingFields.length > 0) {
+          setFormError(`Veuillez remplir les champs obligatoires suivants : ${missingFields.join(", ")}`);
           return false;
         }
       }
