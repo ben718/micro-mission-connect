@@ -39,6 +39,36 @@ export type Database = {
         }
         Relationships: []
       }
+      cities: {
+        Row: {
+          created_at: string | null
+          department: string | null
+          id: string
+          name: string
+          postal_code: string
+          region: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          department?: string | null
+          id?: string
+          name: string
+          postal_code: string
+          region?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          department?: string | null
+          id?: string
+          name?: string
+          postal_code?: string
+          region?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       mission_registrations: {
         Row: {
           confirmation_date: string | null
