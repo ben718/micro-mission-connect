@@ -105,8 +105,9 @@ const RegisterForm = () => {
     
     switch (field) {
       case 'email':
-        if (!validateEmail(value)) {
-          error = 'Format d\'email invalide';
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(value)) {
+          error = 'Format d\'email invalide (exemple: nom@domaine.com)';
         }
         break;
       case 'password':
@@ -178,7 +179,15 @@ const RegisterForm = () => {
         if (!firstName || firstName.trim() === '') missingFields.push("Prénom");
         if (!lastName || lastName.trim() === '') missingFields.push("Nom");
       }
-      if (!email || email.trim() === '') missingFields.push("Email");
+      if (!email || email.trim() === '') {
+        missingFields.push("Email");
+      } else {
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+          setFormError("Format d'email invalide (exemple: nom@domaine.com)");
+          return false;
+        }
+      }
       if (!password || password.trim() === '') missingFields.push("Mot de passe");
       if (!confirmPassword || confirmPassword.trim() === '') missingFields.push("Confirmation du mot de passe");
 
