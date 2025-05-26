@@ -7,33 +7,14 @@ import { Link } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { Database } from "@/integrations/supabase/types";
 
-// Correction pour les icônes Leaflet
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
+type MissionRow = Database["public"]["Tables"]["missions"]["Row"];
+type OrganizationProfile = Database["public"]["Tables"]["organization_profiles"]["Row"];
 
-interface Mission {
-  id: string;
-  title: string;
-  description: string;
-  location: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  duration_minutes: number;
-  format: string;
-  difficulty_level: string;
-  engagement_level: string;
+interface Mission extends MissionRow {
+  organization: Pick<OrganizationProfile, 'organization_name' | 'logo_url'>;
   required_skills: string[];
-  organization: {
-    name: string;
-    profile_picture_url: string;
-  };
 }
 
 interface MissionMapProps {
@@ -43,6 +24,14 @@ interface MissionMapProps {
     lng: number;
   };
 }
+
+// Correction pour les icônes Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 const MissionMap = ({ missions, userLocation }: MissionMapProps) => {
   const [mapCenter, setMapCenter] = useState<[number, number]>([48.8566, 2.3522]); // Paris par défaut
@@ -90,7 +79,7 @@ const MissionMap = ({ missions, userLocation }: MissionMapProps) => {
           {missions.map((mission) => (
             <Marker
               key={mission.id}
-              position={[mission.coordinates.lat, mission.coordinates.lng]}
+              position={[mission.latitude, mission.longitude]}
             >
               <Popup>
                 <div className="space-y-2 min-w-[200px]">
@@ -98,7 +87,7 @@ const MissionMap = ({ missions, userLocation }: MissionMapProps) => {
                     <div>
                       <h3 className="font-medium">{mission.title}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {mission.organization.name}
+                        {mission.organization.organization_name}
                       </p>
                     </div>
                     <Badge variant="outline">{mission.format}</Badge>

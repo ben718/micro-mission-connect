@@ -1,7 +1,10 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Mission } from '@/types/mission';
+import { OrganizationProfile } from '@/types/profile';
+import { Database } from '@/integrations/supabase/types';
+
+type MissionRow = Database["public"]["Tables"]["missions"]["Row"];
 
 export const useOrganization = (organizationId?: string) => {
   const queryClient = useQueryClient();
@@ -13,12 +16,19 @@ export const useOrganization = (organizationId?: string) => {
       
       const { data, error } = await supabase
         .from('organization_profiles')
-        .select('*')
+        .select(`
+          *,
+          sectors!sector_id (
+            id,
+            name,
+            description
+          )
+        `)
         .eq('id', organizationId)
         .single();
       
       if (error) throw error;
-      return data;
+      return data as OrganizationProfile;
     },
     enabled: !!organizationId,
   });
@@ -45,8 +55,8 @@ export const useOrganization = (organizationId?: string) => {
         ...mission,
         required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
         participants_count: mission.mission_registrations?.length || 0,
-        organization: organization || {} as any
-      }));
+        organization: organization || {} as OrganizationProfile
+      })) as MissionRow[];
     },
     enabled: !!organizationId,
   });
@@ -66,7 +76,7 @@ export const useOrganization = (organizationId?: string) => {
   });
 
   const createMissionsMutation = useMutation({
-    mutationFn: async (missionsData: Omit<Mission, 'id'>[]) => {
+    mutationFn: async (missionsData: Omit<MissionRow, 'id'>[]) => {
       const { data, error } = await supabase
         .from('missions')
         .insert(missionsData.map(mission => ({
