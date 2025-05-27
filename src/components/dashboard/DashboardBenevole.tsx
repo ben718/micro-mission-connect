@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useMissions } from "@/hooks/useMissions";
+import { useUserMissions } from "@/hooks/useMissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,29 +13,21 @@ import { fr } from "date-fns/locale";
 
 const DashboardBenevole = () => {
   const { user, profile } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
+  const { data: userMissions, isLoading } = useUserMissions(user?.id);
   
-  // For now, we'll use mock data since the hooks need to be implemented properly
-  const missions = [];
-  const stats = { totalHours: 0 };
-  
-  useEffect(() => {
-    setLoading(false);
-  }, []);
-
-  // Separate upcoming and past missions
+  // Séparer les missions à venir et passées
   const now = new Date();
-  const upcomingMissions = [];
-  const pastMissions = [];
+  const upcomingMissions = userMissions?.filter(m => new Date(m.mission.start_date) >= now && m.status === 'inscrit') || [];
+  const pastMissions = userMissions?.filter(m => new Date(m.mission.start_date) < now || m.status === 'terminé') || [];
 
-  // Statistics
-  const totalMissions = missions?.length || 0;
-  const pastMissionsCount = pastMissions?.length || 0;
-  const upcomingMissionsCount = upcomingMissions?.length || 0;
-  const totalHours = stats?.totalHours || 0;
+  // Statistiques
+  const totalMissions = userMissions?.length || 0;
+  const pastMissionsCount = pastMissions.length;
+  const upcomingMissionsCount = upcomingMissions.length;
+  const totalHours = userMissions?.reduce((acc, m) => acc + (m.mission.duration_minutes || 0) / 60, 0) || 0;
 
-  // Simple badges
+  // Badges simples
   const badges = [];
   if (pastMissionsCount >= 1) badges.push({ label: "Nouveau bénévole", icon: <Star className="w-4 h-4 mr-1" /> });
   if (pastMissionsCount >= 5) badges.push({ label: "Engagé", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> });
@@ -94,7 +86,7 @@ const DashboardBenevole = () => {
             <CardTitle className="text-base font-semibold text-gray-500">Missions terminées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">0</span>
+            <span className="text-3xl font-bold text-bleu">{pastMissionsCount}</span>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-bleu/20">
@@ -135,7 +127,7 @@ const DashboardBenevole = () => {
 
         {/* Upcoming missions */}
         <TabsContent value="upcoming">
-          {loading ? (
+          {isLoading ? (
             <p>Chargement…</p>
           ) : upcomingMissionsCount === 0 ? (
             <div className="text-center py-8">
@@ -146,14 +138,33 @@ const DashboardBenevole = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Mission cards will be rendered here when data is available */}
+              {upcomingMissions.map((registration) => (
+                <Card key={registration.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <Link to={`/missions/${registration.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
+                      {registration.mission.title}
+                    </Link>
+                    <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      <span>{format(new Date(registration.mission.start_date), 'PPP', { locale: fr })}</span>
+                      <span className="mx-2">•</span>
+                      <MapPin className="w-4 h-4 mr-1" />
+                      <span>{registration.mission.location}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{registration.mission.description}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <Badge variant="outline">{registration.status}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>
 
         {/* Mission history */}
         <TabsContent value="past">
-          {loading ? (
+          {isLoading ? (
             <p>Chargement…</p>
           ) : pastMissionsCount === 0 ? (
             <div className="text-center py-8">
@@ -164,7 +175,26 @@ const DashboardBenevole = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Past mission cards will be rendered here when data is available */}
+              {pastMissions.map((registration) => (
+                <Card key={registration.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <Link to={`/missions/${registration.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
+                      {registration.mission.title}
+                    </Link>
+                    <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      <span>{format(new Date(registration.mission.start_date), 'PPP', { locale: fr })}</span>
+                      <span className="mx-2">•</span>
+                      <MapPin className="w-4 h-4 mr-1" />
+                      <span>{registration.mission.location}</span>
+                    </div>
+                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{registration.mission.description}</p>
+                    <div className="flex justify-between items-center mt-2">
+                      <Badge variant="outline">{registration.status}</Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           )}
         </TabsContent>

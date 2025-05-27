@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
+import { useOrganizationMissions } from "@/hooks/useMissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -8,189 +10,100 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Users, Clock, Calendar, MapPin, BarChart2 } from "lucide-react";
+import { Plus, Users, Clock, Calendar, MapPin, BarChart2, MoreVertical, Edit, Trash2, Share2, Eye, Pause } from "lucide-react";
 import { toast } from 'sonner';
-
-type SimpleProfile = {
-  id: string;
-  first_name?: string;
-  last_name?: string;
-  profile_picture_url?: string;
-};
-
-type MissionRegistration = {
-  id: string;
-  status: string;
-  user_id: string;
-  profile?: SimpleProfile;
-};
-
-type SimpleMission = {
-  id: string;
-  title: string;
-  description: string;
-  start_date: string;
-  location: string;
-  status: string;
-  duration_minutes?: number;
-  latitude?: number;
-  longitude?: number;
-  format?: string;
-  difficulty_level?: string;
-  engagement_level?: string;
-  registrations?: MissionRegistration[];
-};
-
-interface Stats {
-  totalBenevoles: number;
-  totalHeures: number;
-  tauxCompletion: number;
-}
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import DeleteMissionDialog from "@/components/missions/DeleteMissionDialog";
+import SuspendMissionDialog from "@/components/missions/SuspendMissionDialog";
+import ShareMissionDialog from "@/components/missions/ShareMissionDialog";
+import MissionParticipantsDialog from "@/components/missions/MissionParticipantsDialog";
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
-  const [missions, setMissions] = useState<SimpleMission[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: organizationProfile } = useOrganizationProfile(user?.id);
+  const { data: missions, isLoading, error } = useOrganizationMissions(organizationProfile?.id);
   const [activeTab, setActiveTab] = useState("missions");
-  const [stats, setStats] = useState<Stats>({
+  const [selectedMission, setSelectedMission] = useState<string | null>(null);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [stats, setStats] = useState({
     totalBenevoles: 0,
     totalHeures: 0,
     tauxCompletion: 0
   });
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
+  const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
+  const [isParticipantsDialogOpen, setIsParticipantsDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      fetchAssociationMissions();
-      fetchStats();
+    if (missions) {
+      calculateStats();
     }
-  }, [user]);
+  }, [missions]);
 
-  const fetchAssociationMissions = async () => {
-    setLoading(true);
-    setError(null);
+  const calculateStats = async () => {
     try {
-      // Fetch missions for this organization
-      const { data: missionsData, error: missionsError } = await supabase
-        .from("missions")
-        .select(`
-          id, 
-          title, 
-          description,
-          start_date,
-          location,
-          status,
-          duration_minutes,
-          latitude,
-          longitude,
-          format,
-          difficulty_level,
-          engagement_level
-        `)
-        .eq("organization_id", user?.id)
-        .order("start_date", { ascending: true });
-      
-      if (missionsError) throw missionsError;
-      
-      let missionsWithRegistrations: SimpleMission[] = missionsData || [];
-      
-      // For each mission, fetch its registrations
-      for (const mission of missionsWithRegistrations) {
-        const { data: registrationsData, error: registrationsError } = await supabase
+      if (!user || !missions) return;
+
+      const uniqueVolunteers = new Set();
+      let totalMinutes = 0;
+
+      for (const mission of missions) {
+        const { data: registrations } = await supabase
           .from("mission_registrations")
-          .select("id, status, user_id")
+          .select("user_id")
           .eq("mission_id", mission.id);
-          
-        if (registrationsError) {
-          console.error("Error fetching registrations:", registrationsError);
-          continue;
-        }
-        
-        mission.registrations = registrationsData || [];
-        
-        // If registrations exist, fetch their profiles
-        if (registrationsData && registrationsData.length > 0) {
-          const userIds = registrationsData.map(r => r.user_id);
-          
-          const { data: profilesData, error: profilesError } = await supabase
-            .from("profiles")
-            .select("id, first_name, last_name, profile_picture_url")
-            .in("id", userIds);
-            
-          if (profilesError) {
-            console.error("Error fetching profiles:", profilesError);
-            continue;
-          }
-            
-          if (profilesData) {
-            const profilesMap: Record<string, SimpleProfile> = {};
-            profilesData.forEach(profile => {
-              profilesMap[profile.id] = {
-                id: profile.id,
-                first_name: profile.first_name,
-                last_name: profile.last_name,
-                profile_picture_url: profile.profile_picture_url
-              };
-            });
-            
-            mission.registrations = mission.registrations.map(r => ({
-              ...r,
-              profile: profilesMap[r.user_id]
-            }));
-          }
-        }
+
+        registrations?.forEach(reg => uniqueVolunteers.add(reg.user_id));
+        totalMinutes += (mission.duration_minutes || 0) * (registrations?.length || 0);
       }
-      
-      setMissions(missionsWithRegistrations);
-    } catch (err: any) {
-      console.error("Error loading missions:", err);
-      setError(err.message || "An error occurred while loading missions");
-    } finally {
-      setLoading(false);
+
+      const totalHours = Math.round(totalMinutes / 60);
+      const totalMissions = missions.length;
+      const completedMissions = missions.filter(m => m.status === "terminée").length;
+      const completionRate = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
+
+      setStats({
+        totalBenevoles: uniqueVolunteers.size,
+        totalHeures: totalHours,
+        tauxCompletion: completionRate
+      });
+    } catch (err) {
+      console.error("Erreur lors du calcul des statistiques:", err);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      if (!user) {
-        console.error("No user connected to fetch stats");
-        return;
-      }
-
-      // Count unique volunteers
-      const { data: registrations, error: registrationsError } = await supabase
-        .from("mission_registrations")
-        .select("user_id");
-      
-      if (registrationsError) {
-        console.error("Error fetching registrations:", registrationsError);
-        return;
-      }
-
-      const uniqueVolunteers = new Set(registrations?.map(r => r.user_id) || []).size;
-      
-      // Total hours
-      const { data: missionsData, error: missionsError } = await supabase
-        .from("missions")
-        .select("duration_minutes")
-        .eq("organization_id", user.id);
-
-      if (missionsError) {
-        console.error("Error fetching missions for stats:", missionsError);
-        return;
-      }
-
-      const totalMinutes = missionsData?.reduce((acc, m) => acc + (m.duration_minutes || 0), 0) || 0;
-      const totalHours = Math.round(totalMinutes / 60);
-      
-      // Completion rate
-      const totalMissions = missions.length;
-      const completedMissions = missions.filter(m => m.status === "completed").length;
-      const completionRate = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
-      
-      setStats({ totalBenevoles: uniqueVolunteers, totalHeures: totalHours, tauxCompletion: completionRate });
-    } catch (err) {
-      console.error("Error fetching stats:", err);
+  const handleMissionAction = (missionId: string, action: string) => {
+    setSelectedMission(missionId);
+    switch (action) {
+      case "delete":
+        setIsDeleteDialogOpen(true);
+        break;
+      case "suspend":
+        setIsSuspendDialogOpen(true);
+        break;
+      case "share":
+        setIsShareDialogOpen(true);
+        break;
+      case "participants":
+        setIsParticipantsDialogOpen(true);
+        break;
     }
   };
 
@@ -201,19 +114,18 @@ const DashboardAssociation = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-      case "completed":
-        return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
-      case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Annulée</Badge>;
-      default:
-        return <Badge variant="outline">{String(status)}</Badge>;
-    }
+    const statusMap = {
+      'active': { label: 'Active', variant: 'default' as const },
+      'terminée': { label: 'Terminée', variant: 'outline' as const },
+      'suspendue': { label: 'Suspendue', variant: 'destructive' as const },
+      'annulée': { label: 'Annulée', variant: 'destructive' as const },
+    };
+    
+    const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
+    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container-custom py-10">
         <Skeleton className="h-8 w-48 mb-6" />
@@ -236,11 +148,23 @@ const DashboardAssociation = () => {
     return (
       <div className="container-custom py-10">
         <Card>
+          <CardContent className="p-6">
+            <p className="text-destructive">Erreur lors du chargement des missions</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!organizationProfile) {
+    return (
+      <div className="container-custom py-10">
+        <Card>
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-2">Erreur</h2>
-            <p className="text-gray-500 mb-4">{error}</p>
+            <p className="text-gray-500 mb-4">Profil d'organisation non trouvé</p>
             <Button asChild>
-              <Link to="/missions">Voir toutes les missions</Link>
+              <Link to="/profile">Compléter mon profil</Link>
             </Button>
           </CardContent>
         </Card>
@@ -249,8 +173,12 @@ const DashboardAssociation = () => {
   }
 
   const currentDate = new Date();
-  const upcomingMissions = missions.filter((m) => new Date(m.start_date) >= currentDate && m.status === 'active');
-  const pastMissions = missions.filter((m) => new Date(m.start_date) < currentDate || m.status !== 'active');
+  const upcomingMissions = missions?.filter((m) => new Date(m.start_date) >= currentDate && m.status === 'active') || [];
+  const pastMissions = missions?.filter((m) => new Date(m.start_date) < currentDate || m.status !== 'active') || [];
+
+  const activeMissions = missions?.filter((mission) => mission.status === "active") || [];
+  const completedMissions = missions?.filter((mission) => mission.status === "completed") || [];
+  const suspendedMissions = missions?.filter((mission) => mission.status === "suspended") || [];
 
   return (
     <div className="container-custom py-10">
@@ -264,12 +192,12 @@ const DashboardAssociation = () => {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold mb-1 text-bleu">{profile?.first_name} {profile?.last_name}</h1>
+            <h1 className="text-3xl font-bold mb-1 text-bleu">{organizationProfile.organization_name}</h1>
             <p className="text-gray-600">Bienvenue sur votre tableau de bord d'association !</p>
-            {profile?.city && (
+            {organizationProfile.address && (
               <div className="flex items-center text-gray-500 mt-1">
                 <MapPin className="w-4 h-4 mr-1 text-bleu" />
-                <span>{profile.city}</span>
+                <span>{organizationProfile.address}</span>
               </div>
             )}
           </div>
@@ -290,7 +218,7 @@ const DashboardAssociation = () => {
             <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{missions.length}</span>
+            <span className="text-3xl font-bold text-bleu">{missions?.length || 0}</span>
           </CardContent>
         </Card>
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
@@ -333,15 +261,45 @@ const DashboardAssociation = () => {
             <TabsContent value="missions" className="p-6">
               <h2 className="text-xl font-bold mb-4">Missions à venir</h2>
               {upcomingMissions.length === 0 ? (
-                <p className="text-gray-500">No upcoming missions.</p>
+                <p className="text-gray-500">Aucune mission à venir.</p>
               ) : (
                 <div className="space-y-4">
                   {upcomingMissions.map((mission) => (
                     <Card key={mission.id} className="overflow-hidden hover:shadow-md transition-shadow">
                       <CardContent className="p-4">
-                        <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
-                          {mission.title}
-                        </Link>
+                        <div className="flex justify-between items-start">
+                          <Link to={`/missions/${mission.id}`} className="font-medium text-lg text-bleu hover:underline">
+                            {mission.title}
+                          </Link>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'participants')}>
+                                <Users className="w-4 h-4 mr-2" />
+                                Voir les participants
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'share')}>
+                                <Share2 className="w-4 h-4 mr-2" />
+                                Partager
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'suspend')}>
+                                <Pause className="w-4 h-4 mr-2" />
+                                Suspendre
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleMissionAction(mission.id, 'delete')}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Supprimer
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
                         <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
                           <Calendar className="w-4 h-4 mr-1" />
                           <span>{formatDate(mission.start_date)}</span>
@@ -353,7 +311,7 @@ const DashboardAssociation = () => {
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.registrations?.length || 0}</span>
+                            <span>{mission.participants_count || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
@@ -366,7 +324,7 @@ const DashboardAssociation = () => {
             <TabsContent value="past-missions" className="p-6">
               <h2 className="text-xl font-bold mb-4">Missions passées</h2>
               {pastMissions.length === 0 ? (
-                <p className="text-gray-500">No past missions.</p>
+                <p className="text-gray-500">Aucune mission passée.</p>
               ) : (
                 <div className="space-y-4">
                   {pastMissions.map((mission) => (
@@ -386,7 +344,7 @@ const DashboardAssociation = () => {
                         <div className="flex justify-between items-center mt-2">
                           <div className="flex items-center text-sm text-gray-500">
                             <Users className="w-4 h-4 mr-1" />
-                            <span>{mission.registrations?.length || 0}</span>
+                            <span>{mission.participants_count || 0}</span>
                           </div>
                           {getStatusBadge(mission.status)}
                         </div>
@@ -399,6 +357,74 @@ const DashboardAssociation = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Dialog pour voir les participants */}
+      <Dialog open={showParticipants} onOpenChange={setShowParticipants}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Participants à la mission</DialogTitle>
+            <DialogDescription>
+              Liste des bénévoles inscrits à la mission "{selectedMission?.title}"
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[400px] pr-4">
+            {selectedMission?.participants?.map((participant: any) => (
+              <Card key={participant.id} className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={participant.profile_picture_url} />
+                        <AvatarFallback>
+                          {participant.first_name?.[0]}{participant.last_name?.[0]}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{participant.first_name} {participant.last_name}</p>
+                        <p className="text-sm text-gray-500">{participant.email}</p>
+                      </div>
+                    </div>
+                    <Badge variant="outline">{participant.status}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {selectedMission && (
+        <>
+          <DeleteMissionDialog
+            isOpen={isDeleteDialogOpen}
+            onClose={() => setIsDeleteDialogOpen(false)}
+            missionId={selectedMission}
+            onSuccess={() => {
+              // Rafraîchir les missions après la suppression
+              window.location.reload();
+            }}
+          />
+          <SuspendMissionDialog
+            isOpen={isSuspendDialogOpen}
+            onClose={() => setIsSuspendDialogOpen(false)}
+            missionId={selectedMission}
+            onSuccess={() => {
+              // Rafraîchir les missions après la suspension
+              window.location.reload();
+            }}
+          />
+          <ShareMissionDialog
+            isOpen={isShareDialogOpen}
+            onClose={() => setIsShareDialogOpen(false)}
+            missionId={selectedMission}
+          />
+          <MissionParticipantsDialog
+            isOpen={isParticipantsDialogOpen}
+            onClose={() => setIsParticipantsDialogOpen(false)}
+            missionId={selectedMission}
+          />
+        </>
+      )}
     </div>
   );
 };
