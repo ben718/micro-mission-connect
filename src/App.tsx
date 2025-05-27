@@ -1,6 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, AuthProvider } from "@/hooks/useAuth";
 import Layout from "@/components/layout/Layout";
 import Home from "@/pages/Home";
 import AssociationHome from "@/pages/AssociationHome";
@@ -72,7 +72,7 @@ const ProfileRoute = () => {
   );
 };
 
-const App = () => {
+const AppContent = () => {
   const { profile, isLoading } = useAuth();
 
   if (isLoading) {
@@ -80,84 +80,92 @@ const App = () => {
   }
 
   return (
+    <Router>
+      <Routes>
+        {/* Routes publiques */}
+        <Route path="/login" element={!profile ? <Login /> : <Navigate to="/" />} />
+        <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
+
+        {/* Routes protégées */}
+        <Route
+          path="/"
+          element={
+            profile ? (
+              <Layout>
+                {profile.type === "organization" ? <AssociationHome /> : <Home />}
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+        <Route
+          path="/dashboard"
+          element={
+            profile ? (
+              <Layout>
+                {profile.type === "organization" ? (
+                  <DashboardAssociation />
+                ) : (
+                  <DashboardVolunteer />
+                )}
+              </Layout>
+            ) : (
+              <Navigate to="/login" />
+            )
+          }
+        />
+
+        <Route path="/auth/confirmation" element={<Confirmation />} />
+        <Route path="/missions" element={<MissionsPage />} />
+        <Route path="/missions/:id" element={<MissionDetail />} />
+        <Route path="/missions/new" element={
+          <PrivateRoute>
+            <CreateMission />
+          </PrivateRoute>
+        } />
+        <Route
+          path="/profile"
+          element={
+            <PrivateRoute>
+              <ProfileRoute />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile/benevole"
+          element={
+            <PrivateRoute>
+              <ProfileBenevole />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/profile/association"
+          element={
+            <PrivateRoute>
+              <ProfileAssociation />
+            </PrivateRoute>
+          }
+        />
+        <Route path="/profile/organization" element={<ProfileOrganization />} />
+        <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </Router>
+  );
+};
+
+const App = () => {
+  return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Router>
-          <Routes>
-            {/* Routes publiques */}
-            <Route path="/login" element={!profile ? <Login /> : <Navigate to="/" />} />
-            <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
-
-            {/* Routes protégées */}
-            <Route
-              path="/"
-              element={
-                profile ? (
-                  <Layout>
-                    {profile.type === "organization" ? <AssociationHome /> : <Home />}
-                  </Layout>
-                ) : (
-                  <Navigate to="/login" />
-                )
-              }
-            />
-
-            <Route
-              path="/dashboard"
-              element={
-                profile ? (
-                  <Layout>
-                    {profile.type === "organization" ? (
-                      <DashboardAssociation />
-                    ) : (
-                      <DashboardVolunteer />
-                    )}
-                  </Layout>
-                ) : (
-                  <Navigate to="/login" />
-                )
-              }
-            />
-
-            <Route path="/auth/confirmation" element={<Confirmation />} />
-            <Route path="/missions" element={<MissionsPage />} />
-            <Route path="/missions/:id" element={<MissionDetail />} />
-            <Route path="/missions/new" element={
-              <PrivateRoute>
-                <CreateMission />
-              </PrivateRoute>
-            } />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <ProfileRoute />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile/benevole"
-              element={
-                <PrivateRoute>
-                  <ProfileBenevole />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile/association"
-              element={
-                <PrivateRoute>
-                  <ProfileAssociation />
-                </PrivateRoute>
-              }
-            />
-            <Route path="/profile/organization" element={<ProfileOrganization />} />
-            <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
-            <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </Router>
-        <Toaster />
-        <Sonner />
+        <AuthProvider>
+          <AppContent />
+          <Toaster />
+          <Sonner />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
