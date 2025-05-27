@@ -10,7 +10,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Users, Clock, Calendar, MapPin, BarChart2, MoreVertical, Edit, Trash2, Share2, Eye, Pause } from "lucide-react";
+import { 
+  Plus, Users, Clock, Calendar, MapPin, BarChart2, MoreVertical, 
+  Edit, Trash2, Share2, Eye, Pause, Building2, Target, Award, 
+  Heart, Star, TrendingUp, AlertCircle 
+} from "lucide-react";
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -24,7 +28,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format } from "date-fns";
@@ -46,7 +49,10 @@ const DashboardAssociation = () => {
   const [stats, setStats] = useState({
     totalBenevoles: 0,
     totalHeures: 0,
-    tauxCompletion: 0
+    tauxCompletion: 0,
+    impactSocial: 0,
+    satisfactionBenevoles: 0,
+    missionsUrgentes: 0
   });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
@@ -66,26 +72,53 @@ const DashboardAssociation = () => {
 
       const uniqueVolunteers = new Set();
       let totalMinutes = 0;
+      let urgentMissions = 0;
 
       for (const mission of missions) {
         const { data: registrations } = await supabase
           .from("mission_registrations")
-          .select("user_id")
+          .select("user_id, feedback_rating")
           .eq("mission_id", mission.id);
 
-        registrations?.forEach(reg => uniqueVolunteers.add(reg.user_id));
-        totalMinutes += (mission.duration_minutes || 0) * (registrations?.length || 0);
+        registrations?.forEach(reg => {
+          uniqueVolunteers.add(reg.user_id);
+          if (reg.feedback_rating) {
+            totalMinutes += (mission.duration_minutes || 0);
+          }
+        });
+
+        // Compter les missions urgentes (moins de 7 jours)
+        const daysUntilStart = Math.ceil((new Date(mission.start_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        if (daysUntilStart <= 7 && mission.status === "active") {
+          urgentMissions++;
+        }
       }
 
       const totalHours = Math.round(totalMinutes / 60);
       const totalMissions = missions.length;
-      const completedMissions = missions.filter(m => m.status === "terminée").length;
+      const completedMissions = missions.filter(m => m.status === "completed").length;
       const completionRate = totalMissions > 0 ? Math.round((completedMissions / totalMissions) * 100) : 0;
+
+      // Calculer l'impact social (basé sur le nombre de bénévoles et d'heures)
+      const impactSocial = Math.round((uniqueVolunteers.size * totalHours) / 100);
+
+      // Calculer la satisfaction moyenne des bénévoles
+      const { data: feedbacks } = await supabase
+        .from("mission_registrations")
+        .select("feedback_rating")
+        .not("feedback_rating", "is", null);
+
+      const satisfactionMoyenne = feedbacks?.length 
+        ? Math.round(feedbacks.reduce((acc, curr) => acc + (curr.feedback_rating || 0), 0) / feedbacks.length)
+        : 0;
 
       setStats({
         totalBenevoles: uniqueVolunteers.size,
         totalHeures: totalHours,
-        tauxCompletion: completionRate
+        tauxCompletion: completionRate,
+        impactSocial,
+        satisfactionBenevoles: satisfactionMoyenne,
+        missionsUrgentes: urgentMissions
       });
     } catch (err) {
       console.error("Erreur lors du calcul des statistiques:", err);
@@ -199,7 +232,7 @@ const DashboardAssociation = () => {
           </Avatar>
           <div>
             <h1 className="text-3xl font-bold mb-1 text-bleu">{organizationProfile.organization_name}</h1>
-            <p className="text-gray-600">Bienvenue sur votre tableau de bord d'association !</p>
+            <p className="text-gray-600">Bienvenue sur votre espace association !</p>
             {organizationProfile.address && (
               <div className="flex items-center text-gray-500 mt-1">
                 <MapPin className="w-4 h-4 mr-1 text-bleu" />
@@ -208,50 +241,130 @@ const DashboardAssociation = () => {
             )}
           </div>
         </div>
-        <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
-          <Link to="/missions/new">
-            <Plus className="w-5 h-5 mr-2" />
-            Créer une mission
-          </Link>
-        </Button>
+        <div className="flex gap-4">
+          <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
+            <Link to="/missions/new">
+              <Plus className="w-5 h-5 mr-2" />
+              Créer une mission
+            </Link>
+          </Button>
+          <Button variant="outline" className="text-lg px-6 py-3">
+            <Building2 className="w-5 h-5 mr-2" />
+            Gérer l'association
+          </Button>
+        </div>
       </div>
 
       {/* Statistics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Calendar className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
+            <CardTitle className="text-sm font-semibold text-gray-500">Missions créées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{missions?.length || 0}</span>
+            <span className="text-2xl font-bold text-bleu">{missions?.length || 0}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Users className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Bénévoles engagés</CardTitle>
+            <CardTitle className="text-sm font-semibold text-gray-500">Bénévoles engagés</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{stats.totalBenevoles}</span>
+            <span className="text-2xl font-bold text-bleu">{stats.totalBenevoles}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Heures de bénévolat</CardTitle>
+            <CardTitle className="text-sm font-semibold text-gray-500">Heures de bénévolat</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{stats.totalHeures}</span>
+            <span className="text-2xl font-bold text-bleu">{stats.totalHeures}</span>
           </CardContent>
         </Card>
-        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
-            <BarChart2 className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Taux de complétion</CardTitle>
+            <Target className="w-6 h-6 text-bleu" />
+            <CardTitle className="text-sm font-semibold text-gray-500">Impact social</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{stats.tauxCompletion}%</span>
+            <span className="text-2xl font-bold text-bleu">{stats.impactSocial}</span>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
+          <CardHeader className="flex flex-row items-center gap-3 pb-2">
+            <Star className="w-6 h-6 text-bleu" />
+            <CardTitle className="text-sm font-semibold text-gray-500">Satisfaction</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="text-2xl font-bold text-bleu">{stats.satisfactionBenevoles}/5</span>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white">
+          <CardHeader className="flex flex-row items-center gap-3 pb-2">
+            <AlertCircle className="w-6 h-6 text-bleu" />
+            <CardTitle className="text-sm font-semibold text-gray-500">Missions urgentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <span className="text-2xl font-bold text-bleu">{stats.missionsUrgentes}</span>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-bleu/10 rounded-lg">
+                <TrendingUp className="w-6 h-6 text-bleu" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Missions populaires</h3>
+                <p className="text-sm text-gray-500">Voir les missions les plus demandées</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-bleu/10 rounded-lg">
+                <Heart className="w-6 h-6 text-bleu" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Bénévoles fidèles</h3>
+                <p className="text-sm text-gray-500">Découvrir vos bénévoles réguliers</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-bleu/10 rounded-lg">
+                <Award className="w-6 h-6 text-bleu" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Impact social</h3>
+                <p className="text-sm text-gray-500">Mesurer votre impact</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white hover:shadow-md transition-shadow cursor-pointer">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-bleu/10 rounded-lg">
+                <Users className="w-6 h-6 text-bleu" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Recrutement</h3>
+                <p className="text-sm text-gray-500">Trouver de nouveaux bénévoles</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
