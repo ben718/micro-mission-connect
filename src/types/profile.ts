@@ -1,7 +1,12 @@
 import { Database } from "@/integrations/supabase/types";
 
 // Type de base pour un profil utilisateur
-export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
+  is_organization?: boolean;
+  user_skills?: any[];
+  user_badges?: any[];
+  email?: string;
+};
 
 // Type pour un profil d'organisation
 export type OrganizationProfile = Database["public"]["Tables"]["organization_profiles"]["Row"] & {

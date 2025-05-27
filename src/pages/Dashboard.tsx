@@ -1,4 +1,3 @@
-
 import { useAuth } from "@/hooks/useAuth";
 import DashboardBenevole from "@/components/dashboard/DashboardBenevole";
 import DashboardAssociation from "@/components/dashboard/DashboardAssociation";
@@ -8,9 +7,8 @@ const Dashboard = () => {
 
   if (!profile) return <div>Chargement...</div>;
 
-  // For now, we'll check if it's an organization based on whether profile has organization-specific fields
-  // This is a temporary solution until we have a proper way to distinguish user types
-  const isOrganization = false; // Default to volunteer for now
+  // Vérifier si c'est une organisation en utilisant la propriété is_organization du profil
+  const isOrganization = profile.is_organization === true;
 
   return isOrganization ? <DashboardAssociation /> : <DashboardBenevole />;
 };
