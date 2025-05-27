@@ -49,8 +49,7 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
           id,
           status,
           created_at,
-          user_id,
-          profiles!mission_registrations_user_id_fkey (
+          user:profiles (
             id,
             full_name,
             avatar_url,
@@ -62,10 +61,10 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
       if (error) throw error;
 
       const formattedParticipants = data.map((registration) => ({
-        id: registration.profiles.id,
-        full_name: registration.profiles.full_name,
-        avatar_url: registration.profiles.avatar_url,
-        email: registration.profiles.email,
+        id: registration.user.id,
+        full_name: registration.user.full_name,
+        avatar_url: registration.user.avatar_url,
+        email: registration.user.email,
         status: registration.status as "pending" | "approved" | "rejected",
         created_at: registration.created_at,
       }));

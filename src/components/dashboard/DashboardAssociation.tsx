@@ -5,7 +5,7 @@ import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
 import { useOrganizationMissions } from "@/hooks/useMissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +33,11 @@ import DeleteMissionDialog from "@/components/missions/DeleteMissionDialog";
 import SuspendMissionDialog from "@/components/missions/SuspendMissionDialog";
 import ShareMissionDialog from "@/components/missions/ShareMissionDialog";
 import MissionParticipantsDialog from "@/components/missions/MissionParticipantsDialog";
+import EditMissionDialog from "@/components/missions/EditMissionDialog";
 
 const DashboardAssociation = () => {
   const { user, profile } = useAuth();
+  const navigate = useNavigate();
   const { data: organizationProfile } = useOrganizationProfile(user?.id);
   const { data: missions, isLoading, error } = useOrganizationMissions(organizationProfile?.id);
   const [activeTab, setActiveTab] = useState("missions");
@@ -50,6 +52,7 @@ const DashboardAssociation = () => {
   const [isSuspendDialogOpen, setIsSuspendDialogOpen] = useState(false);
   const [isShareDialogOpen, setIsShareDialogOpen] = useState(false);
   const [isParticipantsDialogOpen, setIsParticipantsDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     if (missions) {
@@ -89,20 +92,23 @@ const DashboardAssociation = () => {
     }
   };
 
-  const handleMissionAction = (missionId: string, action: string) => {
+  const handleMissionAction = (action: string, missionId: string) => {
     setSelectedMission(missionId);
     switch (action) {
-      case "delete":
-        setIsDeleteDialogOpen(true);
-        break;
-      case "suspend":
-        setIsSuspendDialogOpen(true);
+      case "view-participants":
+        setIsParticipantsDialogOpen(true);
         break;
       case "share":
         setIsShareDialogOpen(true);
         break;
-      case "participants":
-        setIsParticipantsDialogOpen(true);
+      case "suspend":
+        setIsSuspendDialogOpen(true);
+        break;
+      case "delete":
+        setIsDeleteDialogOpen(true);
+        break;
+      case "edit":
+        setIsEditDialogOpen(true);
         break;
     }
   };
@@ -278,20 +284,24 @@ const DashboardAssociation = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'participants')}>
+                              <DropdownMenuItem onClick={() => handleMissionAction('edit', mission.id)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleMissionAction('view-participants', mission.id)}>
                                 <Users className="w-4 h-4 mr-2" />
                                 Voir les participants
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'share')}>
+                              <DropdownMenuItem onClick={() => handleMissionAction('share', mission.id)}>
                                 <Share2 className="w-4 h-4 mr-2" />
                                 Partager
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleMissionAction(mission.id, 'suspend')}>
+                              <DropdownMenuItem onClick={() => handleMissionAction('suspend', mission.id)}>
                                 <Pause className="w-4 h-4 mr-2" />
                                 Suspendre
                               </DropdownMenuItem>
                               <DropdownMenuItem 
-                                onClick={() => handleMissionAction(mission.id, 'delete')}
+                                onClick={() => handleMissionAction('delete', mission.id)}
                                 className="text-red-600"
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
@@ -393,38 +403,47 @@ const DashboardAssociation = () => {
         </DialogContent>
       </Dialog>
 
-      {selectedMission && (
-        <>
-          <DeleteMissionDialog
-            isOpen={isDeleteDialogOpen}
-            onClose={() => setIsDeleteDialogOpen(false)}
-            missionId={selectedMission}
-            onSuccess={() => {
-              // Rafraîchir les missions après la suppression
-              window.location.reload();
-            }}
-          />
-          <SuspendMissionDialog
-            isOpen={isSuspendDialogOpen}
-            onClose={() => setIsSuspendDialogOpen(false)}
-            missionId={selectedMission}
-            onSuccess={() => {
-              // Rafraîchir les missions après la suspension
-              window.location.reload();
-            }}
-          />
-          <ShareMissionDialog
-            isOpen={isShareDialogOpen}
-            onClose={() => setIsShareDialogOpen(false)}
-            missionId={selectedMission}
-          />
-          <MissionParticipantsDialog
-            isOpen={isParticipantsDialogOpen}
-            onClose={() => setIsParticipantsDialogOpen(false)}
-            missionId={selectedMission}
-          />
-        </>
-      )}
+      <DeleteMissionDialog
+        isOpen={isDeleteDialogOpen}
+        onClose={() => setIsDeleteDialogOpen(false)}
+        missionId={selectedMission || ""}
+        onSuccess={() => {
+          // Rafraîchir les missions après la suppression
+          window.location.reload();
+        }}
+      />
+
+      <SuspendMissionDialog
+        isOpen={isSuspendDialogOpen}
+        onClose={() => setIsSuspendDialogOpen(false)}
+        missionId={selectedMission || ""}
+        onSuccess={() => {
+          // Rafraîchir les missions après la suspension
+          window.location.reload();
+        }}
+      />
+
+      <ShareMissionDialog
+        isOpen={isShareDialogOpen}
+        onClose={() => setIsShareDialogOpen(false)}
+        missionId={selectedMission || ""}
+      />
+
+      <MissionParticipantsDialog
+        isOpen={isParticipantsDialogOpen}
+        onClose={() => setIsParticipantsDialogOpen(false)}
+        missionId={selectedMission || ""}
+      />
+
+      <EditMissionDialog
+        isOpen={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        missionId={selectedMission || ""}
+        onSuccess={() => {
+          // Rafraîchir les missions après la mise à jour
+          window.location.reload();
+        }}
+      />
     </div>
   );
 };
