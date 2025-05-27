@@ -13,63 +13,24 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Loading from "@/components/ui/loading";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import Confirmation from "./pages/auth/Confirmation";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
-import Header from "./components/layout/Header";
-import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
-import ProfileOrganization from "@/pages/profile/ProfileOrganization";
-import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 
 const queryClient = new QueryClient();
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  console.log("[PrivateRoute] State:", { user: !!user, loading });
+  const { profile, isLoading } = useAuth();
 
-  if (loading) {
-    console.log("[PrivateRoute] Loading...");
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-bleu animate-spin" />
-      </div>
-    );
+  if (isLoading) {
+    return <Loading size={32} />;
   }
 
-  if (!user) {
-    console.log("[PrivateRoute] No user, redirecting to login");
-    return <Navigate to="/auth/login" />;
+  if (!profile) {
+    return <Navigate to="/login" />;
   }
 
-  console.log("[PrivateRoute] User authenticated, showing content");
   return <>{children}</>;
-};
-
-const ProfileRoute = () => {
-  const { user, profile, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-bleu animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Navigate to="/auth/login" />;
-  }
-
-  // Redirect to the appropriate profile based on user type
-  return profile?.first_name ? (
-    <Navigate to="/profile/association" />
-  ) : (
-    <Navigate to="/profile/benevole" />
-  );
 };
 
 const AppContent = () => {
@@ -117,40 +78,39 @@ const AppContent = () => {
           }
         />
 
-        <Route path="/auth/confirmation" element={<Confirmation />} />
-        <Route path="/missions" element={<MissionsPage />} />
-        <Route path="/missions/:id" element={<MissionDetail />} />
-        <Route path="/missions/new" element={
-          <PrivateRoute>
-            <CreateMission />
-          </PrivateRoute>
-        } />
+        {/* Routes des missions */}
         <Route
-          path="/profile"
+          path="/missions"
           element={
             <PrivateRoute>
-              <ProfileRoute />
+              <Layout>
+                <MissionsPage />
+              </Layout>
             </PrivateRoute>
           }
         />
         <Route
-          path="/profile/benevole"
+          path="/missions/:id"
           element={
             <PrivateRoute>
-              <ProfileBenevole />
+              <Layout>
+                <MissionDetail />
+              </Layout>
             </PrivateRoute>
           }
         />
         <Route
-          path="/profile/association"
+          path="/missions/new"
           element={
             <PrivateRoute>
-              <ProfileAssociation />
+              <Layout>
+                <CreateMission />
+              </Layout>
             </PrivateRoute>
           }
         />
-        <Route path="/profile/organization" element={<ProfileOrganization />} />
-        <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
+
+        {/* Redirection par défaut */}
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
