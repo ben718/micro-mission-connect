@@ -182,6 +182,21 @@ const DashboardStats = ({ organizationId }: DashboardStatsProps) => {
     };
   };
 
+  const prepareImpactData = () => {
+    return {
+      labels: ['Impact Social', 'Impact Éducatif', 'Impact Environnemental', 'Impact Culturel'],
+      datasets: [
+        {
+          label: 'Impact',
+          data: [65, 45, 35, 25],
+          backgroundColor: 'rgba(59, 130, 246, 0.5)',
+          borderColor: 'rgb(59, 130, 246)',
+          borderWidth: 1
+        }
+      ]
+    };
+  };
+
   if (loading) {
     return <div>Chargement des statistiques...</div>;
   }
@@ -243,21 +258,10 @@ const DashboardStats = ({ organizationId }: DashboardStatsProps) => {
         <TabsContent value="impact" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Métriques d'impact</CardTitle>
+              <CardTitle>Impact social</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                {stats.impactMetrics.map((metric: any, index: number) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <h3 className="font-medium mb-2">Impact recherché</h3>
-                    <p className="text-sm text-muted-foreground">{metric.desired_impact}</p>
-                    <div className="mt-2">
-                      <span className="text-sm font-medium">Niveau d'engagement : </span>
-                      <span className="text-sm text-muted-foreground">{metric.engagement_level}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Bar data={prepareImpactData()} />
             </CardContent>
           </Card>
         </TabsContent>

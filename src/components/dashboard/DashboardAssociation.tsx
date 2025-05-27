@@ -205,9 +205,9 @@ const DashboardAssociation = () => {
       case "active":
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case "completed":
-        return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800">Terminée</Badge>;
       case "cancelled":
-        return <Badge className="bg-red-100 text-red-800">Cancelled</Badge>;
+        return <Badge className="bg-red-100 text-red-800">Annulée</Badge>;
       default:
         return <Badge variant="outline">{String(status)}</Badge>;
     }
@@ -237,10 +237,10 @@ const DashboardAssociation = () => {
       <div className="container-custom py-10">
         <Card>
           <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-2">Error</h2>
+            <h2 className="text-xl font-bold mb-2">Erreur</h2>
             <p className="text-gray-500 mb-4">{error}</p>
             <Button asChild>
-              <Link to="/missions">View all missions</Link>
+              <Link to="/missions">Voir toutes les missions</Link>
             </Button>
           </CardContent>
         </Card>
@@ -265,7 +265,7 @@ const DashboardAssociation = () => {
           </Avatar>
           <div>
             <h1 className="text-3xl font-bold mb-1 text-bleu">{profile?.first_name} {profile?.last_name}</h1>
-            <p className="text-gray-600">Welcome to your association dashboard!</p>
+            <p className="text-gray-600">Bienvenue sur votre tableau de bord d'association !</p>
             {profile?.city && (
               <div className="flex items-center text-gray-500 mt-1">
                 <MapPin className="w-4 h-4 mr-1 text-bleu" />
@@ -277,7 +277,7 @@ const DashboardAssociation = () => {
         <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3 shadow-sm">
           <Link to="/missions/new">
             <Plus className="w-5 h-5 mr-2" />
-            Create Mission
+            Créer une mission
           </Link>
         </Button>
       </div>
@@ -287,7 +287,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Calendar className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Created Missions</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Missions créées</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{missions.length}</span>
@@ -296,7 +296,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Users className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Volunteers Engaged</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Bénévoles engagés</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.totalBenevoles}</span>
@@ -305,7 +305,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Volunteer Hours</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Heures de bénévolat</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.totalHeures}</span>
@@ -314,7 +314,7 @@ const DashboardAssociation = () => {
         <Card className="shadow-sm border border-gray-200 border-opacity-60 bg-white p-6">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <BarChart2 className="w-6 h-6 text-bleu" />
-            <CardTitle className="text-base font-semibold text-gray-500">Completion Rate</CardTitle>
+            <CardTitle className="text-base font-semibold text-gray-500">Taux de complétion</CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-3xl font-bold text-bleu">{stats.tauxCompletion}%</span>
@@ -327,11 +327,11 @@ const DashboardAssociation = () => {
         <CardContent className="p-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full border-b rounded-none">
-              <TabsTrigger value="missions" className="flex-1">Upcoming Missions ({upcomingMissions.length})</TabsTrigger>
-              <TabsTrigger value="past-missions" className="flex-1">Past Missions ({pastMissions.length})</TabsTrigger>
+              <TabsTrigger value="missions" className="flex-1">Missions à venir ({upcomingMissions.length})</TabsTrigger>
+              <TabsTrigger value="past-missions" className="flex-1">Missions passées ({pastMissions.length})</TabsTrigger>
             </TabsList>
             <TabsContent value="missions" className="p-6">
-              <h2 className="text-xl font-bold mb-4">Upcoming Missions</h2>
+              <h2 className="text-xl font-bold mb-4">Missions à venir</h2>
               {upcomingMissions.length === 0 ? (
                 <p className="text-gray-500">No upcoming missions.</p>
               ) : (
@@ -364,7 +364,7 @@ const DashboardAssociation = () => {
               )}
             </TabsContent>
             <TabsContent value="past-missions" className="p-6">
-              <h2 className="text-xl font-bold mb-4">Past Missions</h2>
+              <h2 className="text-xl font-bold mb-4">Missions passées</h2>
               {pastMissions.length === 0 ? (
                 <p className="text-gray-500">No past missions.</p>
               ) : (
