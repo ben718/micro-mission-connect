@@ -1,105 +1,160 @@
+import React from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
+import { 
+  Search, 
+  Heart, 
+  Award, 
+  Users,
+  Calendar,
+  MapPin,
+  Clock
+} from "lucide-react";
 
 const Home = () => {
-  const { user } = useAuth();
+  const { profile } = useAuth();
 
   return (
-    <div className="container mx-auto px-4 py-12">
-      <div className="text-center">
-        <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-          Bienvenue sur MicroBénévole
+    <div className="container mx-auto px-4 py-8">
+      {/* En-tête */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">
+          Bienvenue sur Micro-Mission
         </h1>
-        <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-          La plateforme qui connecte les bénévoles et les associations pour des missions courtes et impactantes.
+        <p className="text-gray-600">
+          Découvrez des missions qui correspondent à vos compétences et faites la différence
         </p>
-        {!user ? (
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="bg-bleu text-white">
-              <Link to="/auth/register">S'inscrire gratuitement</Link>
-            </Button>
-            <Button asChild variant="outline" className="text-bleu border-bleu">
-              <Link to="/auth/login">Se connecter</Link>
-            </Button>
-          </div>
-        ) : (
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild className="bg-bleu text-white">
-              <Link to="/profile">Voir mon profil</Link>
-            </Button>
-            <Button asChild variant="outline" className="text-bleu border-bleu">
-              <Link to="/missions">Découvrir les missions</Link>
-            </Button>
-          </div>
-        )}
       </div>
 
-      {/* Section Fonctionnalités */}
-      <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-bleu/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🎯</span>
+      {/* Recherche rapide */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>Rechercher une mission</CardTitle>
+          <CardDescription>Trouvez la mission qui vous correspond</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Button asChild className="flex-1">
+              <Link to="/missions">
+                <Search className="mr-2 h-4 w-4" />
+                Explorer les missions
+              </Link>
+            </Button>
           </div>
-          <h3 className="text-xl font-semibold mb-2">Missions Courtes</h3>
-          <p className="text-gray-600">
-            Des missions de quelques heures pour s'engager facilement et efficacement.
-          </p>
-        </div>
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-bleu/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🤝</span>
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Mise en Relation</h3>
-          <p className="text-gray-600">
-            Connectez-vous avec des associations qui correspondent à vos compétences.
-          </p>
-        </div>
-        <div className="text-center p-6">
-          <div className="w-16 h-16 bg-bleu/10 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">🏆</span>
-          </div>
-          <h3 className="text-xl font-semibold mb-2">Badges & Récompenses</h3>
-          <p className="text-gray-600">
-            Gagnez des badges et suivez votre progression dans l'engagement associatif.
-          </p>
+        </CardContent>
+      </Card>
+
+      {/* Fonctionnalités principales */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Heart className="h-5 w-5 text-red-500" />
+              Faites la différence
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">
+              Contribuez à des causes qui vous tiennent à cœur et créez un impact positif dans votre communauté.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="h-5 w-5 text-yellow-500" />
+              Développez vos compétences
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">
+              Acquérez de nouvelles compétences et enrichissez votre expérience professionnelle.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-500" />
+              Rejoignez une communauté
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600">
+              Connectez-vous avec d'autres bénévoles passionnés et partagez vos expériences.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Comment ça marche */}
+      <div className="mb-8">
+        <h2 className="text-2xl font-bold mb-4">Comment ça marche ?</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-green-500" />
+                1. Explorez
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Parcourez les missions disponibles et trouvez celle qui correspond à vos compétences et disponibilités.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-500" />
+                2. Postulez
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Soumettez votre candidature et attendez la confirmation de l'association.
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-purple-500" />
+                3. Engagez-vous
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-gray-600">
+                Participez à la mission et suivez votre impact sur la plateforme.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Section Comment ça marche */}
-      <div className="mt-20">
-        <h2 className="text-3xl font-bold text-center mb-12">Comment ça marche ?</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div className="text-center">
-            <div className="w-12 h-12 bg-bleu text-white rounded-full flex items-center justify-center mx-auto mb-4">
-              1
-            </div>
-            <h3 className="font-semibold mb-2">Créez votre profil</h3>
-            <p className="text-gray-600">Inscrivez-vous en tant que bénévole ou association</p>
-          </div>
-          <div className="text-center">
-            <div className="w-12 h-12 bg-bleu text-white rounded-full flex items-center justify-center mx-auto mb-4">
-              2
-            </div>
-            <h3 className="font-semibold mb-2">Parcourez les missions</h3>
-            <p className="text-gray-600">Découvrez les opportunités qui vous correspondent</p>
-          </div>
-          <div className="text-center">
-            <div className="w-12 h-12 bg-bleu text-white rounded-full flex items-center justify-center mx-auto mb-4">
-              3
-            </div>
-            <h3 className="font-semibold mb-2">Participez</h3>
-            <p className="text-gray-600">Inscrivez-vous aux missions qui vous intéressent</p>
-          </div>
-          <div className="text-center">
-            <div className="w-12 h-12 bg-bleu text-white rounded-full flex items-center justify-center mx-auto mb-4">
-              4
-            </div>
-            <h3 className="font-semibold mb-2">Engagez-vous</h3>
-            <p className="text-gray-600">Participez et faites la différence</p>
-          </div>
-        </div>
-      </div>
+      {/* Appel à l'action */}
+      <Card className="bg-gradient-to-r from-blue-500 to-purple-500 text-white">
+        <CardHeader>
+          <CardTitle>Prêt à faire la différence ?</CardTitle>
+          <CardDescription className="text-white/80">
+            Rejoignez notre communauté de bénévoles et commencez votre voyage dès aujourd'hui.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="secondary" className="w-full">
+            <Link to="/missions">
+              Découvrir les missions
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };

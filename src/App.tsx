@@ -1,21 +1,24 @@
-
+import React from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import Layout from "@/components/layout/Layout";
+import Home from "@/pages/Home";
+import AssociationHome from "@/pages/AssociationHome";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
+import DashboardAssociation from "@/components/dashboard/DashboardAssociation";
+import DashboardVolunteer from "@/components/dashboard/DashboardVolunteer";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import Login from "@/pages/auth/Login";
-import Register from "@/pages/auth/Register";
-import ProfileBenevole from "@/pages/ProfileBenevole";
-import ProfileAssociation from "@/pages/ProfileAssociation";
+import Loading from "@/components/ui/loading";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Confirmation from "./pages/auth/Confirmation";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
-import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 import { Loader2 } from "lucide-react";
 import { useEffect } from "react";
@@ -70,65 +73,91 @@ const ProfileRoute = () => {
 };
 
 const App = () => {
-  useEffect(() => {
-    console.log("[App] App component initialization");
-  }, []);
+  const { profile, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <Loading size={32} />;
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <Router>
+          <Routes>
+            {/* Routes publiques */}
+            <Route path="/login" element={!profile ? <Login /> : <Navigate to="/" />} />
+            <Route path="/register" element={!profile ? <Register /> : <Navigate to="/" />} />
+
+            {/* Routes protégées */}
+            <Route
+              path="/"
+              element={
+                profile ? (
+                  <Layout>
+                    {profile.type === "organization" ? <AssociationHome /> : <Home />}
+                  </Layout>
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+
+            <Route
+              path="/dashboard"
+              element={
+                profile ? (
+                  <Layout>
+                    {profile.type === "organization" ? (
+                      <DashboardAssociation />
+                    ) : (
+                      <DashboardVolunteer />
+                    )}
+                  </Layout>
+                ) : (
+                  <Navigate to="/login" />
+                )
+              }
+            />
+
+            <Route path="/auth/confirmation" element={<Confirmation />} />
+            <Route path="/missions" element={<MissionsPage />} />
+            <Route path="/missions/:id" element={<MissionDetail />} />
+            <Route path="/missions/new" element={
+              <PrivateRoute>
+                <CreateMission />
+              </PrivateRoute>
+            } />
+            <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <ProfileRoute />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/profile/benevole"
+              element={
+                <PrivateRoute>
+                  <ProfileBenevole />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/profile/association"
+              element={
+                <PrivateRoute>
+                  <ProfileAssociation />
+                </PrivateRoute>
+              }
+            />
+            <Route path="/profile/organization" element={<ProfileOrganization />} />
+            <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
         <Toaster />
         <Sonner />
-        <Router>
-          <AuthProvider>
-            <Header />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/auth/login" element={<Login />} />
-              <Route path="/auth/register" element={<Register />} />
-              <Route path="/auth/confirmation" element={<Confirmation />} />
-              <Route path="/missions" element={<MissionsPage />} />
-              <Route path="/missions/:id" element={<MissionDetail />} />
-              <Route path="/missions/new" element={
-                <PrivateRoute>
-                  <CreateMission />
-                </PrivateRoute>
-              } />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <ProfileRoute />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/benevole"
-                element={
-                  <PrivateRoute>
-                    <ProfileBenevole />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/association"
-                element={
-                  <PrivateRoute>
-                    <ProfileAssociation />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="/profile/organization" element={<ProfileOrganization />} />
-              <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AuthProvider>
-        </Router>
       </TooltipProvider>
     </QueryClientProvider>
   );
