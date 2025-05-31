@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
@@ -46,7 +45,13 @@ export function useMissionDetails(missionId: string) {
         registration_status: data.mission_registrations?.find(
           (reg: any) => reg.user_id === user?.id
         )?.status as ParticipationStatus,
-        mission_registrations: data.mission_registrations || []
+        mission_registrations: data.mission_registrations || [],
+        organization: data.organization,
+        mission_type: data.mission_type,
+        // Handle geo_location safely
+        geo_location: data.geo_location && typeof data.geo_location === 'object' && 'type' in data.geo_location && 'coordinates' in data.geo_location
+          ? data.geo_location as { type: "Point"; coordinates: [number, number] }
+          : null
       };
 
       return transformedMission;

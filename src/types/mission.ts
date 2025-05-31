@@ -11,7 +11,7 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
   geo_location?: {
     type: "Point";
     coordinates: [number, number];
-  };
+  } | null;
   // Legacy compatibility fields
   category?: string;
   date?: string;
@@ -76,7 +76,7 @@ export type DateRangeSelection = {
   to: Date | undefined;
 };
 
-// Types pour les filtres de recherche - Fixed status type
+// Types pour les filtres de recherche
 export type MissionFilters = {
   query?: string;
   location?: string;
@@ -94,7 +94,7 @@ export type MissionFilters = {
     longitude: number;
     radius?: number;
   };
-  status?: string; // Fixed: simplified to just string
+  status?: string | string[];
   difficulty_level?: MissionDifficulty | MissionDifficulty[];
   engagement_level?: MissionEngagement | MissionEngagement[];
   requiredSkills?: string[];

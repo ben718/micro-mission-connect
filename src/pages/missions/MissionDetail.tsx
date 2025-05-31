@@ -16,7 +16,7 @@ export default function MissionDetail() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  const { data: mission, isLoading } = useQuery<MissionWithDetails>({
+  const { data: mission, isLoading } = useQuery({
     queryKey: ["mission", id],
     queryFn: async () => {
       const { data: mission } = await supabase
@@ -59,13 +59,21 @@ export default function MissionDetail() {
         }
       }
 
-      return {
+      const transformedMission: MissionWithDetails = {
         ...mission,
         required_skills: mission.mission_skills?.map(ms => ms.skill.name) || [],
         participants_count: participantsCount || 0,
         is_registered: isRegistered,
-        registration_status: registrationStatus
+        registration_status: registrationStatus,
+        organization: mission.organization,
+        mission_type: mission.mission_type,
+        // Handle geo_location safely
+        geo_location: mission.geo_location && typeof mission.geo_location === 'object' && 'type' in mission.geo_location && 'coordinates' in mission.geo_location
+          ? mission.geo_location as { type: "Point"; coordinates: [number, number] }
+          : null
       };
+
+      return transformedMission;
     }
   });
 

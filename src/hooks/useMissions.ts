@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Mission, MissionFilters, MissionStats } from "@/types/mission";
+import { Mission, MissionStats } from "@/types/mission";
 import { toast } from "sonner";
 
 // Hook pour récupérer les catégories de missions
@@ -68,14 +68,35 @@ export const useLocations = () => {
   });
 };
 
-interface MissionFilters {
+// Updated interface to match the type definition
+interface UseMissionsFilters {
   query?: string;
   location?: string;
-  status?: string;
+  status?: string | string[];
   organization_id?: string;
+  categoryIds?: string[];
+  missionTypeIds?: string[];
+  dateRange?: {
+    start?: Date;
+    end?: Date;
+  };
+  format?: string | string[];
+  difficulty_level?: string | string[];
+  engagement_level?: string | string[];
+  page?: number;
+  pageSize?: number;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+    radius?: number;
+  };
+  requiredSkills?: string[];
+  organization_sector?: string | string[];
+  remote?: boolean;
+  postal_code?: string;
 }
 
-export const useMissions = (filters?: MissionFilters) => {
+export const useMissions = (filters?: UseMissionsFilters) => {
   return useQuery({
     queryKey: ["missions", filters],
     queryFn: async () => {
@@ -135,6 +156,10 @@ export const useMissions = (filters?: MissionFilters) => {
         mission_type: mission.mission_types,
         required_skills: mission.mission_skills?.map(ms => ms.skill?.name).filter(Boolean) || [],
         participants_count: mission.mission_registrations?.filter(mr => mr.status === 'accepté').length || 0,
+        // Handle geo_location safely
+        geo_location: mission.geo_location && typeof mission.geo_location === 'object' && 'type' in mission.geo_location && 'coordinates' in mission.geo_location
+          ? mission.geo_location as { type: "Point"; coordinates: [number, number] }
+          : null
       }));
 
       return {

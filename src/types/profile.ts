@@ -8,6 +8,8 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   user_skills?: any[];
   user_badges?: any[];
   email?: string;
+  phone?: string;
+  bio?: string;
 };
 
 // Type pour un profil d'organisation

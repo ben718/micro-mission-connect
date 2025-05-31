@@ -69,8 +69,10 @@ const MissionRecommendations = () => {
             latitude: null
           },
           participants_count: 0,
-          // Ensure geo_location has the correct structure or is undefined
-          geo_location: mission.geo_location || undefined
+          // Handle geo_location safely
+          geo_location: mission.geo_location && typeof mission.geo_location === 'object' && 'type' in mission.geo_location && 'coordinates' in mission.geo_location
+            ? mission.geo_location as { type: "Point"; coordinates: [number, number] }
+            : null
         }));
 
         setRecommendations(transformedMissions);
