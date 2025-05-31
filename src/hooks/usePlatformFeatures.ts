@@ -16,7 +16,10 @@ export function usePlatformFeatures() {
     queryKey: ['platform-features'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .rpc('get_platform_features');
+        .from('platform_features')
+        .select('id, title, description, icon_name, color_class, display_order')
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching platform features:', error);

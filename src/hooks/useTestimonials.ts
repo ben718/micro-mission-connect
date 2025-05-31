@@ -16,7 +16,13 @@ export function useTestimonials() {
     queryKey: ['testimonials'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .rpc('get_testimonials');
+        .from('testimonials')
+        .select('id, quote, author_name, author_role, avatar_url, display_order')
+        .eq('is_visible', true)
+        .not('quote', 'is', null)
+        .not('author_name', 'is', null)
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching testimonials:', error);

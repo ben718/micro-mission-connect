@@ -433,6 +433,39 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_features: {
+        Row: {
+          color_class: string | null
+          created_at: string | null
+          description: string
+          display_order: number | null
+          icon_name: string
+          id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          color_class?: string | null
+          created_at?: string | null
+          description: string
+          display_order?: number | null
+          icon_name: string
+          id?: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          color_class?: string | null
+          created_at?: string | null
+          description?: string
+          display_order?: number | null
+          icon_name?: string
+          id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           address: string | null
@@ -543,31 +576,46 @@ export type Database = {
       }
       testimonials: {
         Row: {
-          content: string
+          author_name: string | null
+          author_role: string | null
+          avatar_url: string | null
+          content: string | null
           created_at: string | null
+          display_order: number | null
           id: string
           is_visible: boolean | null
           job_title: string | null
+          quote: string | null
           updated_at: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
-          content: string
+          author_name?: string | null
+          author_role?: string | null
+          avatar_url?: string | null
+          content?: string | null
           created_at?: string | null
+          display_order?: number | null
           id?: string
           is_visible?: boolean | null
           job_title?: string | null
+          quote?: string | null
           updated_at?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
-          content?: string
+          author_name?: string | null
+          author_role?: string | null
+          avatar_url?: string | null
+          content?: string | null
           created_at?: string | null
+          display_order?: number | null
           id?: string
           is_visible?: boolean | null
           job_title?: string | null
+          quote?: string | null
           updated_at?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1254,9 +1302,31 @@ export type Database = {
           longitude: number
         }[]
       }
+      get_platform_features: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          title: string
+          description: string
+          icon_name: string
+          color_class: string
+          display_order: number
+        }[]
+      }
       get_proj4_from_srid: {
         Args: { "": number }
         Returns: string
+      }
+      get_testimonials: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          quote: string
+          author_name: string
+          author_role: string
+          avatar_url: string
+          display_order: number
+        }[]
       }
       gettransactionid: {
         Args: Record<PropertyKey, never>

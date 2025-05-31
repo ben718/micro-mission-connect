@@ -83,9 +83,33 @@ const MissionsList: React.FC = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {missions.map((mission) => (
-              <MissionCard key={mission.id} mission={mission} />
-            ))}
+            {missions.map((mission) => {
+              // Transformer la mission pour correspondre au type attendu par MissionCard
+              const transformedMission = {
+                ...mission,
+                organization: {
+                  id: mission.organization?.id || '',
+                  user_id: mission.organization?.user_id || '',
+                  organization_name: mission.organization?.organization_name || '',
+                  description: mission.organization?.description || '',
+                  logo_url: mission.organization?.logo_url || '',
+                  website_url: mission.organization?.website_url || '',
+                  address: mission.organization?.address || '',
+                  latitude: mission.organization?.latitude || 0,
+                  longitude: mission.organization?.longitude || 0,
+                  location: mission.organization?.location || null,
+                  sector_id: mission.organization?.sector_id || '',
+                  siret_number: mission.organization?.siret_number || '',
+                  creation_date: mission.organization?.creation_date || '',
+                  created_at: mission.organization?.created_at || '',
+                  updated_at: mission.organization?.updated_at || ''
+                }
+              };
+              
+              return (
+                <MissionCard key={mission.id} mission={transformedMission} />
+              );
+            })}
           </div>
 
           {hasMore && (
