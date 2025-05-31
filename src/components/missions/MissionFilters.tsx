@@ -29,7 +29,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
 
   const [query, setQuery] = React.useState('');
   const [location, setLocation] = React.useState('');
-  const [format, setFormat] = React.useState<string | undefined>(undefined);
+  const [missionFormat, setMissionFormat] = React.useState<string | undefined>(undefined);
   const [difficultyLevel, setDifficultyLevel] = React.useState<string | undefined>(undefined);
   const [engagementLevel, setEngagementLevel] = React.useState<string | undefined>(undefined);
   const [selectedTypeIds, setSelectedTypeIds] = React.useState<string[]>([]);
@@ -39,7 +39,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
     const filters: MissionFiltersType = {
       query: query || undefined,
       location: location || undefined,
-      format: format as any,
+      format: missionFormat as any,
       difficulty_level: difficultyLevel as any,
       engagement_level: engagementLevel as any,
       missionTypeIds: selectedTypeIds.length > 0 ? selectedTypeIds : undefined,
@@ -52,7 +52,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
     };
     
     onFiltersChange(filters);
-  }, [query, location, format, difficultyLevel, engagementLevel, selectedTypeIds, dateRange, onFiltersChange]);
+  }, [query, location, missionFormat, difficultyLevel, engagementLevel, selectedTypeIds, dateRange, onFiltersChange]);
 
   React.useEffect(() => {
     updateFilters();
@@ -69,14 +69,14 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
   const clearFilters = () => {
     setQuery('');
     setLocation('');
-    setFormat(undefined);
+    setMissionFormat(undefined);
     setDifficultyLevel(undefined);
     setEngagementLevel(undefined);
     setSelectedTypeIds([]);
     setDateRange(undefined);
   };
 
-  const hasActiveFilters = query || location || format || difficultyLevel || engagementLevel || selectedTypeIds.length > 0 || dateRange;
+  const hasActiveFilters = query || location || missionFormat || difficultyLevel || engagementLevel || selectedTypeIds.length > 0 || dateRange;
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border">
@@ -102,7 +102,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
 
         {/* Format */}
         <div className="w-full lg:w-48">
-          <Select value={format || ""} onValueChange={(value) => setFormat(value || undefined)}>
+          <Select value={missionFormat || ""} onValueChange={(value) => setMissionFormat(value || undefined)}>
             <SelectTrigger>
               <SelectValue placeholder="Format" />
             </SelectTrigger>
