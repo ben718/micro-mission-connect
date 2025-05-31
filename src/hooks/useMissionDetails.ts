@@ -102,18 +102,52 @@ export function useMissionDetails(missionId: string) {
 
       console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
 
-      const { error } = await supabase
+      // Vérifier d'abord si une inscription existe déjà
+      const { data: existingRegistration, error: checkError } = await supabase
         .from("mission_registrations")
-        .insert({
-          user_id: user.id,
-          mission_id: mission.id,
-          status: "inscrit" as ParticipationStatus,
-          registration_date: new Date().toISOString()
-        });
+        .select("id, status")
+        .eq("user_id", user.id)
+        .eq("mission_id", mission.id)
+        .single();
 
-      if (error) {
-        console.error("Erreur d'inscription:", error);
-        throw error;
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error("Erreur lors de la vérification d'inscription:", checkError);
+        throw checkError;
+      }
+
+      if (existingRegistration) {
+        // Si une inscription existe et qu'elle est annulée, on la remet à "inscrit"
+        if (existingRegistration.status === "annulé") {
+          const { error: updateError } = await supabase
+            .from("mission_registrations")
+            .update({ 
+              status: "inscrit" as ParticipationStatus,
+              registration_date: new Date().toISOString()
+            })
+            .eq("id", existingRegistration.id);
+
+          if (updateError) {
+            console.error("Erreur de mise à jour d'inscription:", updateError);
+            throw updateError;
+          }
+        } else {
+          throw new Error("Vous êtes déjà inscrit à cette mission");
+        }
+      } else {
+        // Créer une nouvelle inscription
+        const { error } = await supabase
+          .from("mission_registrations")
+          .insert({
+            user_id: user.id,
+            mission_id: mission.id,
+            status: "inscrit" as ParticipationStatus,
+            registration_date: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error("Erreur d'inscription:", error);
+          throw error;
+        }
       }
 
       // Créer la notification après l'inscription réussie
@@ -132,6 +166,8 @@ export function useMissionDetails(missionId: string) {
       console.error("Erreur complète d'inscription:", error);
       if (error.message?.includes('row-level security')) {
         toast.error("Erreur de permissions. Veuillez vous reconnecter.");
+      } else if (error.message?.includes('unique constraint')) {
+        toast.error("Vous êtes déjà inscrit à cette mission.");
       } else {
         handleError(error, "Erreur lors de l'inscription");
       }
