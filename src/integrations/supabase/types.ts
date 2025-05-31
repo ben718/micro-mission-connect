@@ -71,6 +71,7 @@ export type Database = {
       }
       mission_registrations: {
         Row: {
+          cancellation_count: number | null
           confirmation_date: string | null
           created_at: string | null
           id: string
@@ -85,6 +86,7 @@ export type Database = {
           volunteer_rating: number | null
         }
         Insert: {
+          cancellation_count?: number | null
           confirmation_date?: string | null
           created_at?: string | null
           id?: string
@@ -99,6 +101,7 @@ export type Database = {
           volunteer_rating?: number | null
         }
         Update: {
+          cancellation_count?: number | null
           confirmation_date?: string | null
           created_at?: string | null
           id?: string

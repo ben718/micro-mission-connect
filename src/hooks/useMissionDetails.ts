@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -54,22 +55,20 @@ export function useMissionDetails(missionId: string) {
         let cancellationCount = 0;
         
         if (user) {
-          // Récupérer toutes les inscriptions de l'utilisateur pour cette mission
-          const { data: userRegistrations } = await supabase
+          // Récupérer la dernière inscription de l'utilisateur pour cette mission
+          const { data: userRegistration } = await supabase
             .from("mission_registrations")
             .select("*")
             .eq("mission_id", missionId)
             .eq("user_id", user.id)
-            .order("registration_date", { ascending: false });
+            .order("registration_date", { ascending: false })
+            .limit(1)
+            .single();
 
-          if (userRegistrations && userRegistrations.length > 0) {
-            // Compter les annulations
-            cancellationCount = userRegistrations.filter(reg => reg.status === "annulé").length;
-            
-            // Prendre le statut de la dernière inscription
-            const latestRegistration = userRegistrations[0];
-            isRegistered = latestRegistration.status !== "annulé";
-            registrationStatus = latestRegistration.status as ParticipationStatus;
+          if (userRegistration) {
+            isRegistered = userRegistration.status !== "annulé";
+            registrationStatus = userRegistration.status as ParticipationStatus;
+            cancellationCount = userRegistration.cancellation_count || 0;
           }
         }
 
@@ -119,23 +118,24 @@ export function useMissionDetails(missionId: string) {
       console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
 
       // Vérifier d'abord si une inscription existe déjà
-      const { data: existingRegistrations, error: checkError } = await supabase
+      const { data: existingRegistration, error: checkError } = await supabase
         .from("mission_registrations")
-        .select("id, status")
+        .select("id, status, cancellation_count")
         .eq("user_id", user.id)
-        .eq("mission_id", mission.id);
+        .eq("mission_id", mission.id)
+        .order("registration_date", { ascending: false })
+        .limit(1)
+        .single();
 
-      if (checkError) {
+      if (checkError && checkError.code !== 'PGRST116') {
         console.error("Erreur lors de la vérification d'inscription:", checkError);
         throw checkError;
       }
 
-      const existingRegistration = existingRegistrations?.[0];
-
       if (existingRegistration) {
         // Si une inscription existe
         if (existingRegistration.status === "annulé") {
-          // Réactiver l'inscription annulée
+          // Réactiver l'inscription annulée (le trigger gérera le compteur)
           const { error: updateError } = await supabase
             .from("mission_registrations")
             .update({ 
@@ -173,7 +173,8 @@ export function useMissionDetails(missionId: string) {
             user_id: user.id,
             mission_id: mission.id,
             status: "inscrit" as ParticipationStatus,
-            registration_date: new Date().toISOString()
+            registration_date: new Date().toISOString(),
+            cancellation_count: 0
           });
 
         if (error) {
@@ -216,11 +217,14 @@ export function useMissionDetails(missionId: string) {
 
       console.log("Mise à jour du statut pour l'utilisateur:", user.id, "mission:", mission.id, "statut:", status);
 
+      // Le trigger se chargera automatiquement d'incrémenter cancellation_count si nécessaire
       const { error } = await supabase
         .from("mission_registrations")
         .update({ status })
         .eq("mission_id", mission.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .order("registration_date", { ascending: false })
+        .limit(1);
 
       if (error) {
         console.error("Erreur de mise à jour du statut:", error);

@@ -23,7 +23,9 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
 export type Skill = Database["public"]["Tables"]["skills"]["Row"];
 export type MissionSkill = Database["public"]["Tables"]["mission_skills"]["Row"];
-export type MissionRegistration = Database["public"]["Tables"]["mission_registrations"]["Row"];
+export type MissionRegistration = Database["public"]["Tables"]["mission_registrations"]["Row"] & {
+  cancellation_count?: number;
+};
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"] & {
   badge?: Badge;
