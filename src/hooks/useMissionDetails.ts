@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,7 +85,7 @@ export function useMissionDetails(missionId: string) {
       }
     },
     enabled: !!missionId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 0, // Toujours refetch pour s'assurer d'avoir les données fraîches
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {
       if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
@@ -176,7 +175,10 @@ export function useMissionDetails(missionId: string) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
+      // Invalider plusieurs clés de cache pour s'assurer que tout est mis à jour
+      queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.refetchQueries({ queryKey });
       toast.success("Inscription réussie !");
     },
     onError: (error: any) => {
@@ -220,7 +222,10 @@ export function useMissionDetails(missionId: string) {
       }
     },
     onSuccess: (_, { status }) => {
-      queryClient.invalidateQueries({ queryKey });
+      // Invalider plusieurs clés de cache pour s'assurer que tout est mis à jour
+      queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+      queryClient.invalidateQueries({ queryKey: ["missions"] });
+      queryClient.refetchQueries({ queryKey });
       if (status === "annulé") {
         toast.success("Inscription annulée");
       } else {
