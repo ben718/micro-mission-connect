@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -107,12 +106,12 @@ export function useMissionDetails(missionId: string) {
 
   const participateMutation = useMutation({
     mutationFn: async () => {
-      if (!user) throw new Error("Vous devez être connecté pour participer");
-      if (!mission) throw new Error("Mission non trouvée");
+      if (!user) throw new Error("Vous devez être connecté pour vous inscrire à cette mission");
+      if (!mission) throw new Error("Mission introuvable");
 
       // Vérifier si l'utilisateur a déjà annulé 2 fois
       if (mission.cancellation_count >= 2) {
-        throw new Error("Vous avez atteint le nombre maximum d'annulations pour cette mission");
+        throw new Error("Vous avez atteint le nombre maximum d'annulations pour cette mission (2/2)");
       }
 
       console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
@@ -149,7 +148,7 @@ export function useMissionDetails(missionId: string) {
             throw updateError;
           }
         } else if (existingRegistration.status === "inscrit" || existingRegistration.status === "confirmé") {
-          throw new Error("Vous êtes déjà inscrit à cette mission");
+          throw new Error("Vous êtes déjà inscrit(e) à cette mission");
         } else {
           // Pour les autres statuts, on permet la réinscription en mettant à jour
           const { error: updateError } = await supabase
@@ -196,14 +195,16 @@ export function useMissionDetails(missionId: string) {
       queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
       queryClient.invalidateQueries({ queryKey: ["missions"] });
       queryClient.refetchQueries({ queryKey });
-      toast.success("Inscription réussie !");
+      toast.success("✅ Inscription confirmée ! Vous recevrez bientôt les détails de participation.");
     },
     onError: (error: any) => {
       console.error("Erreur complète d'inscription:", error);
       if (error.message?.includes('row-level security')) {
-        toast.error("Erreur de permissions. Veuillez vous reconnecter.");
+        toast.error("⚠️ Erreur de permissions. Veuillez vous reconnecter et réessayer.");
       } else if (error.message?.includes('unique constraint')) {
-        toast.error("Erreur technique. Veuillez réessayer.");
+        toast.error("⚠️ Erreur technique lors de l'inscription. Veuillez réessayer dans quelques instants.");
+      } else if (error.message?.includes('nombre maximum')) {
+        toast.error("❌ " + error.message);
       } else {
         handleError(error, "Erreur lors de l'inscription");
       }
@@ -212,8 +213,8 @@ export function useMissionDetails(missionId: string) {
 
   const updateRegistrationStatusMutation = useMutation({
     mutationFn: async ({ status }: { status: ParticipationStatus }) => {
-      if (!user) throw new Error("Vous devez être connecté");
-      if (!mission) throw new Error("Mission non trouvée");
+      if (!user) throw new Error("Vous devez être connecté pour modifier votre inscription");
+      if (!mission) throw new Error("Mission introuvable");
 
       console.log("Mise à jour du statut pour l'utilisateur:", user.id, "mission:", mission.id, "statut:", status);
 
@@ -247,17 +248,17 @@ export function useMissionDetails(missionId: string) {
       queryClient.invalidateQueries({ queryKey: ["missions"] });
       queryClient.refetchQueries({ queryKey });
       if (status === "annulé") {
-        toast.success("Inscription annulée");
+        toast.success("❌ Inscription annulée. Vous pouvez vous réinscrire si des places se libèrent.");
       } else {
-        toast.success("Statut mis à jour");
+        toast.success("✅ Statut mis à jour avec succès.");
       }
     },
     onError: (error: any) => {
       console.error("Erreur complète de mise à jour:", error);
       if (error.message?.includes('row-level security')) {
-        toast.error("Erreur de permissions. Veuillez vous reconnecter.");
+        toast.error("⚠️ Erreur de permissions. Veuillez vous reconnecter et réessayer.");
       } else {
-        handleError(error, "Erreur lors de la mise à jour");
+        handleError(error, "Erreur lors de la mise à jour de votre inscription");
       }
     }
   });
@@ -275,7 +276,7 @@ export function useMissionDetails(missionId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
-      toast.success("Validation mise à jour");
+      toast.success("✅ Validation mise à jour avec succès");
     },
     onError: (error: any) => {
       handleError(error, "Erreur lors de la validation");

@@ -70,8 +70,8 @@ export class NotificationService {
     try {
       await this.createNotification(
         userId,
-        "Inscription confirmée",
-        `Vous êtes inscrit(e) à la mission "${missionTitle}"`,
+        "✅ Inscription confirmée",
+        `Votre inscription à la mission "${missionTitle}" a été enregistrée avec succès. Vous recevrez prochainement les détails de participation.`,
         `/missions/${missionId}`
       );
     } catch (error) {
@@ -83,8 +83,8 @@ export class NotificationService {
     try {
       await this.createNotification(
         userId,
-        "Inscription annulée",
-        `Votre inscription à la mission "${missionTitle}" a été annulée`
+        "❌ Inscription annulée",
+        `Votre inscription à la mission "${missionTitle}" a été annulée. Vous pouvez vous réinscrire à tout moment si des places sont disponibles.`
       );
     } catch (error) {
       console.error("Erreur lors de la notification d'annulation:", error);
@@ -94,17 +94,26 @@ export class NotificationService {
   async notifyMissionConfirmation(userId: string, missionTitle: string, missionId: string): Promise<void> {
     await this.createNotification(
       userId,
-      "Participation confirmée",
-      `Votre participation à "${missionTitle}" a été confirmée`,
+      "🎉 Participation confirmée",
+      `Félicitations ! Votre participation à la mission "${missionTitle}" a été validée par l'organisation. Rendez-vous le jour J !`,
       `/missions/${missionId}`
     );
   }
 
-  async notifyMissionReminder(userId: string, missionTitle: string, missionId: string): Promise<void> {
+  async notifyMissionReminder(userId: string, missionTitle: string, missionId: string, startDate: string): Promise<void> {
+    const formattedDate = new Date(startDate).toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
     await this.createNotification(
       userId,
-      "Rappel de mission",
-      `Rappel: La mission "${missionTitle}" commence bientôt`,
+      "⏰ Rappel de mission",
+      `N'oubliez pas votre mission "${missionTitle}" qui commence le ${formattedDate}. Préparez-vous et soyez à l'heure !`,
       `/missions/${missionId}`
     );
   }
@@ -112,8 +121,8 @@ export class NotificationService {
   async notifyBadgeEarned(userId: string, badgeName: string): Promise<void> {
     await this.createNotification(
       userId,
-      "Nouveau badge",
-      `Félicitations ! Vous avez obtenu le badge "${badgeName}"`,
+      "🏆 Nouveau badge obtenu",
+      `Bravo ! Vous venez de débloquer le badge "${badgeName}". Votre engagement fait la différence !`,
       `/profile`
     );
   }
@@ -121,17 +130,45 @@ export class NotificationService {
   async notifySkillValidation(userId: string, skillName: string): Promise<void> {
     await this.createNotification(
       userId,
-      "Compétence validée",
-      `Votre compétence "${skillName}" a été validée`,
+      "✨ Compétence validée",
+      `Excellente nouvelle ! Votre compétence "${skillName}" a été officiellement validée par un superviseur.`,
       `/profile`
     );
   }
 
-  async notifyMissionUpdate(userId: string, missionTitle: string, missionId: string): Promise<void> {
+  async notifyMissionUpdate(userId: string, missionTitle: string, missionId: string, updateType: string): Promise<void> {
+    const updateMessages = {
+      'date': 'La date de la mission a été modifiée',
+      'location': 'Le lieu de la mission a été mis à jour',
+      'description': 'La description de la mission a été enrichie',
+      'requirements': 'Les prérequis de la mission ont été précisés',
+      'general': 'Des informations importantes ont été mises à jour'
+    };
+
+    const message = updateMessages[updateType as keyof typeof updateMessages] || updateMessages.general;
+
     await this.createNotification(
       userId,
-      "Mission mise à jour",
-      `La mission "${missionTitle}" a été mise à jour`,
+      "📝 Mission mise à jour",
+      `La mission "${missionTitle}" a été modifiée : ${message}. Consultez les nouveaux détails.`,
+      `/missions/${missionId}`
+    );
+  }
+
+  async notifyMissionCancelled(userId: string, missionTitle: string, reason?: string): Promise<void> {
+    const reasonText = reason ? ` Motif : ${reason}` : '';
+    await this.createNotification(
+      userId,
+      "🚫 Mission annulée",
+      `La mission "${missionTitle}" a été annulée par l'organisation.${reasonText} Nous vous préviendrons s'il y a des nouvelles opportunités similaires.`
+    );
+  }
+
+  async notifyMissionSpotAvailable(userId: string, missionTitle: string, missionId: string): Promise<void> {
+    await this.createNotification(
+      userId,
+      "🎯 Place disponible",
+      `Une place s'est libérée pour la mission "${missionTitle}" qui vous intéresse. Inscrivez-vous rapidement !`,
       `/missions/${missionId}`
     );
   }
