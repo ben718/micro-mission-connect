@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export type NotificationType = 
@@ -37,6 +36,13 @@ export class NotificationService {
     linkUrl?: string
   ): Promise<boolean> {
     try {
+      // Vérifier que l'utilisateur est connecté
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log("Impossible de créer une notification: utilisateur non connecté");
+        return false;
+      }
+
       const { error } = await supabase
         .from("notifications")
         .insert({
@@ -48,7 +54,12 @@ export class NotificationService {
           created_at: new Date().toISOString()
         });
 
-      return !error;
+      if (error) {
+        console.error("Erreur lors de la création de notification:", error);
+        return false;
+      }
+
+      return true;
     } catch (error) {
       console.error("Erreur lors de la création de notification:", error);
       return false;
@@ -56,20 +67,28 @@ export class NotificationService {
   }
 
   async notifyMissionRegistration(userId: string, missionTitle: string, missionId: string): Promise<void> {
-    await this.createNotification(
-      userId,
-      "Inscription confirmée",
-      `Vous êtes inscrit(e) à la mission "${missionTitle}"`,
-      `/missions/${missionId}`
-    );
+    try {
+      await this.createNotification(
+        userId,
+        "Inscription confirmée",
+        `Vous êtes inscrit(e) à la mission "${missionTitle}"`,
+        `/missions/${missionId}`
+      );
+    } catch (error) {
+      console.error("Erreur lors de la notification d'inscription:", error);
+    }
   }
 
   async notifyMissionCancellation(userId: string, missionTitle: string): Promise<void> {
-    await this.createNotification(
-      userId,
-      "Mission annulée",
-      `La mission "${missionTitle}" a été annulée`
-    );
+    try {
+      await this.createNotification(
+        userId,
+        "Inscription annulée",
+        `Votre inscription à la mission "${missionTitle}" a été annulée`
+      );
+    } catch (error) {
+      console.error("Erreur lors de la notification d'annulation:", error);
+    }
   }
 
   async notifyMissionConfirmation(userId: string, missionTitle: string, missionId: string): Promise<void> {
@@ -116,7 +135,7 @@ export class NotificationService {
       `/missions/${missionId}`
     );
   }
-
+  
   async markAsRead(notificationId: string): Promise<boolean> {
     try {
       const { error } = await supabase
@@ -156,6 +175,20 @@ export class NotificationService {
       return !error;
     } catch (error) {
       console.error("Erreur lors de la suppression de notification:", error);
+      return false;
+    }
+  }
+
+  async deleteAllNotifications(userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("user_id", userId);
+
+      return !error;
+    } catch (error) {
+      console.error("Erreur lors de la suppression de toutes les notifications:", error);
       return false;
     }
   }

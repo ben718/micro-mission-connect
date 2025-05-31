@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -6,6 +5,7 @@ import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
 import { toast } from "sonner";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { useMemo } from "react";
+import { notificationService } from "@/services/notificationService";
 
 export function useMissionDetails(missionId: string) {
   const { user } = useAuth();
@@ -25,7 +25,7 @@ export function useMissionDetails(missionId: string) {
             *,
             organization:organization_id(
               *,
-              sector:sector_id(*)
+              organization_sectors:sector_id(*)
             ),
             mission_type:mission_type_id(*),
             mission_skills(
@@ -100,6 +100,8 @@ export function useMissionDetails(missionId: string) {
       if (!user) throw new Error("Vous devez être connecté pour participer");
       if (!mission) throw new Error("Mission non trouvée");
 
+      console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
+
       const { error } = await supabase
         .from("mission_registrations")
         .insert({
@@ -109,14 +111,30 @@ export function useMissionDetails(missionId: string) {
           registration_date: new Date().toISOString()
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur d'inscription:", error);
+        throw error;
+      }
+
+      // Créer la notification après l'inscription réussie
+      try {
+        await notificationService.notifyMissionRegistration(user.id, mission.title, mission.id);
+      } catch (notifError) {
+        console.error("Erreur lors de la création de notification:", notifError);
+        // Ne pas faire échouer l'inscription si la notification échoue
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       toast.success("Inscription réussie !");
     },
     onError: (error: any) => {
-      handleError(error, "Erreur lors de l'inscription");
+      console.error("Erreur complète d'inscription:", error);
+      if (error.message?.includes('row-level security')) {
+        toast.error("Erreur de permissions. Veuillez vous reconnecter.");
+      } else {
+        handleError(error, "Erreur lors de l'inscription");
+      }
     }
   });
 
@@ -125,20 +143,44 @@ export function useMissionDetails(missionId: string) {
       if (!user) throw new Error("Vous devez être connecté");
       if (!mission) throw new Error("Mission non trouvée");
 
+      console.log("Mise à jour du statut pour l'utilisateur:", user.id, "mission:", mission.id, "statut:", status);
+
       const { error } = await supabase
         .from("mission_registrations")
         .update({ status })
         .eq("mission_id", mission.id)
         .eq("user_id", user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur de mise à jour du statut:", error);
+        throw error;
+      }
+
+      // Créer la notification après l'annulation réussie
+      if (status === "annulé") {
+        try {
+          await notificationService.notifyMissionCancellation(user.id, mission.title);
+        } catch (notifError) {
+          console.error("Erreur lors de la création de notification d'annulation:", notifError);
+          // Ne pas faire échouer l'annulation si la notification échoue
+        }
+      }
     },
-    onSuccess: () => {
+    onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey });
-      toast.success("Statut mis à jour");
+      if (status === "annulé") {
+        toast.success("Inscription annulée");
+      } else {
+        toast.success("Statut mis à jour");
+      }
     },
     onError: (error: any) => {
-      handleError(error, "Erreur lors de la mise à jour");
+      console.error("Erreur complète de mise à jour:", error);
+      if (error.message?.includes('row-level security')) {
+        toast.error("Erreur de permissions. Veuillez vous reconnecter.");
+      } else {
+        handleError(error, "Erreur lors de la mise à jour");
+      }
     }
   });
 
