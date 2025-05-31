@@ -51,13 +51,15 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     }
   };
 
-  // Logique simplifiée : on peut toujours participer si on n'est pas inscrit ou si on a annulé
+  // Logique corrigée pour la réinscription multiple
   const isCancelled = mission.registration_status === "annulé";
-  const isRegistered = mission.is_registered && !isCancelled;
+  const isActivelyRegistered = mission.is_registered && !isCancelled;
   const hasAvailableSpots = mission.participants_count < mission.available_spots;
   
-  const canParticipate = user && (!isRegistered || isCancelled) && hasAvailableSpots;
-  const canCancel = user && isRegistered && mission.registration_status !== "terminé";
+  // Un utilisateur peut participer s'il n'est pas activement inscrit ET qu'il y a des places
+  const canParticipate = user && !isActivelyRegistered && hasAvailableSpots;
+  // Un utilisateur peut annuler s'il est activement inscrit et que la mission n'est pas terminée
+  const canCancel = user && isActivelyRegistered && mission.registration_status !== "terminé";
 
   return (
     <div className="container mx-auto py-8">
@@ -217,7 +219,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
                     
-                    {!canParticipate && !isRegistered && !isCancelled && !hasAvailableSpots && (
+                    {!canParticipate && !canCancel && !hasAvailableSpots && (
                       <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <p className="text-sm text-yellow-600">
                           Mission complète - Plus de places disponibles
