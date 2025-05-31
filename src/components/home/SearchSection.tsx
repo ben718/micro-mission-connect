@@ -22,18 +22,18 @@ export function SearchSection() {
   };
 
   return (
-    <section className="w-full py-6 sm:py-8 md:py-12 lg:py-16 bg-background">
+    <section className="w-full py-8 sm:py-12 bg-background">
       <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
-        <div className="flex flex-col items-center justify-center space-y-4 sm:space-y-6 text-center">
-          <div className="space-y-2 sm:space-y-3">
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tighter px-2">
+        <div className="flex flex-col items-center justify-center space-y-6 text-center">
+          <div className="space-y-3">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter">
               Trouvez votre mission
             </h1>
-            <p className="mx-auto max-w-[600px] text-xs sm:text-sm md:text-base lg:text-lg text-gray-500 dark:text-gray-400 px-4 leading-relaxed">
+            <p className="mx-auto max-w-[600px] text-sm sm:text-base text-gray-500 dark:text-gray-400 px-4 leading-relaxed">
               Des milliers de missions vous attendent. Utilisez les filtres pour trouver celle qui vous correspond.
             </p>
           </div>
-          <div className="w-full max-w-4xl px-2 sm:px-4">
+          <div className="w-full max-w-4xl">
             <SearchFilters onSearch={handleSearch} />
           </div>
         </div>
