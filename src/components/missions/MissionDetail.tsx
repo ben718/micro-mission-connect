@@ -1,10 +1,11 @@
+
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDuration } from "@/utils/date";
 import { MapPin, Clock, Users, Briefcase, Target, Award } from "lucide-react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 interface MissionDetailProps {
@@ -129,25 +130,33 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                     <CardTitle className="text-lg">Organisation</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-4">
-                      {mission.organization.logo_url && (
-                        <img
-                          src={mission.organization.logo_url}
-                          alt={mission.organization.organization_name}
-                          className="w-16 h-16 rounded-full object-cover"
-                        />
-                      )}
-                      <div>
-                        <h4 className="font-medium">
-                          {mission.organization.organization_name}
-                        </h4>
-                        {mission.organization.organization_sectors && (
-                          <p className="text-sm text-muted-foreground">
-                            {mission.organization.organization_sectors.name}
-                          </p>
+                    <Link 
+                      to={`/organization/${mission.organization.id}`}
+                      className="block hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        {mission.organization.logo_url && (
+                          <img
+                            src={mission.organization.logo_url}
+                            alt={mission.organization.organization_name}
+                            className="w-16 h-16 rounded-full object-cover"
+                          />
                         )}
+                        <div>
+                          <h4 className="font-medium hover:text-primary transition-colors">
+                            {mission.organization.organization_name}
+                          </h4>
+                          {mission.organization.organization_sectors && (
+                            <p className="text-sm text-muted-foreground">
+                              {mission.organization.organization_sectors.name}
+                            </p>
+                          )}
+                          <p className="text-xs text-primary mt-1">
+                            Cliquez pour voir le profil →
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    </Link>
                   </CardContent>
                 </Card>
 

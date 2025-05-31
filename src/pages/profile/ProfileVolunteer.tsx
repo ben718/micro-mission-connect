@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { CalendarDays, MapPin, Phone, Mail, User, Award, Star } from "lucide-react";
+import AssociationSearch from "@/components/profile/AssociationSearch";
 
 const ProfileVolunteer = () => {
   const { profile, user } = useAuth();
@@ -78,7 +79,7 @@ const ProfileVolunteer = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Informations personnelles */}
         <Card>
           <CardHeader>
@@ -132,6 +133,11 @@ const ProfileVolunteer = () => {
           </CardContent>
         </Card>
 
+        {/* Recherche d'associations */}
+        <AssociationSearch />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Statistiques */}
         <Card>
           <CardHeader>
