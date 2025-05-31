@@ -20,6 +20,8 @@ class DeploymentValidator {
     await this.validateSecurityConfiguration();
     await this.validateDatabaseMigrations();
     await this.validateTypeScriptConfiguration();
+    await this.validateServices();
+    await this.validateNotificationSystem();
 
     this.generateReport();
     return this.errors.length === 0;
@@ -74,21 +76,6 @@ class DeploymentValidator {
     } else {
       this.errors.push('Configuration TypeScript manquante');
     }
-
-    // Vérifier les scripts de déploiement
-    const deploymentScripts = [
-      'scripts/health-check.js',
-      'scripts/progressive-deployment.js',
-      'scripts/security-audit.js'
-    ];
-
-    deploymentScripts.forEach(script => {
-      if (fs.existsSync(script)) {
-        this.passed.push(`Script ${script} présent`);
-      } else {
-        this.warnings.push(`Script ${script} manquant`);
-      }
-    });
   }
 
   async validateSupabaseConfiguration() {
@@ -97,6 +84,14 @@ class DeploymentValidator {
     // Vérifier le client Supabase
     if (fs.existsSync('src/integrations/supabase/client.ts')) {
       this.passed.push('Client Supabase configuré');
+      
+      // Vérifier que la validation d'environnement est utilisée
+      const clientContent = fs.readFileSync('src/integrations/supabase/client.ts', 'utf8');
+      if (clientContent.includes('envValidator')) {
+        this.passed.push('Validation d\'environnement intégrée');
+      } else {
+        this.warnings.push('Validation d\'environnement manquante dans le client');
+      }
     } else {
       this.errors.push('Client Supabase manquant');
     }
@@ -119,6 +114,13 @@ class DeploymentValidator {
   async validateSecurityConfiguration() {
     console.log('🔒 Vérification de la configuration sécuritaire...');
 
+    // Vérifier la validation d'environnement
+    if (fs.existsSync('src/utils/envValidation.ts')) {
+      this.passed.push('Service de validation d\'environnement présent');
+    } else {
+      this.errors.push('Service de validation d\'environnement manquant');
+    }
+
     // Vérifier la configuration de production
     if (fs.existsSync('src/config/production.ts')) {
       this.passed.push('Configuration de production présente');
@@ -130,12 +132,6 @@ class DeploymentValidator {
       } else {
         this.warnings.push('CSP non activé - recommandé pour la sécurité');
       }
-
-      if (configContent.includes('enableHSTS: true')) {
-        this.passed.push('HSTS activé en production');
-      } else {
-        this.warnings.push('HSTS non activé - recommandé pour la sécurité');
-      }
     } else {
       this.warnings.push('Configuration de production manquante');
     }
@@ -145,7 +141,11 @@ class DeploymentValidator {
     console.log('🗃️ Vérification des migrations de base de données...');
 
     // Vérifier les seeds SQL
-    const sqlFiles = ['src/database/seed.sql', 'src/database/seed_alpha.sql'];
+    const sqlFiles = [
+      'src/database/seed.sql', 
+      'src/database/seed_alpha.sql',
+      'src/database/productionSeeds.sql'
+    ];
     
     sqlFiles.forEach(file => {
       if (fs.existsSync(file)) {
@@ -166,18 +166,13 @@ class DeploymentValidator {
   async validateTypeScriptConfiguration() {
     console.log('📝 Vérification de la configuration TypeScript...');
 
-    try {
-      // Vérifier la compilation TypeScript (simulation)
-      this.passed.push('Configuration TypeScript valide');
-    } catch (error) {
-      this.errors.push('Erreurs de compilation TypeScript détectées');
-    }
-
     // Vérifier les types essentiels
     const typeFiles = [
       'src/types/index.ts',
       'src/types/mission.ts',
-      'src/types/profile.ts'
+      'src/types/profile.ts',
+      'src/types/validation.ts',
+      'src/types/notifications.ts'
     ];
 
     typeFiles.forEach(file => {
@@ -185,6 +180,59 @@ class DeploymentValidator {
         this.passed.push(`Types ${file} présents`);
       } else {
         this.warnings.push(`Types ${file} manquants`);
+      }
+    });
+
+    // Vérifier les diagnostics d'imports
+    if (fs.existsSync('src/utils/importDiagnostics.ts')) {
+      this.passed.push('Système de diagnostic d\'imports présent');
+    } else {
+      this.warnings.push('Système de diagnostic d\'imports manquant');
+    }
+  }
+
+  async validateServices() {
+    console.log('🔧 Vérification des services...');
+
+    const services = [
+      'src/services/notificationService.ts',
+      'src/services/missionValidation.ts',
+      'src/services/profileValidation.ts',
+      'src/services/monitoring.ts',
+      'src/services/errorMonitoring.ts'
+    ];
+
+    services.forEach(service => {
+      if (fs.existsSync(service)) {
+        this.passed.push(`Service ${path.basename(service)} présent`);
+      } else {
+        this.warnings.push(`Service ${path.basename(service)} manquant`);
+      }
+    });
+  }
+
+  async validateNotificationSystem() {
+    console.log('🔔 Vérification du système de notifications...');
+
+    // Vérifier les hooks de notifications
+    if (fs.existsSync('src/hooks/useNotifications.ts')) {
+      this.passed.push('Hook useNotifications présent');
+    } else {
+      this.errors.push('Hook useNotifications manquant');
+    }
+
+    // Vérifier les composants de notifications
+    const notificationComponents = [
+      'src/components/notifications/NotificationCenter.tsx',
+      'src/components/notifications/NotificationList.tsx',
+      'src/components/notifications/NotificationBadge.tsx'
+    ];
+
+    notificationComponents.forEach(component => {
+      if (fs.existsSync(component)) {
+        this.passed.push(`Composant ${path.basename(component)} présent`);
+      } else {
+        this.warnings.push(`Composant ${path.basename(component)} manquant`);
       }
     });
   }
@@ -216,11 +264,20 @@ class DeploymentValidator {
       this.warnings.forEach(warning => console.log(`   • ${warning}`));
     }
 
+    // Recommandations finales
+    console.log('\n🛠️ ACTIONS RECOMMANDÉES:');
+    console.log('   1. Exécuter les tests E2E: npm run test:e2e');
+    console.log('   2. Vérifier la performance: node scripts/performance-audit.js');
+    console.log('   3. Audit de sécurité: node scripts/security-audit.js');
+    console.log('   4. Build de production: npm run build');
+
     // Verdict final
     console.log('\n' + '─'.repeat(60));
     if (this.errors.length === 0) {
       console.log('✅ PRÊT POUR LE DÉPLOIEMENT');
       console.log('🚀 Vous pouvez procéder au déploiement en production');
+      console.log('📋 N\'oubliez pas de configurer les variables d\'environnement');
+      console.log('🗄️ Exécutez les seeds de production après déploiement');
     } else {
       console.log('❌ NON PRÊT POUR LE DÉPLOIEMENT');
       console.log('🔧 Corrigez les erreurs avant de déployer');

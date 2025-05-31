@@ -91,11 +91,9 @@ class PerformanceAuditor {
     }
 
     let unoptimizedCount = 0;
-    let totalSize = 0;
 
     images.forEach(image => {
       const stat = fs.statSync(image.path);
-      totalSize += stat.size;
       
       // Vérifier si l'image est potentiellement non optimisée
       if (stat.size > 100 * 1024) { // > 100KB
@@ -270,40 +268,6 @@ class PerformanceAuditor {
 
     // Recommandations générales pour les Web Vitals
     this.addResult('info', 'Web Vitals - Recommandations', 'LCP < 2.5s, FID < 100ms, CLS < 0.1');
-  }
-
-  findImages(dirPath, extensions, results) {
-    const items = fs.readdirSync(dirPath);
-    
-    items.forEach(item => {
-      const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
-      
-      if (stat.isDirectory() && !item.startsWith('.')) {
-        this.findImages(fullPath, extensions, results);
-      } else if (extensions.some(ext => item.toLowerCase().endsWith(ext))) {
-        results.push({ name: item, path: fullPath });
-      }
-    });
-  }
-
-  getAllFiles(dirPath, extensions) {
-    let files = [];
-    
-    const items = fs.readdirSync(dirPath);
-    
-    items.forEach(item => {
-      const fullPath = path.join(dirPath, item);
-      const stat = fs.statSync(fullPath);
-      
-      if (stat.isDirectory() && !item.startsWith('.') && item !== 'node_modules') {
-        files = files.concat(this.getAllFiles(fullPath, extensions));
-      } else if (extensions.some(ext => item.endsWith(ext))) {
-        files.push(fullPath);
-      }
-    });
-    
-    return files;
   }
 
   addResult(type, category, message) {
