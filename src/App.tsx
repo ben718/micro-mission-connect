@@ -4,6 +4,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/hooks/useAuth";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import Index from "./pages/Index";
@@ -32,38 +33,40 @@ const App = () => {
   
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <div className="min-h-screen flex flex-col">
-            <Header />
-            <main className="flex-grow">
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/about" element={<About />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/login" element={<Login />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/confirmation" element={<Confirmation />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/missions" element={<Missions />} />
-                <Route path="/missions/:id" element={<MissionDetail />} />
-                <Route path="/missions/create" element={<CreateMission />} />
-                <Route path="/missions/:id/edit" element={<EditMission />} />
-                <Route path="/associations" element={<AssociationsPage />} />
-                <Route path="/associations/activity" element={<AssociationsActivity />} />
-                <Route path="/profile/*" element={<ProfileRouter />} />
-                <Route path="/volunteer/:userId" element={<PublicVolunteerProfile />} />
-                <Route path="/organization/:organizationId" element={<PublicOrganizationProfile />} />
-                <Route path="/notifications" element={<Notifications />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </main>
-            <Footer />
-          </div>
-        </BrowserRouter>
-      </TooltipProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <main className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/confirmation" element={<Confirmation />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/missions" element={<Missions />} />
+                  <Route path="/missions/:id" element={<MissionDetail />} />
+                  <Route path="/missions/create" element={<CreateMission />} />
+                  <Route path="/missions/:id/edit" element={<EditMission />} />
+                  <Route path="/associations" element={<AssociationsPage />} />
+                  <Route path="/associations/activity" element={<AssociationsActivity />} />
+                  <Route path="/profile/*" element={<ProfileRouter />} />
+                  <Route path="/volunteer/:userId" element={<PublicVolunteerProfile />} />
+                  <Route path="/organization/:organizationId" element={<PublicOrganizationProfile />} />
+                  <Route path="/notifications" element={<Notifications />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 };
