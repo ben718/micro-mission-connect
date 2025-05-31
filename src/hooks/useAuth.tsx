@@ -114,8 +114,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value: AuthContextType = {
     user,
     profile: profile || null,
-    isLoading: isLoading || (!!user && !profile),
-    loading: isLoading || (!!user && !profile),
+    isLoading: isLoading || (!!user && profile === undefined),
+    loading: isLoading || (!!user && profile === undefined),
     signIn,
     signUp,
     signOut,
