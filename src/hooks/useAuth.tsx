@@ -70,19 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Construct complete profile
+        // Construct complete profile - mapping database fields to expected interface
         const completeProfile: Profile = {
           id: user.id,
           first_name: profileData?.first_name || '',
           last_name: profileData?.last_name || '',
-          email: user.email || '',
-          phone: profileData?.phone || '',
-          bio: profileData?.bio || '',
-          avatar_url: profileData?.avatar_url || '',
-          location: profileData?.location || '',
-          website: profileData?.website || '',
+          city: profileData?.city || '',
+          postal_code: profileData?.postal_code || '',
+          address: profileData?.address || '',
+          profile_picture_url: profileData?.profile_picture_url || '',
+          latitude: profileData?.latitude || null,
+          longitude: profileData?.longitude || null,
+          last_login: profileData?.last_login || null,
           created_at: profileData?.created_at || new Date().toISOString(),
           updated_at: profileData?.updated_at || new Date().toISOString(),
+          // Additional fields for compatibility
+          email: user.email || '',
+          avatar_url: profileData?.profile_picture_url || '', // Map profile_picture_url to avatar_url
+          location: profileData?.city || '', // Map city to location
           user_skills: skillsData || [],
           user_badges: badgesData || [],
           is_organization: !!orgData,

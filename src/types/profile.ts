@@ -1,18 +1,19 @@
 
 import { Database } from "@/integrations/supabase/types";
 
-// Type de base pour un profil utilisateur
+// Type de base pour un profil utilisateur - aligné avec la table profiles réelle
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   is_organization?: boolean;
   is_association?: boolean; // Add legacy compatibility
   user_skills?: any[];
   user_badges?: any[];
   email?: string;
-  phone?: string;
-  bio?: string;
-  avatar_url?: string;
-  location?: string;
-  website?: string;
+  // Mapping des propriétés pour la compatibilité
+  avatar_url?: string; // Maps to profile_picture_url
+  location?: string; // Maps to city
+  bio?: string; // Additional field for user bio
+  phone?: string; // Additional field for phone
+  website?: string; // Additional field for website
 };
 
 // Type pour un profil d'organisation
