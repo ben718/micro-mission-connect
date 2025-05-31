@@ -7,8 +7,28 @@ export type Profile = Database['public']['Tables']['profiles']['Row'] & {
   email?: string | null;
   avatar_url?: string | null;
   location?: string | null;
-  user_skills?: any[];
-  user_badges?: any[];
+  city?: string | null;
+  postal_code?: string | null;
+  bio?: string | null;
+  user_skills?: Array<{
+    id: string;
+    skill: {
+      id: string;
+      name: string;
+      category: string;
+    };
+    level: string;
+  }>;
+  user_badges?: Array<{
+    id: string;
+    badge: {
+      id: string;
+      name: string;
+      description: string;
+      icon_url?: string;
+    };
+    acquired_at: string;
+  }>;
   is_organization?: boolean;
 };
 

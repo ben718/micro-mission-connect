@@ -3,34 +3,17 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "@supabase/supabase-js";
-
-interface Profile {
-  id: string;
-  user_id: string;
-  first_name: string | null;
-  last_name: string | null;
-  email: string;
-  phone: string | null;
-  address: string | null;
-  profile_picture_url: string | null;
-  is_organization: boolean;
-  organization_name: string | null;
-  description: string | null;
-  website_url: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AuthContextType {
-  user: User | null;
-  profile: Profile | null;
-  isLoading: boolean;
-}
+import type { AuthContextType } from "@/types/auth";
+import type { Profile } from "@/types/profile";
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   isLoading: true,
+  loading: true,
+  signIn: async () => ({ error: null }),
+  signUp: async () => ({ error: null }),
+  signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -51,8 +34,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       const { data, error } = await supabase
         .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
+        .select(`
+          *,
+          user_skills:user_skills(
+            id,
+            skill:skills(id, name, category),
+            level
+          ),
+          user_badges:user_badges(
+            id,
+            badge:badges(id, name, description, icon_url),
+            acquired_at
+          )
+        `)
+        .eq("user_id" in data ? "user_id" : "id", user.id)
         .single();
 
       if (error) {
@@ -65,6 +60,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     },
     enabled: !!user?.id,
   });
+
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return { data, error };
+  };
+
+  const signUp = async (email: string, password: string, userData?: any) => {
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: userData,
+      },
+    });
+    return { data, error };
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
 
   useEffect(() => {
     console.log('AuthProvider - useEffect running');
@@ -93,10 +111,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, []);
 
-  const value = {
+  const value: AuthContextType = {
     user,
     profile: profile || null,
-    isLoading: isLoading || (user && !profile && !profile),
+    isLoading: isLoading || (!!user && !profile),
+    loading: isLoading || (!!user && !profile),
+    signIn,
+    signUp,
+    signOut,
   };
 
   console.log('AuthProvider - providing value:', value);
