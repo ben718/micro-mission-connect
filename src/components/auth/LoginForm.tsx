@@ -4,40 +4,43 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
-import { toast } from "sonner";
 
 const LoginForm = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const { signIn, isLoading } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const { signIn } = useAuth();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // Vérification basique des champs
     if (!email || !email.includes('@')) {
-      toast.error("Veuillez entrer une adresse e-mail valide");
       return;
     }
     
     if (!password || password.length < 6) {
-      toast.error("Le mot de passe doit contenir au moins 6 caractères");
       return;
     }
 
+    setIsLoading(true);
+    
     try {
-      await signIn(email, password);
-      // La navigation est gérée dans le hook useAuth
-    } catch (error: any) {
-      console.error("[LoginForm] Erreur lors de la connexion:", error);
-      // Les erreurs sont déjà affichées dans useAuth
+      const { error } = await signIn(email, password);
+      if (!error) {
+        navigate('/');
+      }
+    } catch (error) {
+      console.error('[LoginForm] Error during sign in:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input
@@ -49,8 +52,10 @@ const LoginForm = () => {
           required
           disabled={isLoading}
           autoComplete="email"
+          className="h-12"
         />
       </div>
+      
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="password">Mot de passe</Label>
@@ -66,11 +71,13 @@ const LoginForm = () => {
           required
           disabled={isLoading}
           autoComplete="current-password"
+          className="h-12"
         />
       </div>
+      
       <Button
         type="submit"
-        className="w-full bg-bleu hover:bg-bleu-700"
+        className="w-full bg-bleu hover:bg-bleu-700 h-12 text-base"
         disabled={isLoading}
       >
         {isLoading ? (
@@ -82,10 +89,11 @@ const LoginForm = () => {
           "Se connecter"
         )}
       </Button>
-      <div className="text-center mt-4">
+      
+      <div className="text-center mt-6">
         <span className="text-sm text-gray-500">
           Pas encore de compte?{" "}
-          <Link to="/auth/register" className="text-bleu hover:underline">
+          <Link to="/auth/register" className="text-bleu hover:underline font-medium">
             Créer un compte
           </Link>
         </span>

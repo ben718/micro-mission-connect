@@ -5,29 +5,36 @@ import { Navigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 const Login = () => {
-  const { user, loading, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   
-  // Afficher un loader pendant que nous vérifions l'état d'authentification
-  if (loading || isLoading) {
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
+      <div className="flex flex-col items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin mb-4" />
-        <p>Chargement...</p>
+        <p className="text-gray-600">Chargement...</p>
       </div>
     );
   }
 
-  // Si l'utilisateur est déjà connecté, le rediriger vers la page d'accueil
   if (user) {
-    console.log("[Login] Utilisateur déjà connecté, redirection vers l'accueil");
     return <Navigate to="/" replace />;
   }
 
   return (
-    <div className="container-custom py-10 min-h-screen flex flex-col justify-center">
-      <div className="max-w-md mx-auto w-full p-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Connexion</h1>
-        <LoginForm />
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h1 className="text-center text-3xl font-bold text-gray-900 mb-2">
+          Connexion
+        </h1>
+        <p className="text-center text-gray-600 mb-8">
+          Connectez-vous pour accéder à votre compte
+        </p>
+      </div>
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
+          <LoginForm />
+        </div>
       </div>
     </div>
   );

@@ -18,18 +18,22 @@ import CreateMission from "./pages/missions/CreateMission";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 import { Loader2 } from "lucide-react";
-import { useEffect } from "react";
 import ProfileOrganization from "@/pages/profile/ProfileOrganization";
 import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
-  console.log("[PrivateRoute] State:", { user: !!user, loading });
+  const { user, isLoading } = useAuth();
 
-  if (loading) {
-    console.log("[PrivateRoute] Loading...");
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin" />
@@ -38,18 +42,16 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    console.log("[PrivateRoute] No user, redirecting to login");
     return <Navigate to="/auth/login" />;
   }
 
-  console.log("[PrivateRoute] User authenticated, showing content");
   return <>{children}</>;
 };
 
 const ProfileRoute = () => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, isLoading } = useAuth();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-8 h-8 text-bleu animate-spin" />
@@ -61,8 +63,7 @@ const ProfileRoute = () => {
     return <Navigate to="/auth/login" />;
   }
 
-  // Redirect to the appropriate profile based on user type
-  return profile?.first_name ? (
+  return profile?.is_organization ? (
     <Navigate to="/profile/association" />
   ) : (
     <Navigate to="/profile/benevole" />
@@ -70,10 +71,6 @@ const ProfileRoute = () => {
 };
 
 const App = () => {
-  useEffect(() => {
-    console.log("[App] App component initialization");
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

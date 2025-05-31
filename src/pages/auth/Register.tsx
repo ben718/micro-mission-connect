@@ -2,12 +2,18 @@
 import RegisterForm from "@/components/auth/RegisterForm";
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 const Register = () => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth();
 
-  if (loading) {
-    return <div className="flex justify-center items-center h-screen">Chargement...</div>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <Loader2 className="w-8 h-8 text-bleu animate-spin mb-4" />
+        <p className="text-gray-600">Chargement...</p>
+      </div>
+    );
   }
 
   if (user) {
@@ -15,10 +21,20 @@ const Register = () => {
   }
 
   return (
-    <div className="container-custom py-10 min-h-screen flex flex-col justify-center">
-      <div className="max-w-md mx-auto w-full p-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Créer un compte</h1>
-        <RegisterForm />
+    <div className="min-h-screen flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h1 className="text-center text-3xl font-bold text-gray-900 mb-2">
+          Créer un compte
+        </h1>
+        <p className="text-center text-gray-600 mb-8">
+          Rejoignez notre communauté de bénévoles
+        </p>
+      </div>
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
+          <RegisterForm />
+        </div>
       </div>
     </div>
   );

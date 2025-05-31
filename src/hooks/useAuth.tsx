@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { Profile } from '@/types/profile';
 
 interface AuthContextType {
@@ -23,27 +24,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile with proper error handling
-  const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
+  // Fetch user profile with improved error handling
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async (): Promise<Profile | null> => {
       if (!user?.id) return null;
       
       try {
-        // First get basic profile
+        console.log('[useAuth] Fetching profile for user:', user.id);
+        
+        // Get basic profile
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error fetching profile:', profileError);
+          console.error('[useAuth] Error fetching profile:', profileError);
           return null;
         }
 
         // Get user skills
-        const { data: skillsData, error: skillsError } = await supabase
+        const { data: skillsData } = await supabase
           .from('user_skills')
           .select(`
             *,
@@ -51,12 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           `)
           .eq('user_id', user.id);
 
-        if (skillsError) {
-          console.error('Error fetching skills:', skillsError);
-        }
-
         // Get user badges
-        const { data: badgesData, error: badgesError } = await supabase
+        const { data: badgesData } = await supabase
           .from('user_badges')
           .select(`
             *,
@@ -64,42 +63,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           `)
           .eq('user_id', user.id);
 
-        if (badgesError) {
-          console.error('Error fetching badges:', badgesError);
-        }
-
         // Check if user is organization
-        const { data: orgData, error: orgError } = await supabase
+        const { data: orgData } = await supabase
           .from('organization_profiles')
           .select('*')
           .eq('user_id', user.id)
           .maybeSingle();
 
-        if (orgError && orgError.code !== 'PGRST116') {
-          console.error('Error fetching organization:', orgError);
-        }
-
         // Construct complete profile
         const completeProfile: Profile = {
-          ...profileData,
+          id: user.id,
+          first_name: profileData?.first_name || '',
+          last_name: profileData?.last_name || '',
+          email: user.email || '',
+          phone: profileData?.phone || '',
+          bio: profileData?.bio || '',
+          avatar_url: profileData?.avatar_url || '',
+          location: profileData?.location || '',
+          website: profileData?.website || '',
+          created_at: profileData?.created_at || new Date().toISOString(),
+          updated_at: profileData?.updated_at || new Date().toISOString(),
           user_skills: skillsData || [],
           user_badges: badgesData || [],
           is_organization: !!orgData,
-          email: user.email || '',
         };
 
+        console.log('[useAuth] Profile loaded successfully:', completeProfile);
         return completeProfile;
       } catch (error) {
-        console.error('Unexpected error fetching profile:', error);
+        console.error('[useAuth] Unexpected error fetching profile:', error);
         return null;
       }
     },
     enabled: !!user?.id,
+    retry: 1,
   });
 
   useEffect(() => {
+    console.log('[useAuth] Initializing auth state');
+    
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('[useAuth] Error getting session:', error);
+      }
+      console.log('[useAuth] Initial session:', !!session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -108,42 +116,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('[useAuth] Auth state changed:', event, !!session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('[useAuth] Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { data, error };
+    try {
+      console.log('[useAuth] Attempting sign in for:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
+      if (error) {
+        console.error('[useAuth] Sign in error:', error);
+        toast.error(error.message || 'Erreur de connexion');
+        throw error;
+      }
+      
+      console.log('[useAuth] Sign in successful');
+      toast.success('Connexion réussie');
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('[useAuth] Sign in exception:', error);
+      return { data: null, error };
+    }
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData,
-      },
-    });
-    return { data, error };
+    try {
+      console.log('[useAuth] Attempting sign up for:', email);
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: userData,
+        },
+      });
+      
+      if (error) {
+        console.error('[useAuth] Sign up error:', error);
+        toast.error(error.message || 'Erreur lors de l\'inscription');
+        throw error;
+      }
+      
+      console.log('[useAuth] Sign up successful');
+      toast.success('Inscription réussie. Vérifiez votre email pour confirmer votre compte.');
+      return { data, error: null };
+    } catch (error: any) {
+      console.error('[useAuth] Sign up exception:', error);
+      return { data: null, error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('[useAuth] Signing out');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[useAuth] Sign out error:', error);
+        toast.error('Erreur lors de la déconnexion');
+      } else {
+        toast.success('Déconnexion réussie');
+      }
+    } catch (error) {
+      console.error('[useAuth] Sign out exception:', error);
+      toast.error('Erreur lors de la déconnexion');
+    }
   };
 
   const value = {
     user,
     session,
-    profile: profileError ? null : profile,
+    profile,
     loading,
     isLoading: loading || profileLoading,
     signIn,

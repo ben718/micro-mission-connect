@@ -7,33 +7,32 @@ export function SearchSection() {
   const navigate = useNavigate();
 
   const handleSearch = (filters: SearchFiltersType) => {
-    // Construire l'URL avec les filtres
     const searchParams = new URLSearchParams();
     
     if (filters.query) searchParams.set('q', filters.query);
-    if (filters.category.length > 0) searchParams.set('category', filters.category.join(','));
+    if (filters.category && filters.category.length > 0) searchParams.set('category', filters.category.join(','));
     if (filters.location) searchParams.set('location', filters.location);
     if (filters.date) searchParams.set('date', filters.date);
     if (filters.remote) searchParams.set('remote', 'true');
-    if (filters.skills.length > 0) searchParams.set('skills', filters.skills.join(','));
+    if (filters.skills && filters.skills.length > 0) searchParams.set('skills', filters.skills.join(','));
 
-    // Naviguer vers la page des missions avec les filtres
     navigate(`/missions?${searchParams.toString()}`);
   };
 
   return (
-    <section className="w-full py-8 sm:py-12 bg-background">
+    <section className="w-full py-12 sm:py-16 lg:py-20 bg-white">
       <div className="container px-4 sm:px-6 lg:px-8 mx-auto">
-        <div className="flex flex-col items-center justify-center space-y-6 text-center">
-          <div className="space-y-3">
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold tracking-tighter">
+        <div className="flex flex-col items-center justify-center space-y-8 text-center">
+          <div className="space-y-4 max-w-4xl">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
               Trouvez votre mission
-            </h1>
-            <p className="mx-auto max-w-[600px] text-sm sm:text-base text-gray-500 dark:text-gray-400 px-4 leading-relaxed">
+            </h2>
+            <p className="mx-auto max-w-2xl text-base sm:text-lg text-gray-600 leading-relaxed px-4">
               Des milliers de missions vous attendent. Utilisez les filtres pour trouver celle qui vous correspond.
             </p>
           </div>
-          <div className="w-full max-w-4xl">
+          
+          <div className="w-full max-w-5xl">
             <SearchFilters onSearch={handleSearch} />
           </div>
         </div>
