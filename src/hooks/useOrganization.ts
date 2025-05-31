@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Mission } from '@/types/mission';
@@ -45,7 +46,7 @@ export const useOrganization = (organizationId?: string) => {
           mission_skills(
             skill:skill_id(name)
           ),
-          mission_registrations(count)
+          mission_registrations(id)
         `)
         .eq('organization_id', organizationId);
       
@@ -56,7 +57,7 @@ export const useOrganization = (organizationId?: string) => {
         required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
         participants_count: mission.mission_registrations?.length || 0,
         organization: organization || {} as OrganizationProfile
-      })) as MissionRow[];
+      })) as Mission[];
     },
     enabled: !!organizationId,
   });
