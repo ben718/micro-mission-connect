@@ -1,4 +1,5 @@
 
+
 import { Database } from "@/integrations/supabase/types";
 
 // Type de base depuis Supabase
@@ -24,6 +25,7 @@ export type Profile = BaseProfile & {
     };
     acquisition_date: string;
   }>;
+  is_organization?: boolean;
 };
 
 export type OrganizationSector = Database['public']['Tables']['organization_sectors']['Row'];
@@ -60,3 +62,4 @@ export interface OrganizationFormData {
   city?: string;
   organization_sector_id?: string;
 }
+
