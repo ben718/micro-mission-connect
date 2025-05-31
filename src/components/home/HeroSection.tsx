@@ -4,17 +4,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Users } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useOptimizedMissions } from "@/hooks/useOptimizedMissions";
+import { useMissions } from "@/hooks/useMissions";
 
 const HeroSection = () => {
   // Utiliser les vraies missions de la base de données pour l'exemple
-  const { data: missions, isLoading } = useOptimizedMissions({
-    limit: 1,
-    sortBy: 'created_at',
-    sortOrder: 'desc'
+  const { data: missionsResponse, isLoading } = useMissions({
+    page: 0,
+    pageSize: 1,
   });
 
-  const exampleMission = missions?.[0];
+  const exampleMission = missionsResponse?.data?.[0];
 
   return (
     <section className="section bg-gradient-to-br from-bleu-50 to-bleu-100 min-h-[70vh] flex items-center">

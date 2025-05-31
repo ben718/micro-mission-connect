@@ -1,35 +1,45 @@
 
 import React, { useState } from 'react';
-import { useOptimizedMissions } from '@/hooks/useOptimizedMissions';
+import { useMissions } from '@/hooks/useMissions';
 import { MissionCard } from '@/components/mission/MissionCard';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { MissionFilters } from './MissionFilters';
-import { useMissionFilters } from '@/hooks/useMissionFilters';
+import MissionFilters from './MissionFilters';
+import { MissionFilters as MissionFiltersType } from '@/types/mission';
 
 const MissionsList: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const { filters, updateFilters } = useMissionFilters();
-  
-  const {
-    data: missions,
-    isLoading,
-    error,
-    hasNextPage,
-    fetchNextPage,
-    isFetchingNextPage
-  } = useOptimizedMissions({
-    ...filters,
-    page: currentPage,
-    limit: 12
+  const [filters, setFilters] = useState<MissionFiltersType>({
+    query: "",
+    location: "",
+    format: undefined,
+    difficulty_level: undefined,
+    engagement_level: undefined,
+    missionTypeIds: [],
+    dateRange: undefined,
+    page: 0,
+    pageSize: 12
   });
 
-  const allMissions = missions?.pages.flatMap(page => page.data) ?? [];
+  const {
+    data: missionsResponse,
+    isLoading,
+    error
+  } = useMissions(filters);
+
+  const missions = missionsResponse?.data || [];
+  const hasMore = missionsResponse ? (filters.page || 0) < Math.ceil(missionsResponse.count / (filters.pageSize || 12)) - 1 : false;
+
+  const handleLoadMore = () => {
+    setFilters(prev => ({
+      ...prev,
+      page: (prev.page || 0) + 1
+    }));
+  };
 
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <MissionFilters onFiltersChange={updateFilters} />
+        <MissionFilters onFiltersChange={setFilters} />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
             <div key={i} className="animate-pulse">
@@ -44,7 +54,7 @@ const MissionsList: React.FC = () => {
   if (error) {
     return (
       <div className="space-y-6">
-        <MissionFilters onFiltersChange={updateFilters} />
+        <MissionFilters onFiltersChange={setFilters} />
         <div className="text-center py-12">
           <p className="text-gray-600 mb-4">
             Une erreur est survenue lors du chargement des missions.
@@ -59,34 +69,34 @@ const MissionsList: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <MissionFilters onFiltersChange={updateFilters} />
+      <MissionFilters onFiltersChange={setFilters} />
       
-      {allMissions.length === 0 ? (
+      {missions.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600 mb-4">
             Aucune mission trouvée avec ces critères.
           </p>
-          <Button onClick={() => updateFilters({})}>
+          <Button onClick={() => setFilters({ query: "", location: "", page: 0, pageSize: 12 })}>
             Réinitialiser les filtres
           </Button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allMissions.map((mission) => (
+            {missions.map((mission) => (
               <MissionCard key={mission.id} mission={mission} />
             ))}
           </div>
 
-          {hasNextPage && (
+          {hasMore && (
             <div className="flex justify-center mt-8">
               <Button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
+                onClick={handleLoadMore}
+                disabled={isLoading}
                 variant="outline"
                 size="lg"
               >
-                {isFetchingNextPage ? (
+                {isLoading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Chargement...

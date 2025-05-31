@@ -16,10 +16,7 @@ export function useTestimonials() {
     queryKey: ['testimonials'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('testimonials')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
+        .rpc('get_testimonials');
 
       if (error) {
         console.error('Error fetching testimonials:', error);
