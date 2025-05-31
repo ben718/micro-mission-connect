@@ -1,6 +1,24 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { NotificationWithDetails, NotificationType } from "@/types/notifications";
+
+export type NotificationType = 
+  | "inscription"
+  | "annulation"
+  | "confirmation"
+  | "reminder"
+  | "badge"
+  | "skill_validation"
+  | "mission_update";
+
+export interface NotificationWithDetails {
+  id: string;
+  user_id: string;
+  title: string;
+  content: string;
+  is_read: boolean;
+  created_at: string;
+  link_url?: string;
+}
 
 export class NotificationService {
   private static instance: NotificationService;
@@ -14,20 +32,18 @@ export class NotificationService {
 
   async createNotification(
     userId: string,
-    type: NotificationType,
+    title: string,
     content: string,
-    linkUrl?: string,
-    relatedEntityId?: string
+    linkUrl?: string
   ): Promise<boolean> {
     try {
       const { error } = await supabase
         .from("notifications")
         .insert({
           user_id: userId,
-          type,
+          title,
           content,
           link_url: linkUrl,
-          related_entity_id: relatedEntityId,
           is_read: false,
           created_at: new Date().toISOString()
         });
@@ -42,70 +58,62 @@ export class NotificationService {
   async notifyMissionRegistration(userId: string, missionTitle: string, missionId: string): Promise<void> {
     await this.createNotification(
       userId,
-      "inscription",
+      "Inscription confirmée",
       `Vous êtes inscrit(e) à la mission "${missionTitle}"`,
-      `/missions/${missionId}`,
-      missionId
+      `/missions/${missionId}`
     );
   }
 
   async notifyMissionCancellation(userId: string, missionTitle: string): Promise<void> {
     await this.createNotification(
       userId,
-      "annulation",
-      `La mission "${missionTitle}" a été annulée`,
-      undefined,
-      undefined
+      "Mission annulée",
+      `La mission "${missionTitle}" a été annulée`
     );
   }
 
   async notifyMissionConfirmation(userId: string, missionTitle: string, missionId: string): Promise<void> {
     await this.createNotification(
       userId,
-      "confirmation",
+      "Participation confirmée",
       `Votre participation à "${missionTitle}" a été confirmée`,
-      `/missions/${missionId}`,
-      missionId
+      `/missions/${missionId}`
     );
   }
 
   async notifyMissionReminder(userId: string, missionTitle: string, missionId: string): Promise<void> {
     await this.createNotification(
       userId,
-      "reminder",
+      "Rappel de mission",
       `Rappel: La mission "${missionTitle}" commence bientôt`,
-      `/missions/${missionId}`,
-      missionId
+      `/missions/${missionId}`
     );
   }
 
-  async notifyBadgeEarned(userId: string, badgeName: string, badgeId: string): Promise<void> {
+  async notifyBadgeEarned(userId: string, badgeName: string): Promise<void> {
     await this.createNotification(
       userId,
-      "badge",
+      "Nouveau badge",
       `Félicitations ! Vous avez obtenu le badge "${badgeName}"`,
-      `/profile`,
-      badgeId
+      `/profile`
     );
   }
 
-  async notifySkillValidation(userId: string, skillName: string, skillId: string): Promise<void> {
+  async notifySkillValidation(userId: string, skillName: string): Promise<void> {
     await this.createNotification(
       userId,
-      "skill_validation",
+      "Compétence validée",
       `Votre compétence "${skillName}" a été validée`,
-      `/profile`,
-      skillId
+      `/profile`
     );
   }
 
   async notifyMissionUpdate(userId: string, missionTitle: string, missionId: string): Promise<void> {
     await this.createNotification(
       userId,
-      "mission_update",
+      "Mission mise à jour",
       `La mission "${missionTitle}" a été mise à jour`,
-      `/missions/${missionId}`,
-      missionId
+      `/missions/${missionId}`
     );
   }
 

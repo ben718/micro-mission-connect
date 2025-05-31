@@ -82,8 +82,8 @@ export class MissionValidationService {
   private async validateOrganizationExists(organizationId: string, result: MissionValidationResult): Promise<void> {
     try {
       const { data, error } = await supabase
-        .from("organizations")
-        .select("id, status")
+        .from("organization_profiles")
+        .select("id")
         .eq("id", organizationId)
         .single();
 
@@ -91,11 +91,6 @@ export class MissionValidationService {
         result.errors.push("Organisation introuvable");
         result.isValid = false;
         return;
-      }
-
-      if (data.status !== "active") {
-        result.errors.push("Cette organisation n'est pas active");
-        result.isValid = false;
       }
     } catch (error) {
       result.errors.push("Erreur lors de la vérification de l'organisation");
@@ -166,10 +161,10 @@ export class MissionValidationService {
     };
 
     try {
-      // Récupérer la mission existante
+      // Récupérer la mission existante avec le nombre d'inscrits
       const { data: existingMission, error } = await supabase
         .from("missions")
-        .select("*, mission_registrations(count)")
+        .select("*")
         .eq("id", missionId)
         .single();
 
@@ -179,16 +174,22 @@ export class MissionValidationService {
         return result;
       }
 
-      // Vérifier s'il y a des participants
-      const participantCount = existingMission.mission_registrations?.[0]?.count || 0;
+      // Compter les participants
+      const { count: participantCount } = await supabase
+        .from("mission_registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("mission_id", missionId)
+        .eq("status", "inscrit");
 
-      if (participantCount > 0) {
+      const actualParticipantCount = participantCount || 0;
+
+      if (actualParticipantCount > 0) {
         // Restrictions sur les modifications quand il y a des participants
         if (updateData.start_date && updateData.start_date !== existingMission.start_date) {
           result.warnings.push("Modification de date avec des participants inscrits");
         }
 
-        if (updateData.available_spots && updateData.available_spots < participantCount) {
+        if (updateData.available_spots && updateData.available_spots < actualParticipantCount) {
           result.errors.push("Impossible de réduire les places en dessous du nombre d'inscrits");
           result.isValid = false;
         }

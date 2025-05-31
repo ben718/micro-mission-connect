@@ -17,7 +17,6 @@ export type NotificationType =
   | "mission_update";
 
 export type NotificationWithDetails = Notification & {
-  type: NotificationType;
   related_entity?: {
     id: string;
     type: "mission" | "badge" | "skill" | "user";
