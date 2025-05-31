@@ -131,14 +131,7 @@ export type Database = {
             foreignKeyName: "mission_registrations_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "mission_registrations_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -349,14 +342,7 @@ export type Database = {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -421,20 +407,6 @@ export type Database = {
             referencedRelation: "organization_sectors"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "organization_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "organization_profiles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
         ]
       }
       organization_sectors: {
@@ -464,45 +436,57 @@ export type Database = {
       profiles: {
         Row: {
           address: string | null
+          bio: string | null
           city: string | null
           created_at: string | null
+          email: string | null
           first_name: string | null
           id: string
           last_login: string | null
           last_name: string | null
           latitude: number | null
           longitude: number | null
+          phone: string | null
           postal_code: string | null
           profile_picture_url: string | null
           updated_at: string | null
+          website: string | null
         }
         Insert: {
           address?: string | null
+          bio?: string | null
           city?: string | null
           created_at?: string | null
+          email?: string | null
           first_name?: string | null
           id: string
           last_login?: string | null
           last_name?: string | null
           latitude?: number | null
           longitude?: number | null
+          phone?: string | null
           postal_code?: string | null
           profile_picture_url?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Update: {
           address?: string | null
+          bio?: string | null
           city?: string | null
           created_at?: string | null
+          email?: string | null
           first_name?: string | null
           id?: string
           last_login?: string | null
           last_name?: string | null
           latitude?: number | null
           longitude?: number | null
+          phone?: string | null
           postal_code?: string | null
           profile_picture_url?: string | null
           updated_at?: string | null
+          website?: string | null
         }
         Relationships: []
       }
@@ -585,22 +569,7 @@ export type Database = {
           updated_at?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "testimonials_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "testimonials_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_badges: {
         Row: {
@@ -636,14 +605,7 @@ export type Database = {
             foreignKeyName: "user_badges_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_badges_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -698,106 +660,13 @@ export type Database = {
             foreignKeyName: "user_skills_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_skills_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_skills_validator_id_fkey"
-            columns: ["validator_id"]
-            isOneToOne: false
-            referencedRelation: "active_volunteers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_skills_validator_id_fkey"
-            columns: ["validator_id"]
-            isOneToOne: false
-            referencedRelation: "users"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
       }
-      users: {
-        Row: {
-          address: string | null
-          bio: string | null
-          city: string | null
-          created_at: string | null
-          email: string
-          encrypted_password: string
-          first_name: string | null
-          id: string
-          is_organization: boolean | null
-          last_login: string | null
-          last_name: string | null
-          latitude: number | null
-          location: unknown | null
-          longitude: number | null
-          phone: string | null
-          postal_code: string | null
-          profile_picture_url: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          address?: string | null
-          bio?: string | null
-          city?: string | null
-          created_at?: string | null
-          email: string
-          encrypted_password: string
-          first_name?: string | null
-          id?: string
-          is_organization?: boolean | null
-          last_login?: string | null
-          last_name?: string | null
-          latitude?: number | null
-          location?: unknown | null
-          longitude?: number | null
-          phone?: string | null
-          postal_code?: string | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          address?: string | null
-          bio?: string | null
-          city?: string | null
-          created_at?: string | null
-          email?: string
-          encrypted_password?: string
-          first_name?: string | null
-          id?: string
-          is_organization?: boolean | null
-          last_login?: string | null
-          last_name?: string | null
-          latitude?: number | null
-          location?: unknown | null
-          longitude?: number | null
-          phone?: string | null
-          postal_code?: string | null
-          profile_picture_url?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
     }
     Views: {
-      active_volunteers: {
-        Row: {
-          completed_missions: number | null
-          first_name: string | null
-          id: string | null
-          last_name: string | null
-        }
-        Relationships: []
-      }
       available_missions_details: {
         Row: {
           available_spots: number | null

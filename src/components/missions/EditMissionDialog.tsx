@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,17 +32,24 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { MissionSchema } from "@/types/validation";
+import { errorMonitoring } from "@/services/errorMonitoring";
+import { useErrorHandler } from "@/hooks/useErrorHandler";
 
-const formSchema = z.object({
-  title: z.string().min(1, "Le titre est requis"),
-  description: z.string().min(1, "La description est requise"),
-  start_date: z.date(),
-  duration_minutes: z.string().min(1, "La durée est requise"),
-  location: z.string().min(1, "Le lieu est requis"),
-  format: z.enum(["remote", "hybrid", "onsite"]),
-  difficulty_level: z.enum(["beginner", "intermediate", "advanced"]),
-  engagement_level: z.enum(["low", "medium", "high"]),
-  available_spots: z.string().min(1, "Le nombre de places est requis"),
+// Sous-schema pour le formulaire
+const formSchema = MissionSchema.pick({
+  title: true,
+  description: true,
+  location: true,
+  duration_minutes: true,
+  available_spots: true,
+  format: true,
+  difficulty_level: true,
+  engagement_level: true,
+}).extend({
+  start_date: MissionSchema.shape.start_date.transform(val => new Date(val)),
+  duration_minutes: MissionSchema.shape.duration_minutes.transform(val => val.toString()),
+  available_spots: MissionSchema.shape.available_spots.transform(val => val.toString()),
 });
 
 interface EditMissionDialogProps {
@@ -61,8 +67,9 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
 }) => {
   const [isLoading, setIsLoading] = React.useState(false);
   const [mission, setMission] = React.useState<any>(null);
+  const { handleError } = useErrorHandler();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -70,9 +77,9 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
       start_date: new Date(),
       duration_minutes: "",
       location: "",
-      format: "onsite",
-      difficulty_level: "beginner",
-      engagement_level: "medium",
+      format: "onsite" as const,
+      difficulty_level: "beginner" as const,
+      engagement_level: "medium" as const,
       available_spots: "",
     },
   });
@@ -100,21 +107,58 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         start_date: new Date(data.start_date),
         duration_minutes: data.duration_minutes?.toString() || "",
         location: data.location,
-        format: (data.format as "remote" | "hybrid" | "onsite") || "onsite",
-        difficulty_level: (data.difficulty_level as "beginner" | "intermediate" | "advanced") || "beginner",
-        engagement_level: (data.engagement_level as "low" | "medium" | "high") || "medium",
+        format: data.format || "onsite",
+        difficulty_level: data.difficulty_level || "beginner",
+        engagement_level: data.engagement_level || "medium",
         available_spots: data.available_spots.toString(),
       });
     } catch (error) {
-      console.error("Erreur lors de la récupération de la mission:", error);
-      toast.error("Erreur lors de la récupération de la mission");
+      handleError(error as Error, 'EditMissionDialog.fetchMission', {
+        logError: true,
+        showToast: true,
+        fallbackMessage: "Erreur lors de la récupération de la mission"
+      });
     }
   };
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: any) => {
     try {
       setIsLoading(true);
 
+      // Validation côté client d'abord
+      const validation = formSchema.safeParse(values);
+      if (!validation.success) {
+        toast.error("Données invalides: " + validation.error.errors[0].message);
+        return;
+      }
+
+      // Validation côté serveur
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser.user) {
+        throw new Error("Non authentifié");
+      }
+
+      const validationResponse = await fetch('/functions/v1/validate-mission', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authUser.user.access_token}`
+        },
+        body: JSON.stringify({
+          ...values,
+          start_date: values.start_date.toISOString(),
+          duration_minutes: parseInt(values.duration_minutes),
+          available_spots: parseInt(values.available_spots),
+          organization_id: mission.organization_id
+        })
+      });
+
+      if (!validationResponse.ok) {
+        const errorData = await validationResponse.json();
+        throw new Error(errorData.details?.[0] || "Validation échouée");
+      }
+
+      // Mise à jour en base
       const { error } = await supabase
         .from("missions")
         .update({
@@ -137,8 +181,11 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
       onSuccess();
       onClose();
     } catch (error) {
-      console.error("Erreur lors de la modification de la mission:", error);
-      toast.error("Erreur lors de la modification de la mission");
+      handleError(error as Error, 'EditMissionDialog.onSubmit', {
+        logError: true,
+        showToast: true,
+        fallbackMessage: "Erreur lors de la modification de la mission"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +193,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Modifier la mission</DialogTitle>
           <DialogDescription>
@@ -155,7 +202,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="title"
@@ -338,7 +385,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
               )}
             />
 
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-4 pt-4">
               <Button
                 type="button"
                 variant="outline"
