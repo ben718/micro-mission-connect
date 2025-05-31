@@ -11,11 +11,13 @@ import Confirmation from "@/pages/auth/Confirmation";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import NotificationsPage from "./pages/Notifications";
+import About from "./pages/About";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
+import Footer from "./components/layout/Footer";
 import { Loader2 } from "lucide-react";
 import ProfileOrganization from "@/pages/profile/ProfileOrganization";
 import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
@@ -78,55 +80,61 @@ const App = () => {
         <Sonner />
         <Router>
           <AuthProvider>
-            <Header />
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/dashboard" element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              } />
-              <Route path="/notifications" element={
-                <PrivateRoute>
-                  <NotificationsPage />
-                </PrivateRoute>
-              } />
-              <Route path="/auth/login" element={<Login />} />
-              <Route path="/auth/register" element={<Register />} />
-              <Route path="/auth/confirmation" element={<Confirmation />} />
-              <Route path="/missions" element={<MissionsPage />} />
-              <Route path="/missions/:id" element={<MissionDetail />} />
-              <Route path="/missions/new" element={
-                <PrivateRoute>
-                  <CreateMission />
-                </PrivateRoute>
-              } />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <ProfileRoute />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/organization"
-                element={
-                  <PrivateRoute>
-                    <ProfileOrganization />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile/volunteer"
-                element={
-                  <PrivateRoute>
-                    <ProfileVolunteer />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <div className="min-h-screen flex flex-col">
+              <Header />
+              <main className="flex-grow">
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/dashboard" element={
+                    <PrivateRoute>
+                      <Dashboard />
+                    </PrivateRoute>
+                  } />
+                  <Route path="/notifications" element={
+                    <PrivateRoute>
+                      <NotificationsPage />
+                    </PrivateRoute>
+                  } />
+                  <Route path="/auth/login" element={<Login />} />
+                  <Route path="/auth/register" element={<Register />} />
+                  <Route path="/auth/confirmation" element={<Confirmation />} />
+                  <Route path="/missions" element={<MissionsPage />} />
+                  <Route path="/missions/:id" element={<MissionDetail />} />
+                  <Route path="/missions/new" element={
+                    <PrivateRoute>
+                      <CreateMission />
+                    </PrivateRoute>
+                  } />
+                  <Route
+                    path="/profile"
+                    element={
+                      <PrivateRoute>
+                        <ProfileRoute />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/organization"
+                    element={
+                      <PrivateRoute>
+                        <ProfileOrganization />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/volunteer"
+                    element={
+                      <PrivateRoute>
+                        <ProfileVolunteer />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </main>
+              <Footer />
+            </div>
           </AuthProvider>
         </Router>
       </TooltipProvider>
