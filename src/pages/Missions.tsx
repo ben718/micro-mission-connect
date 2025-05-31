@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMissions } from '@/hooks/useMissions';
@@ -46,8 +45,8 @@ const MissionsPage = () => {
     page,
     pageSize: 12,
   });
-  const { categories, isLoading: categoriesLoading } = useCategories();
-  const { cities, isLoading: citiesLoading } = useCities();
+  const { categories, loading: categoriesLoading } = useCategories();
+  const { cities, loading: citiesLoading } = useCities();
 
   // En mode démo, utiliser les données fictives
   const missions = isDemoMode() ? DEMO_MISSIONS.slice(page * 12, (page + 1) * 12) : (missionsData?.data || []);
