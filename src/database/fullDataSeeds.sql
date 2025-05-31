@@ -1,4 +1,5 @@
 
+
 -- Script complet de données pour MicroBénévole
 -- Utilise les utilisateurs existants pour les tests
 
@@ -30,31 +31,7 @@ UPDATE profiles SET
     updated_at = now()
 WHERE id = 'ea44982b-ba08-45cd-b051-255541c38bff';
 
--- 2. Ajout de quelques profils de test supplémentaires (optionnel)
-INSERT INTO profiles (
-    id, 
-    first_name, 
-    last_name, 
-    email, 
-    bio, 
-    city, 
-    postal_code, 
-    phone,
-    profile_picture_url,
-    created_at,
-    updated_at
-) VALUES 
--- Bénévoles fictifs pour enrichir les tests
-('22222222-2222-2222-2222-222222222222', 'Sophie', 'Martin', 'sophie.martin@email.com', 'Étudiante en médecine, active dans l''aide humanitaire.', 'Marseille', '13000', '+33456789123', '/avatars/sophie.jpg', now(), now()),
-('33333333-3333-3333-3333-333333333333', 'Thomas', 'Durand', 'thomas.durand@email.com', 'Développeur web engagé dans la protection de l''environnement.', 'Toulouse', '31000', '+33789123456', '/avatars/thomas.jpg', now(), now())
-
-ON CONFLICT (id) DO UPDATE SET
-    first_name = EXCLUDED.first_name,
-    last_name = EXCLUDED.last_name,
-    email = EXCLUDED.email,
-    updated_at = now();
-
--- 3. Création du profil d'organisation pour Alpha Association
+-- 2. Création du profil d'organisation pour Alpha Association
 INSERT INTO organization_profiles (
     id,
     user_id,
@@ -78,38 +55,25 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
--- 4. Attribution des compétences aux utilisateurs réels
+-- 3. Attribution des compétences aux utilisateurs réels uniquement
 INSERT INTO user_skills (id, user_id, skill_id, level, created_at, updated_at) VALUES 
 -- Ben (bénévole) - Compétences variées
 (gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
 (gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Organisation'), 'intermédiaire', now(), now()),
-(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Informatique'), 'avancé', now(), now()),
-
--- Profils fictifs
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'expert', now(), now()),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
-
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Informatique'), 'expert', now(), now()),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Photographie'), 'avancé', now(), now())
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Informatique'), 'avancé', now(), now())
 
 ON CONFLICT (user_id, skill_id) DO UPDATE SET
     level = EXCLUDED.level,
     updated_at = now();
 
--- 5. Attribution des premiers badges
+-- 4. Attribution des premiers badges
 INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VALUES 
 (gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '2 months', now()),
-(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '1 month', now()),
-
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '3 months', now()),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Spécialiste santé'), now() - interval '1 month', now()),
-
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '4 months', now()),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Innovateur'), now() - interval '2 weeks', now())
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '1 month', now())
 
 ON CONFLICT (user_id, badge_id) DO NOTHING;
 
--- 6. Création de missions par Alpha Association
+-- 5. Création de missions par Alpha Association
 INSERT INTO missions (
     id,
     organization_id,
@@ -149,7 +113,7 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
--- 7. Compétences requises pour les missions
+-- 6. Compétences requises pour les missions
 INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_required, created_at) VALUES 
 -- Distribution alimentaire - Communication recommandée
 (gen_random_uuid(), 'mission-alpha-01', (SELECT id FROM skills WHERE name = 'Communication'), 'débutant', false, now()),
@@ -167,7 +131,7 @@ ON CONFLICT (mission_id, skill_id) DO UPDATE SET
     required_level = EXCLUDED.required_level,
     is_required = EXCLUDED.is_required;
 
--- 8. Inscriptions de Ben aux missions
+-- 7. Inscriptions de Ben aux missions
 INSERT INTO mission_registrations (
     id,
     user_id,
@@ -187,17 +151,13 @@ INSERT INTO mission_registrations (
 (gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'mission-alpha-01', 'confirmé', now() - interval '2 days', now() - interval '1 day', null, null, null, null, now() - interval '2 days', now() - interval '1 day'),
 
 -- Ben inscrit à l'accompagnement scolaire (en attente)
-(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'mission-alpha-03', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day'),
-
--- Inscriptions d'autres bénévoles
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'mission-alpha-02', 'confirmé', now() - interval '3 days', now() - interval '2 days', null, null, null, null, now() - interval '3 days', now() - interval '2 days'),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'mission-alpha-04', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day')
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'mission-alpha-03', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day')
 
 ON CONFLICT (user_id, mission_id) DO UPDATE SET
     status = EXCLUDED.status,
     updated_at = now();
 
--- 9. Notifications pour les utilisateurs réels
+-- 8. Notifications pour les utilisateurs réels
 INSERT INTO notifications (
     id,
     user_id,
@@ -218,7 +178,7 @@ INSERT INTO notifications (
 
 ON CONFLICT (id) DO NOTHING;
 
--- 10. Témoignages avec les vrais utilisateurs
+-- 9. Témoignages avec les vrais utilisateurs
 INSERT INTO testimonials (
     id,
     user_id,
@@ -228,8 +188,7 @@ INSERT INTO testimonials (
     created_at,
     updated_at
 ) VALUES 
-(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'MicroBénévole m''a permis de trouver facilement des missions qui correspondent à mes compétences. L''équipe d''Alpha Association était formidable !', 'Développeur', true, now() - interval '2 weeks', now() - interval '2 weeks'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Une expérience enrichissante ! J''ai pu utiliser mes compétences médicales pour aider lors des formations premiers secours.', 'Étudiante en médecine', true, now() - interval '3 weeks', now() - interval '3 weeks')
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'MicroBénévole m''a permis de trouver facilement des missions qui correspondent à mes compétences. L''équipe d''Alpha Association était formidable !', 'Développeur', true, now() - interval '2 weeks', now() - interval '2 weeks')
 
 ON CONFLICT (id) DO NOTHING;
 
@@ -240,3 +199,4 @@ SELECT
     (SELECT COUNT(*) FROM organization_profiles WHERE user_id = 'a444bae9-3193-465c-853b-9528abe1023e') as nb_organizations,
     (SELECT COUNT(*) FROM missions WHERE organization_id = 'org-alpha-001') as nb_missions_alpha,
     (SELECT COUNT(*) FROM mission_registrations WHERE user_id = 'ea44982b-ba08-45cd-b051-255541c38bff') as nb_inscriptions_ben;
+
