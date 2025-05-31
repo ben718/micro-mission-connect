@@ -24,7 +24,7 @@ const AssociationSearch = () => {
           logo_url,
           address,
           website_url,
-          sectors!sector_id (
+          organization_sectors!sector_id (
             name
           )
         `)
@@ -92,9 +92,9 @@ const AssociationSearch = () => {
                       )}
                     </div>
                     
-                    {association.sectors && (
+                    {association.organization_sectors && (
                       <Badge variant="secondary" className="mt-1 text-xs">
-                        {association.sectors.name}
+                        {association.organization_sectors.name}
                       </Badge>
                     )}
                   </div>
