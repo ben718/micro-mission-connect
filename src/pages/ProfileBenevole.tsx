@@ -5,9 +5,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { ProfileFormSkeleton, ProfileCardSkeleton, ProfileMissionSkeleton } from '@/components/ui/profile-skeleton';
+import { ErrorMessage } from '@/components/ui/error-message';
 
 const ProfileBenevole = () => {
   const { user, profile } = useAuth();
@@ -17,6 +18,7 @@ const ProfileBenevole = () => {
   const [badges, setBadges] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -58,6 +60,8 @@ const ProfileBenevole = () => {
       }
     } catch (error) {
       console.error('Erreur lors de la récupération du profil:', error);
+      setError('Impossible de charger votre profil');
+      toast.error('Erreur lors du chargement du profil');
     } finally {
       setLoading(false);
     }
@@ -84,6 +88,7 @@ const ProfileBenevole = () => {
       setRegistrations(data || []);
     } catch (error) {
       console.error('Erreur lors de la récupération des inscriptions:', error);
+      toast.error('Erreur lors du chargement des missions');
     }
   };
 
@@ -102,6 +107,7 @@ const ProfileBenevole = () => {
       setSkills(data || []);
     } catch (error) {
       console.error('Erreur lors de la récupération des compétences:', error);
+      toast.error('Erreur lors du chargement des compétences');
     }
   };
 
@@ -120,6 +126,7 @@ const ProfileBenevole = () => {
       setBadges(data || []);
     } catch (error) {
       console.error('Erreur lors de la récupération des badges:', error);
+      toast.error('Erreur lors du chargement des badges');
     }
   };
 
@@ -153,12 +160,29 @@ const ProfileBenevole = () => {
       fetchUserProfile();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
-      toast.error('Erreur lors de la sauvegarde');
+      toast.error('Erreur lors de la sauvegarde du profil');
     }
   };
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return (
+      <div className="container mx-auto py-8 space-y-6">
+        <ProfileFormSkeleton />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <ProfileCardSkeleton />
+          <ProfileCardSkeleton />
+        </div>
+        <ProfileMissionSkeleton />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <ErrorMessage message={error} />
+      </div>
+    );
   }
 
   return (
@@ -275,7 +299,10 @@ const ProfileBenevole = () => {
         </CardHeader>
         <CardContent>
           {registrations.length === 0 ? (
-            <p className="text-muted-foreground">Aucune mission</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <p className="text-lg font-medium mb-2">Aucune mission</p>
+              <p>Vous n'avez pas encore participé à de missions. Découvrez les opportunités disponibles !</p>
+            </div>
           ) : (
             <div className="space-y-4">
               {registrations.map((registration) => (
@@ -283,7 +310,7 @@ const ProfileBenevole = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="font-medium">{registration.missions?.title}</h3>
-                      <p className="text-sm text-muted-foreground">{registration.missions?.description}</p>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{registration.missions?.description}</p>
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline">{registration.status}</Badge>
                         <Badge variant="secondary">{registration.missions?.status}</Badge>

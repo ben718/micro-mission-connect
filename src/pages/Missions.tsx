@@ -14,6 +14,10 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { MissionFilters, DateRangeSelection, MissionWithDetails } from "@/types/mission";
 import { DateRange } from "react-day-picker";
+import { MissionListSkeleton } from "@/components/ui/mission-skeleton";
+import { ErrorMessage } from "@/components/ui/error-message";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { DEMO_MISSIONS, isDemoMode } from "@/utils/demo-data";
 
 const MissionsPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -42,8 +46,14 @@ const MissionsPage = () => {
     page,
     pageSize: 12,
   });
-  const { categories } = useCategories();
-  const { cities } = useCities();
+  const { categories, isLoading: categoriesLoading } = useCategories();
+  const { cities, isLoading: citiesLoading } = useCities();
+
+  // En mode démo, utiliser les données fictives
+  const missions = isDemoMode() ? DEMO_MISSIONS.slice(page * 12, (page + 1) * 12) : (missionsData?.data || []);
+  const totalCount = isDemoMode() ? DEMO_MISSIONS.length : (missionsData?.count || 0);
+  const totalPages = Math.ceil(totalCount / 12);
+  const isInDemoMode = isDemoMode();
 
   // Update URL parameters
   useEffect(() => {
@@ -67,10 +77,6 @@ const MissionsPage = () => {
     }
   };
 
-  const missions = missionsData?.data || [];
-  const totalCount = missionsData?.count || 0;
-  const totalPages = Math.ceil(totalCount / 12);
-
   const handlePageChange = (newPage: number) => {
     setPage(newPage);
   };
@@ -86,21 +92,19 @@ const MissionsPage = () => {
       updated_at: 'updated_at' in mission.mission_type ? mission.mission_type.updated_at : new Date().toISOString(),
     } : undefined;
 
-    // Safely handle organization_profiles with only available properties
-    const organization = mission.organization_profiles ? {
-      id: mission.organization_profiles.id || '',
-      organization_name: mission.organization_profiles.organization_name || 'Organisation inconnue',
-      description: mission.organization_profiles.description || null,
-      website_url: mission.organization_profiles.website_url || null,
-      logo_url: mission.organization_profiles.logo_url || null,
-      // Provide safe defaults for properties not in the query
+    const organization = mission.organization ? {
+      id: mission.organization.id || '',
+      organization_name: mission.organization.organization_name || 'Organisation inconnue',
+      description: mission.organization.description || null,
+      website_url: mission.organization.website_url || null,
+      logo_url: mission.organization.logo_url || null,
       user_id: '',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       siret_number: null,
       address: null,
       creation_date: null,
-      sector_id: mission.organization_profiles.organization_sectors?.id || null,
+      sector_id: mission.organization.organization_sectors?.id || null,
       location: null,
       longitude: null,
       latitude: null,
@@ -128,15 +132,39 @@ const MissionsPage = () => {
       organization,
       participants_count: mission.participants_count || 0,
       mission_type: missionType,
-      // Ensure these required properties for MissionWithDetails
       is_registered: false,
       registration_status: undefined,
       mission_registrations: undefined,
     } as MissionWithDetails;
   });
 
-  if (isLoading) return <div className="flex justify-center p-8">Chargement...</div>;
-  if (error) return <div className="flex justify-center p-8 text-red-500">Erreur: {error.message}</div>;
+  if (isLoading && !isInDemoMode) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Missions de bénévolat</h1>
+        <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <Input placeholder="Rechercher une mission" disabled />
+          <Button variant="outline" disabled className="w-[200px]">Chargement...</Button>
+          <Button variant="outline" disabled className="w-[200px]">Chargement...</Button>
+          <Button variant="outline" disabled className="w-[300px]">Chargement...</Button>
+          <Button variant="outline" disabled>Chargement...</Button>
+        </div>
+        <MissionListSkeleton count={12} />
+      </div>
+    );
+  }
+
+  if (error && !isInDemoMode) {
+    return (
+      <div className="container mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-4">Missions de bénévolat</h1>
+        <ErrorMessage 
+          message="Impossible de charger les missions. Veuillez réessayer plus tard." 
+          className="my-8"
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -158,10 +186,15 @@ const MissionsPage = () => {
               role="combobox"
               aria-expanded={location !== ""}
               className="w-[200px] justify-between"
+              disabled={citiesLoading}
             >
-              {location
-                ? cities?.find(c => c.name === location)?.name
-                : "Sélectionner une ville"}
+              {citiesLoading ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                location
+                  ? cities?.find(c => c.name === location)?.name
+                  : "Sélectionner une ville"
+              )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
@@ -199,10 +232,15 @@ const MissionsPage = () => {
               role="combobox"
               aria-expanded={selectedCategories.length > 0}
               className="w-[200px] justify-between"
+              disabled={categoriesLoading}
             >
-              {selectedCategories.length > 0
-                ? `${selectedCategories.length} Catégories`
-                : "Sélectionner des catégories"}
+              {categoriesLoading ? (
+                <LoadingSpinner size="sm" />
+              ) : (
+                selectedCategories.length > 0
+                  ? `${selectedCategories.length} Catégories`
+                  : "Sélectionner des catégories"
+              )}
               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
@@ -278,24 +316,29 @@ const MissionsPage = () => {
       </div>
 
       {transformedMissions.length === 0 && (
-        <div className="text-center py-8 text-muted-foreground">
-          Aucune mission ne correspond à vos critères de recherche.
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-lg font-medium mb-2">Aucune mission trouvée</p>
+          <p>Essayez de modifier vos critères de recherche ou revenez plus tard pour découvrir de nouvelles missions.</p>
         </div>
       )}
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex justify-center mt-8">
+        <div className="flex justify-center mt-8 gap-2">
           <Button
             onClick={() => handlePageChange(page - 1)}
             disabled={page === 0}
-            className="mr-2"
+            variant="outline"
           >
             Précédent
           </Button>
+          <span className="flex items-center px-4 text-sm text-muted-foreground">
+            Page {page + 1} sur {totalPages}
+          </span>
           <Button
             onClick={() => handlePageChange(page + 1)}
             disabled={page === totalPages - 1}
+            variant="outline"
           >
             Suivant
           </Button>
