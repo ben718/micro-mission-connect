@@ -12,8 +12,8 @@ interface AuthContextType {
   profile: Profile | null;
   loading: boolean;
   isLoading: boolean;
-  signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string, userData?: any) => Promise<any>;
+  signIn: (email: string, password: string) => Promise<{ data?: any; error?: any }>;
+  signUp: (email: string, password: string, userData?: any) => Promise<{ data?: any; error?: any }>;
   signOut: () => Promise<void>;
 }
 
@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user profile with improved error handling
+  // Fetch user profile with improved error handling and caching
   const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async (): Promise<Profile | null> => {
@@ -42,7 +42,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (profileError && profileError.code !== 'PGRST116') {
           console.error('[useAuth] Error fetching profile:', profileError);
-          return null;
+          throw new Error(`Profile fetch error: ${profileError.message}`);
         }
 
         // Get user skills
@@ -102,12 +102,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     enabled: !!user?.id,
     retry: 1,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   useEffect(() => {
     console.log('[useAuth] Initializing auth state');
     
-    // Get initial session
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[useAuth] Auth state changed:', event, !!session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    // THEN get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('[useAuth] Error getting session:', error);
@@ -117,16 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('[useAuth] Auth state changed:', event, !!session);
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
 
     return () => {
       console.log('[useAuth] Cleaning up auth subscription');
@@ -144,8 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error) {
         console.error('[useAuth] Sign in error:', error);
-        toast.error(error.message || 'Erreur de connexion');
-        throw error;
+        return { data: null, error };
       }
       
       console.log('[useAuth] Sign in successful');
@@ -173,8 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (error) {
         console.error('[useAuth] Sign up error:', error);
-        toast.error(error.message || 'Erreur lors de l\'inscription');
-        throw error;
+        return { data: null, error };
       }
       
       console.log('[useAuth] Sign up successful');

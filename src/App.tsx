@@ -7,11 +7,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import Login from "@/pages/auth/Login";
 import Register from "@/pages/auth/Register";
-import ProfileBenevole from "@/pages/ProfileBenevole";
-import ProfileAssociation from "@/pages/ProfileAssociation";
+import Confirmation from "@/pages/auth/Confirmation";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Confirmation from "./pages/auth/Confirmation";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
@@ -26,6 +24,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000, // 5 minutes
     },
   },
 });
@@ -42,7 +41,7 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   }
 
   if (!user) {
-    return <Navigate to="/auth/login" />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return <>{children}</>;
@@ -60,13 +59,13 @@ const ProfileRoute = () => {
   }
 
   if (!user) {
-    return <Navigate to="/auth/login" />;
+    return <Navigate to="/auth/login" replace />;
   }
 
   return profile?.is_organization ? (
-    <Navigate to="/profile/association" />
+    <Navigate to="/profile/organization" replace />
   ) : (
-    <Navigate to="/profile/benevole" />
+    <Navigate to="/profile/volunteer" replace />
   );
 };
 
@@ -105,23 +104,21 @@ const App = () => {
                 }
               />
               <Route
-                path="/profile/benevole"
+                path="/profile/organization"
                 element={
                   <PrivateRoute>
-                    <ProfileBenevole />
+                    <ProfileOrganization />
                   </PrivateRoute>
                 }
               />
               <Route
-                path="/profile/association"
+                path="/profile/volunteer"
                 element={
                   <PrivateRoute>
-                    <ProfileAssociation />
+                    <ProfileVolunteer />
                   </PrivateRoute>
                 }
               />
-              <Route path="/profile/organization" element={<ProfileOrganization />} />
-              <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AuthProvider>
