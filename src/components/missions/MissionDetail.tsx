@@ -1,3 +1,4 @@
+
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,15 +43,15 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
   const handleParticipation = async () => {
     if (!user) return;
 
-    if (mission.is_registered) {
+    if (mission.is_registered && mission.registration_status !== "annulé") {
       updateRegistrationStatus({ status: "annulé" });
     } else {
       participate();
     }
   };
 
-  const canParticipate = user && !mission.is_registered && mission.participants_count < mission.available_spots;
-  const canCancel = user && mission.is_registered && mission.registration_status !== "terminé";
+  const canParticipate = user && (!mission.is_registered || mission.registration_status === "annulé") && mission.participants_count < mission.available_spots;
+  const canCancel = user && mission.is_registered && mission.registration_status !== "terminé" && mission.registration_status !== "annulé";
 
   return (
     <div className="container mx-auto py-8">
@@ -186,7 +187,8 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                         onClick={handleParticipation}
                         disabled={isParticipating}
                       >
-                        {isParticipating ? "Inscription en cours..." : "Participer à cette mission"}
+                        {isParticipating ? "Inscription en cours..." : 
+                         mission.registration_status === "annulé" ? "Participer à nouveau à cette mission" : "Participer à cette mission"}
                       </Button>
                     )}
                     
@@ -213,6 +215,14 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <p className="text-sm text-yellow-600">
                           Mission complète - Plus de places disponibles
+                        </p>
+                      </div>
+                    )}
+
+                    {mission.registration_status === "annulé" && !canParticipate && mission.participants_count >= mission.available_spots && (
+                      <div className="text-center p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-600">
+                          Vous avez annulé cette mission. La mission est maintenant complète.
                         </p>
                       </div>
                     )}
