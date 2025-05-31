@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMissions } from '@/hooks/useMissions';
 import { useCategories, useCities } from '@/hooks/useDynamicLists';
+import { useDebounce } from '@/hooks/useDebounce';
 import { MissionCard } from '@/components/missions/MissionCard';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,14 @@ const MissionsPage = () => {
   const [remote, setRemote] = useState(searchParams.get('remote') === 'true');
   const [page, setPage] = useState(0);
 
-  // Fetch data using hooks
+  // Debounce la recherche pour éviter trop de requêtes
+  const debouncedQuery = useDebounce(query, 300);
+  const debouncedLocation = useDebounce(location, 300);
+
+  // Fetch data using hooks avec les valeurs debounced
   const { data: missionsData, isLoading, error } = useMissions({
-    query,
-    location,
+    query: debouncedQuery,
+    location: debouncedLocation,
     categoryIds: selectedCategories,
     dateRange: dateRange ? {
       start: dateRange.from,
@@ -54,18 +59,18 @@ const MissionsPage = () => {
   const totalPages = Math.ceil(totalCount / 12);
   const isInDemoMode = isDemoMode();
 
-  // Update URL parameters
+  // Update URL parameters seulement avec les valeurs debounced
   useEffect(() => {
     const params = new URLSearchParams();
-    if (query) params.set('query', query);
-    if (location) params.set('location', location);
+    if (debouncedQuery) params.set('query', debouncedQuery);
+    if (debouncedLocation) params.set('location', debouncedLocation);
     selectedCategories.forEach(category => params.append('category', category));
     if (dateRange?.from) params.set('startDate', dateRange.from.toISOString());
     if (dateRange?.to) params.set('endDate', dateRange.to.toISOString());
     if (remote) params.set('remote', 'true');
     setSearchParams(params);
     setPage(0);
-  }, [query, location, selectedCategories, dateRange, remote, setSearchParams]);
+  }, [debouncedQuery, debouncedLocation, selectedCategories, dateRange, remote, setSearchParams]);
 
   // Handle category selection
   const handleCategorySelect = (categoryId: string) => {
@@ -169,7 +174,7 @@ const MissionsPage = () => {
     <div className="container mx-auto py-8">
       <h1 className="text-2xl font-bold mb-4">Missions de bénévolat</h1>
 
-      {/* Search and Filter Section */}
+      {/* Search and Filter Section - Optimisé avec debounce */}
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <Input
           type="text"
@@ -307,9 +312,9 @@ const MissionsPage = () => {
         </Button>
       </div>
 
-      {/* Mission Grid */}
+      {/* Mission Grid avec lazy loading */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {transformedMissions.map(mission => (
+        {missions.map(mission => (
           <MissionCard key={mission.id} mission={mission} />
         ))}
       </div>

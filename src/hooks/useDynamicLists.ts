@@ -1,19 +1,26 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { withCache } from "@/utils/cache";
 
 export function useCategories() {
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("mission_types")
-        .select("*")
-        .order("name");
+    queryFn: () => withCache(
+      'categories',
+      async () => {
+        const { data, error } = await supabase
+          .from("mission_types")
+          .select("*")
+          .order("name");
 
-      if (error) throw error;
-      return data || [];
-    },
+        if (error) throw error;
+        return data || [];
+      },
+      10 * 60 * 1000 // 10 minutes cache
+    ),
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
   });
 
   return { categories, loading: isLoading, error };
@@ -22,18 +29,24 @@ export function useCategories() {
 export function useCities() {
   const { data: cities, isLoading, error } = useQuery({
     queryKey: ["cities"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("missions")
-        .select("location")
-        .not("location", "is", null);
+    queryFn: () => withCache(
+      'cities',
+      async () => {
+        const { data, error } = await supabase
+          .from("missions")
+          .select("location")
+          .not("location", "is", null);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      // Extract unique cities
-      const uniqueCities = [...new Set(data?.map(item => item.location).filter(Boolean) || [])];
-      return uniqueCities.map((name, index) => ({ id: index.toString(), name, postal_code: "" }));
-    },
+        // Extract unique cities
+        const uniqueCities = [...new Set(data?.map(item => item.location).filter(Boolean) || [])];
+        return uniqueCities.map((name, index) => ({ id: index.toString(), name, postal_code: "" }));
+      },
+      15 * 60 * 1000 // 15 minutes cache
+    ),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 20 * 60 * 1000, // 20 minutes
   });
 
   return { cities, loading: isLoading, error };
@@ -42,15 +55,21 @@ export function useCities() {
 export function useSkills() {
   const { data: skills, isLoading, error } = useQuery({
     queryKey: ["skills"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("skills")
-        .select("*")
-        .order("name");
+    queryFn: () => withCache(
+      'skills',
+      async () => {
+        const { data, error } = await supabase
+          .from("skills")
+          .select("*")
+          .order("name");
 
-      if (error) throw error;
-      return data || [];
-    },
+        if (error) throw error;
+        return data || [];
+      },
+      10 * 60 * 1000 // 10 minutes cache
+    ),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
   });
 
   return { skills, loading: isLoading, error };
