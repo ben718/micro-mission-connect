@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import NotificationsPage from "./pages/Notifications";
 import About from "./pages/About";
+import Contact from "./pages/Contact";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
@@ -86,6 +86,7 @@ const App = () => {
                 <Routes>
                   <Route path="/" element={<Index />} />
                   <Route path="/about" element={<About />} />
+                  <Route path="/contact" element={<Contact />} />
                   <Route path="/dashboard" element={
                     <PrivateRoute>
                       <Dashboard />
