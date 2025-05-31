@@ -245,7 +245,7 @@ class PerformanceAuditor {
     const srcPath = './src';
     let hasWebVitalsMonitoring = false;
     
-    if (fs.existsExists(srcPath)) {
+    if (fs.existsSync(srcPath)) {
       const files = this.getAllFiles(srcPath, ['.ts', '.tsx', '.js', '.jsx']);
       
       files.forEach(file => {
@@ -270,6 +270,40 @@ class PerformanceAuditor {
 
     // Recommandations générales pour les Web Vitals
     this.addResult('info', 'Web Vitals - Recommandations', 'LCP < 2.5s, FID < 100ms, CLS < 0.1');
+  }
+
+  findImages(dirPath, extensions, results) {
+    const items = fs.readdirSync(dirPath);
+    
+    items.forEach(item => {
+      const fullPath = path.join(dirPath, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory() && !item.startsWith('.')) {
+        this.findImages(fullPath, extensions, results);
+      } else if (extensions.some(ext => item.toLowerCase().endsWith(ext))) {
+        results.push({ name: item, path: fullPath });
+      }
+    });
+  }
+
+  getAllFiles(dirPath, extensions) {
+    let files = [];
+    
+    const items = fs.readdirSync(dirPath);
+    
+    items.forEach(item => {
+      const fullPath = path.join(dirPath, item);
+      const stat = fs.statSync(fullPath);
+      
+      if (stat.isDirectory() && !item.startsWith('.') && item !== 'node_modules') {
+        files = files.concat(this.getAllFiles(fullPath, extensions));
+      } else if (extensions.some(ext => item.endsWith(ext))) {
+        files.push(fullPath);
+      }
+    });
+    
+    return files;
   }
 
   addResult(type, category, message) {
