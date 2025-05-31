@@ -513,6 +513,7 @@ const DashboardAssociation = () => {
         isOpen={isSuspendDialogOpen}
         onClose={() => setIsSuspendDialogOpen(false)}
         missionId={selectedMission || ""}
+        missionTitle={missions?.find(m => m.id === selectedMission)?.title || "Mission"}
         onSuccess={() => {
           // Rafraîchir les missions après la suspension
           window.location.reload();

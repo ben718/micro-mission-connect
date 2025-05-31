@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,9 +33,9 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
     }
   };
 
-  const handleValidation = (registrationId: string, status: string) => {
+  const handleValidation = (registrationId: string, status: string, userId: string) => {
     if (validateParticipation) {
-      validateParticipation.mutate({ registrationId, status });
+      validateParticipation.mutate({ registrationId, status, userId });
     }
   };
 
@@ -69,7 +68,7 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleValidation(registration.id, 'confirmé')}
+                    onClick={() => handleValidation(registration.id, 'confirmé', registration.user_id)}
                     disabled={registration.status === 'confirmé'}
                   >
                     <Check className="w-4 h-4 mr-1" />
@@ -78,7 +77,7 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleValidation(registration.id, 'terminé')}
+                    onClick={() => handleValidation(registration.id, 'terminé', registration.user_id)}
                     disabled={registration.status === 'terminé'}
                   >
                     Marquer terminé
@@ -86,7 +85,7 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleValidation(registration.id, 'annulé')}
+                    onClick={() => handleValidation(registration.id, 'annulé', registration.user_id)}
                     disabled={registration.status === 'annulé'}
                   >
                     <X className="w-4 h-4 mr-1" />
