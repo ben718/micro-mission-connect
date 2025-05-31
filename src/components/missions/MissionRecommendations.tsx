@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -69,7 +68,9 @@ const MissionRecommendations = () => {
             longitude: null,
             latitude: null
           },
-          participants_count: 0
+          participants_count: 0,
+          // Ensure geo_location has the correct structure or is undefined
+          geo_location: mission.geo_location || undefined
         }));
 
         setRecommendations(transformedMissions);

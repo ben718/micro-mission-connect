@@ -12,7 +12,7 @@ const NotificationList: React.FC = () => {
   const { user } = useAuth();
   const {
     notifications,
-    loading,
+    isLoading,
     error,
     unreadCount,
     fetchNotifications,
@@ -20,11 +20,11 @@ const NotificationList: React.FC = () => {
     markAllAsRead,
     deleteNotification,
     deleteAllNotifications,
-    isMarkingAsRead = false,
-    isMarkingAllAsRead = false,
-    isDeleting = false,
-    isDeletingAll = false
-  } = useNotifications();
+    isMarkingAsRead,
+    isMarkingAllAsRead,
+    isDeleting,
+    isDeletingAll
+  } = useNotifications(user?.id);
 
   useEffect(() => {
     if (user?.id) {
@@ -33,26 +33,26 @@ const NotificationList: React.FC = () => {
   }, [user?.id, fetchNotifications]);
 
   const handleMarkAsRead = async (notificationId: string) => {
-    await markAsRead(notificationId);
+    markAsRead(notificationId);
   };
 
   const handleDeleteNotification = async (notificationId: string) => {
-    await deleteNotification(notificationId);
+    deleteNotification(notificationId);
   };
 
   const handleMarkAllAsRead = async () => {
     if (user?.id) {
-      await markAllAsRead(user.id);
+      markAllAsRead(user.id);
     }
   };
 
   const handleDeleteAll = async () => {
     if (user?.id) {
-      await deleteAllNotifications(user.id);
+      deleteAllNotifications(user.id);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center p-6">
         <Loader2 className="w-6 h-6 animate-spin" />

@@ -1,3 +1,4 @@
+
 import { Bell } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,13 +12,13 @@ interface NotificationBadgeProps {
 
 export const NotificationBadge = ({ className }: NotificationBadgeProps) => {
   const { user } = useAuth();
-  const { unreadCount, fetchNotifications } = useNotifications();
+  const { unreadCount, fetchNotifications } = useNotifications(user?.id);
 
   useEffect(() => {
     if (user) {
       fetchNotifications(user.id);
     }
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   if (!user) return null;
 
@@ -34,4 +35,4 @@ export const NotificationBadge = ({ className }: NotificationBadgeProps) => {
       )}
     </div>
   );
-}; 
+};

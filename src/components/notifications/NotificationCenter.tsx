@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { Bell, Check, Trash2, X } from "lucide-react";
 import { format } from "date-fns";
@@ -18,20 +19,20 @@ export const NotificationCenter = () => {
   const { user } = useAuth();
   const {
     notifications,
-    loading,
+    isLoading,
     unreadCount,
     fetchNotifications,
     markAsRead,
     markAllAsRead,
     deleteNotification,
     deleteAllNotifications,
-  } = useNotifications();
+  } = useNotifications(user?.id);
 
   useEffect(() => {
     if (user) {
       fetchNotifications(user.id);
     }
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   if (!user) return null;
 
@@ -83,7 +84,7 @@ export const NotificationCenter = () => {
           </div>
         </div>
         <ScrollArea className="h-[400px]">
-          {loading ? (
+          {isLoading ? (
             <div className="p-4 text-center text-muted-foreground">
               Chargement des notifications...
             </div>
@@ -136,7 +137,7 @@ export const NotificationCenter = () => {
                     <Button
                       variant="link"
                       className="h-auto p-0 mt-2"
-                      onClick={() => window.location.href = notification.link_url}
+                      onClick={() => window.location.href = notification.link_url!}
                     >
                       Voir plus
                     </Button>
@@ -149,4 +150,4 @@ export const NotificationCenter = () => {
       </PopoverContent>
     </Popover>
   );
-}; 
+};

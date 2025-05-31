@@ -76,7 +76,7 @@ export type DateRangeSelection = {
   to: Date | undefined;
 };
 
-// Types pour les filtres de recherche
+// Types pour les filtres de recherche - Fixed status type
 export type MissionFilters = {
   query?: string;
   location?: string;
@@ -94,7 +94,7 @@ export type MissionFilters = {
     longitude: number;
     radius?: number;
   };
-  status?: string | string[]; // Simplified for compatibility
+  status?: string; // Fixed: simplified to just string
   difficulty_level?: MissionDifficulty | MissionDifficulty[];
   engagement_level?: MissionEngagement | MissionEngagement[];
   requiredSkills?: string[];
