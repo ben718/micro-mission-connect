@@ -1,4 +1,3 @@
-
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,8 +7,11 @@ import { MapPin, Clock, Users, Briefcase, Target, Award } from "lucide-react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
-export default function MissionDetail() {
-  const { missionId } = useParams<{ missionId: string }>();
+interface MissionDetailProps {
+  missionId: string;
+}
+
+export default function MissionDetail({ missionId }: MissionDetailProps) {
   const { user } = useAuth();
   const {
     mission,
@@ -18,7 +20,7 @@ export default function MissionDetail() {
     updateRegistrationStatus,
     isParticipating,
     isUpdatingStatus
-  } = useMissionDetails(missionId!);
+  } = useMissionDetails(missionId);
 
   if (isLoading) {
     return (
