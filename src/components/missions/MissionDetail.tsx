@@ -75,7 +75,7 @@ export default function MissionDetail() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
-                  <span>{mission.mission_type.name}</span>
+                  <span>{mission.mission_type?.name}</span>
                 </div>
               </div>
 
@@ -111,9 +111,11 @@ export default function MissionDetail() {
                       <h4 className="font-medium">
                         {mission.organization.organization_name}
                       </h4>
-                      <p className="text-sm text-muted-foreground">
-                        {mission.organization.sector.name}
-                      </p>
+                      {mission.organization.sector && (
+                        <p className="text-sm text-muted-foreground">
+                          {mission.organization.sector.name}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

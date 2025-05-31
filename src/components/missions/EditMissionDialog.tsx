@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -78,9 +77,9 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
       start_date: new Date(),
       duration_minutes: "",
       location: "",
-      format: "onsite" as const,
-      difficulty_level: "beginner" as const,
-      engagement_level: "medium" as const,
+      format: "onsite" as "onsite" | "remote" | "hybrid",
+      difficulty_level: "beginner" as "beginner" | "intermediate" | "advanced",
+      engagement_level: "medium" as "low" | "medium" | "high",
       available_spots: "",
     },
   });
@@ -108,9 +107,9 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         start_date: new Date(data.start_date),
         duration_minutes: data.duration_minutes?.toString() || "",
         location: data.location,
-        format: (data.format || "onsite") as "onsite" | "remote" | "hybrid",
-        difficulty_level: (data.difficulty_level || "beginner") as "beginner" | "intermediate" | "advanced",
-        engagement_level: (data.engagement_level || "medium") as "low" | "medium" | "high",
+        format: data.format as "onsite" | "remote" | "hybrid",
+        difficulty_level: data.difficulty_level as "beginner" | "intermediate" | "advanced",
+        engagement_level: data.engagement_level as "low" | "medium" | "high",
         available_spots: data.available_spots.toString(),
       });
     } catch (error) {

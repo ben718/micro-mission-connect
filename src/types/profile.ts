@@ -12,8 +12,11 @@ export type Profile = Database['public']['Tables']['profiles']['Row'] & {
   is_organization?: boolean;
 };
 
+export type OrganizationSector = Database['public']['Tables']['organization_sectors']['Row'];
+
 export type OrganizationProfile = Database['public']['Tables']['organization_profiles']['Row'] & {
-  organization_sectors?: Database['public']['Tables']['organization_sectors']['Row'];
+  organization_sectors?: OrganizationSector;
+  sector?: OrganizationSector;
 };
 
 export type CompleteProfile = Profile & {
