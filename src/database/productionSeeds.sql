@@ -1,4 +1,5 @@
 
+
 -- Seeds de données de production pour MicroBénévole
 -- À exécuter après la création des tables
 
