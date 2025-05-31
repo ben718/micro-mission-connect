@@ -25,7 +25,7 @@ export function usePaginatedQuery<T>({
     enabled,
     staleTime,
     gcTime: 15 * 60 * 1000,
-    keepPreviousData: true
+    placeholderData: (previousData) => previousData
   });
 
   const totalPages = useMemo(() => {
