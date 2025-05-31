@@ -1,10 +1,10 @@
-
 import { useMissionDetails } from "@/hooks/useMissionDetails";
+import { useSavedMissions } from "@/hooks/useSavedMissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDuration } from "@/utils/date";
-import { MapPin, Clock, Users, Briefcase, Target, Award } from "lucide-react";
+import { MapPin, Clock, Users, Briefcase, Target, Award, Bookmark, BookmarkCheck } from "lucide-react";
 import { useParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -22,6 +22,8 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     isParticipating,
     isUpdatingStatus
   } = useMissionDetails(missionId);
+
+  const { isSaved, save, unsave, isSaveLoading, isUnsaveLoading } = useSavedMissions(user?.id, missionId);
 
   if (isLoading) {
     return (
@@ -50,6 +52,14 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     }
   };
 
+  const handleSaveToggle = () => {
+    if (isSaved) {
+      unsave();
+    } else {
+      save();
+    }
+  };
+
   // Logique pour la limitation des annulations
   const isCancelled = mission.registration_status === "annulé";
   const isActivelyRegistered = mission.is_registered && !isCancelled;
@@ -69,7 +79,28 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="text-2xl">{mission.title}</CardTitle>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
+                {user && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSaveToggle}
+                    disabled={isSaveLoading || isUnsaveLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {isSaved ? (
+                      <>
+                        <BookmarkCheck className="w-4 h-4" />
+                        Sauvegardé
+                      </>
+                    ) : (
+                      <>
+                        <Bookmark className="w-4 h-4" />
+                        Sauvegarder
+                      </>
+                    )}
+                  </Button>
+                )}
                 <Badge variant="outline">{mission.format}</Badge>
                 <Badge variant="outline">{mission.difficulty_level}</Badge>
                 <Badge variant="outline">{mission.engagement_level}</Badge>
