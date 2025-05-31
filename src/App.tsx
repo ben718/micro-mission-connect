@@ -14,7 +14,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
-import CreateMission from "./pages/missions/CreateMission";
+import CreateMission from "@/pages/missions/CreateMission";
 import Dashboard from "./pages/Dashboard";
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
@@ -24,6 +24,8 @@ import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 import AssociationsActivity from "@/pages/associations/AssociationsActivity";
 import VolunteerProfile from "@/pages/profile/VolunteerProfile";
 import OrganizationProfile from "@/pages/profile/OrganizationProfile";
+import PublicVolunteerProfile from "@/pages/profile/PublicVolunteerProfile";
+import PublicOrganizationProfile from "@/pages/profile/PublicOrganizationProfile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -152,6 +154,23 @@ const App = () => {
                     element={
                       <PrivateRoute>
                         <OrganizationProfile />
+                      </PrivateRoute>
+                    }
+                  />
+                  {/* Nouvelles routes pour les profils publics */}
+                  <Route
+                    path="/volunteer/:userId"
+                    element={
+                      <PrivateRoute>
+                        <PublicVolunteerProfile />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/organization/:organizationId"
+                    element={
+                      <PrivateRoute>
+                        <PublicOrganizationProfile />
                       </PrivateRoute>
                     }
                   />
