@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, Globe, Users, Calendar, UserPlus, UserMinus } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
 
 const PublicOrganizationProfile = () => {
   const { organizationId } = useParams();
@@ -137,34 +138,55 @@ const PublicOrganizationProfile = () => {
           ) : (
             <div className="space-y-4">
               {missions.map((mission) => (
-                <div key={mission.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-lg">{mission.title}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
-                        {mission.description}
-                      </p>
-                      
-                      <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {format(new Date(mission.start_date), 'PPP', { locale: fr })}
-                          </span>
+                <Card key={mission.id} className="border rounded-lg hover:shadow-md transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <Link 
+                          to={`/missions/${mission.id}`}
+                          className="font-medium text-lg hover:text-primary transition-colors"
+                        >
+                          <h3>{mission.title}</h3>
+                        </Link>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                          {mission.description}
+                        </p>
+                        
+                        <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>
+                              {format(new Date(mission.start_date), 'PPP', { locale: fr })}
+                            </span>
+                          </div>
+                          {mission.location && (
+                            <div className="flex items-center gap-1">
+                              <MapPin className="w-4 h-4" />
+                              <span>{mission.location}</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex items-center gap-1">
-                          <MapPin className="w-4 h-4" />
-                          <span>{mission.location}</span>
+                        
+                        <div className="flex gap-2 mt-3">
+                          <Badge variant="outline">{mission.status}</Badge>
+                          <Badge variant="secondary">{mission.format}</Badge>
+                          {mission.available_spots && (
+                            <Badge variant="outline">
+                              {mission.participants_count || 0}/{mission.available_spots} places
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
-                      <div className="flex gap-2 mt-3">
-                        <Badge variant="outline">{mission.status}</Badge>
-                        <Badge variant="secondary">{mission.format}</Badge>
+                      <div className="ml-4">
+                        <Link to={`/missions/${mission.id}`}>
+                          <Button variant="outline" size="sm">
+                            Voir les détails
+                          </Button>
+                        </Link>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
