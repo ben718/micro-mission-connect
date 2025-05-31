@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -103,21 +104,39 @@ export function useMissionDetails(missionId: string) {
       console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
 
       // Vérifier d'abord si une inscription existe déjà
-      const { data: existingRegistration, error: checkError } = await supabase
+      const { data: existingRegistrations, error: checkError } = await supabase
         .from("mission_registrations")
         .select("id, status")
         .eq("user_id", user.id)
-        .eq("mission_id", mission.id)
-        .single();
+        .eq("mission_id", mission.id);
 
-      if (checkError && checkError.code !== 'PGRST116') {
+      if (checkError) {
         console.error("Erreur lors de la vérification d'inscription:", checkError);
         throw checkError;
       }
 
+      const existingRegistration = existingRegistrations?.[0];
+
       if (existingRegistration) {
-        // Si une inscription existe et qu'elle est annulée, on la remet à "inscrit"
+        // Si une inscription existe
         if (existingRegistration.status === "annulé") {
+          // Réactiver l'inscription annulée
+          const { error: updateError } = await supabase
+            .from("mission_registrations")
+            .update({ 
+              status: "inscrit" as ParticipationStatus,
+              registration_date: new Date().toISOString()
+            })
+            .eq("id", existingRegistration.id);
+
+          if (updateError) {
+            console.error("Erreur de réactivation d'inscription:", updateError);
+            throw updateError;
+          }
+        } else if (existingRegistration.status === "inscrit" || existingRegistration.status === "confirmé") {
+          throw new Error("Vous êtes déjà inscrit à cette mission");
+        } else {
+          // Pour les autres statuts, on permet la réinscription en mettant à jour
           const { error: updateError } = await supabase
             .from("mission_registrations")
             .update({ 
@@ -130,8 +149,6 @@ export function useMissionDetails(missionId: string) {
             console.error("Erreur de mise à jour d'inscription:", updateError);
             throw updateError;
           }
-        } else {
-          throw new Error("Vous êtes déjà inscrit à cette mission");
         }
       } else {
         // Créer une nouvelle inscription
@@ -167,7 +184,7 @@ export function useMissionDetails(missionId: string) {
       if (error.message?.includes('row-level security')) {
         toast.error("Erreur de permissions. Veuillez vous reconnecter.");
       } else if (error.message?.includes('unique constraint')) {
-        toast.error("Vous êtes déjà inscrit à cette mission.");
+        toast.error("Erreur technique. Veuillez réessayer.");
       } else {
         handleError(error, "Erreur lors de l'inscription");
       }
