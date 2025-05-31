@@ -1,8 +1,10 @@
+
 import { Database } from "@/integrations/supabase/types";
 
 // Type de base pour un profil utilisateur
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   is_organization?: boolean;
+  is_association?: boolean; // Add legacy compatibility
   user_skills?: any[];
   user_badges?: any[];
   email?: string;
@@ -19,6 +21,7 @@ export type OrganizationSector = Database["public"]["Tables"]["organization_sect
 // Type combiné pour un profil complet
 export interface CompleteProfile extends Profile {
   is_organization: boolean;
+  is_association?: boolean; // Add legacy compatibility
   organization_profile?: OrganizationProfile;
 }
 

@@ -13,13 +13,13 @@ const MissionNavigation = () => {
         <Button variant="ghost" asChild>
           <Link to="/missions">Toutes les missions</Link>
         </Button>
-        {profile && !profile.is_association && (
+        {profile && !profile.is_organization && (
           <Button variant="ghost" asChild>
             <Link to="/profile">Mes missions</Link>
           </Button>
         )}
       </div>
-      {profile?.is_association && (
+      {profile?.is_organization && (
         <Button className="bg-bleu hover:bg-bleu-700" asChild>
           <Link to="/missions/new">
             <Plus className="w-4 h-4 mr-2" />

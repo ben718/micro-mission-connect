@@ -28,7 +28,7 @@ const HomePage = () => {
             title: mission.title || '',
             description: mission.description || '',
             start_date: mission.start_date,
-            end_date: mission.start_date, // Use start_date as fallback
+            end_date: mission.start_date,
             duration_minutes: mission.duration_minutes || 0,
             available_spots: mission.available_spots || 0,
             location: mission.location || '',
@@ -48,6 +48,7 @@ const HomePage = () => {
             updated_at: new Date().toISOString(),
             geo_location: null,
             required_skills: mission.required_skills || [],
+            participants_count: 0, // Add missing property
             organization: {
               id: '',
               user_id: '',
@@ -70,14 +71,12 @@ const HomePage = () => {
             date: mission.start_date ? new Date(mission.start_date).toLocaleDateString() : '',
             timeSlot: mission.start_date ? new Date(mission.start_date).toLocaleTimeString() : '',
             duration: mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '',
-            participants: `0/${mission.available_spots || 0}`,
-            requiredSkills: mission.required_skills || [],
-            associationId: ''
+            participants: `0/${mission.available_spots || 0}`
           })) as MissionWithOrganization[];
           setRecentMissions(formattedRecent);
         }
 
-        // Récupérer les missions à proximité (simulé pour l'instant)
+        // Récupérer les missions à proximité
         const { data: nearbyData } = await supabase
           .from('available_missions_details')
           .select('*')
@@ -90,7 +89,7 @@ const HomePage = () => {
             title: mission.title || '',
             description: mission.description || '',
             start_date: mission.start_date,
-            end_date: mission.start_date, // Use start_date as fallback
+            end_date: mission.start_date,
             duration_minutes: mission.duration_minutes || 0,
             available_spots: mission.available_spots || 0,
             location: mission.location || '',
@@ -110,6 +109,7 @@ const HomePage = () => {
             updated_at: new Date().toISOString(),
             geo_location: null,
             required_skills: mission.required_skills || [],
+            participants_count: 0, // Add missing property
             organization: {
               id: '',
               user_id: '',
@@ -132,9 +132,7 @@ const HomePage = () => {
             date: mission.start_date ? new Date(mission.start_date).toLocaleDateString() : '',
             timeSlot: mission.start_date ? new Date(mission.start_date).toLocaleTimeString() : '',
             duration: mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '',
-            participants: `0/${mission.available_spots || 0}`,
-            requiredSkills: mission.required_skills || [],
-            associationId: ''
+            participants: `0/${mission.available_spots || 0}`
           })) as MissionWithOrganization[];
           setNearbyMissions(formattedNearby);
         }

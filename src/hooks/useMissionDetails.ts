@@ -24,13 +24,7 @@ export function useMissionDetails(missionId: string) {
           ),
           mission_registrations(
             *,
-            user:user_id(
-              *,
-              user_skills(
-                *,
-                skill:skill_id(*)
-              )
-            )
+            user:user_id(*)
           )
         `)
         .eq("id", missionId)

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -58,7 +59,7 @@ const ParticipantValidation: React.FC<ParticipantValidationProps> = ({ missionId
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {registration.user?.first_name} {registration.user?.last_name}
+                    {registration.user?.first_name || 'Utilisateur'} {registration.user?.last_name || ''}
                   </CardTitle>
                   {getStatusBadge(registration.status)}
                 </div>

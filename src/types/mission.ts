@@ -1,3 +1,4 @@
+
 import { Database } from "@/integrations/supabase/types";
 import type { CompleteProfile, OrganizationProfile } from './profile';
 
@@ -11,6 +12,12 @@ export type Mission = Database["public"]["Tables"]["missions"]["Row"] & {
     type: "Point";
     coordinates: [number, number];
   };
+  // Legacy compatibility fields
+  category?: string;
+  date?: string;
+  timeSlot?: string;
+  duration?: string;
+  participants?: string;
 };
 
 export type MissionType = Database["public"]["Tables"]["mission_types"]["Row"];
@@ -20,7 +27,7 @@ export type MissionRegistration = Database["public"]["Tables"]["mission_registra
 export type Badge = Database["public"]["Tables"]["badges"]["Row"];
 export type UserBadge = Database["public"]["Tables"]["user_badges"]["Row"] & {
   badge?: Badge;
-  acquired_at?: string; // Add compatibility property
+  acquired_at?: string;
 };
 export type UserSkill = Database["public"]["Tables"]["user_skills"]["Row"] & {
   skill?: Skill;
@@ -39,6 +46,12 @@ export type Organization = OrganizationProfile;
 export type MissionWithOrganization = Mission & {
   organization: Organization;
   mission_type?: MissionType;
+  // Legacy compatibility fields
+  category?: string;
+  date?: string;
+  timeSlot?: string;
+  duration?: string;
+  participants?: string;
 };
 
 export type MissionWithAssociation = MissionWithOrganization;
@@ -54,6 +67,7 @@ export type MissionWithDetails = MissionWithOrganization & {
   participants_count: number;
   is_registered?: boolean;
   registration_status?: ParticipationStatus;
+  mission_registrations?: any[];
 };
 
 // Type for date range selection used in calendar component
@@ -80,7 +94,7 @@ export type MissionFilters = {
     longitude: number;
     radius?: number;
   };
-  status?: MissionStatus | MissionStatus[];
+  status?: string | string[]; // Simplified for compatibility
   difficulty_level?: MissionDifficulty | MissionDifficulty[];
   engagement_level?: MissionEngagement | MissionEngagement[];
   requiredSkills?: string[];
