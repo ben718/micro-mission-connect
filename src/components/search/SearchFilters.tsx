@@ -71,30 +71,30 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    <div className="w-full max-w-6xl mx-auto p-3 sm:p-4 md:p-6 bg-white rounded-lg shadow-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {/* Search Query */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Rechercher</label>
+          <label className="text-xs sm:text-sm font-medium">Rechercher</label>
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4" />
             <Input
               placeholder="Mots-clés..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="pl-10"
+              className="pl-8 sm:pl-10 text-sm"
             />
           </div>
         </div>
 
         {/* Location */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Localisation</label>
+          <label className="text-xs sm:text-sm font-medium">Localisation</label>
           <div className="relative">
-            <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-3 w-3 sm:h-4 sm:w-4 z-10" />
             <Popover>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full justify-start pl-10">
+                <Button variant="outline" className="w-full justify-start pl-8 sm:pl-10 text-sm">
                   {location || "Choisir une ville..."}
                 </Button>
               </PopoverTrigger>
@@ -121,18 +121,18 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
         </div>
 
         {/* Date */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Date</label>
+        <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+          <label className="text-xs sm:text-sm font-medium">Date</label>
           <Popover>
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full justify-start text-left font-normal",
+                  "w-full justify-start text-left font-normal text-sm",
                   !selectedDate && "text-muted-foreground"
                 )}
               >
-                <CalendarIcon className="mr-2 h-4 w-4" />
+                <CalendarIcon className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 {selectedDate ? format(selectedDate, "PPP", { locale: fr }) : "Choisir une date"}
               </Button>
             </PopoverTrigger>
@@ -149,14 +149,14 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {/* Categories */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Catégories</label>
+          <label className="text-xs sm:text-sm font-medium">Catégories</label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start">
-                <TagIcon className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="w-full justify-start text-sm">
+                <TagIcon className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 Ajouter une catégorie
               </Button>
             </PopoverTrigger>
@@ -179,12 +179,12 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
               </Command>
             </PopoverContent>
           </Popover>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {selectedCategories.map((category) => (
-              <Badge key={category} variant="secondary">
+              <Badge key={category} variant="secondary" className="text-xs">
                 {category}
                 <XIcon
-                  className="ml-1 h-3 w-3 cursor-pointer"
+                  className="ml-1 h-2 w-2 sm:h-3 sm:w-3 cursor-pointer"
                   onClick={() => removeCategory(category)}
                 />
               </Badge>
@@ -194,11 +194,11 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
 
         {/* Skills */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Compétences</label>
+          <label className="text-xs sm:text-sm font-medium">Compétences</label>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start">
-                <TagIcon className="mr-2 h-4 w-4" />
+              <Button variant="outline" className="w-full justify-start text-sm">
+                <TagIcon className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
                 Ajouter une compétence
               </Button>
             </PopoverTrigger>
@@ -221,12 +221,12 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
               </Command>
             </PopoverContent>
           </Popover>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1 sm:gap-2">
             {selectedSkills.map((skill) => (
-              <Badge key={skill} variant="secondary">
+              <Badge key={skill} variant="secondary" className="text-xs">
                 {skill}
                 <XIcon
-                  className="ml-1 h-3 w-3 cursor-pointer"
+                  className="ml-1 h-2 w-2 sm:h-3 sm:w-3 cursor-pointer"
                   onClick={() => removeSkill(skill)}
                 />
               </Badge>
@@ -236,8 +236,8 @@ export function SearchFilters({ onSearch }: SearchFiltersProps) {
       </div>
 
       <div className="flex justify-center">
-        <Button onClick={handleSearch} className="px-8">
-          <SearchIcon className="mr-2 h-4 w-4" />
+        <Button onClick={handleSearch} className="px-6 sm:px-8 text-sm sm:text-base">
+          <SearchIcon className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
           Rechercher
         </Button>
       </div>
