@@ -56,7 +56,6 @@ const mockMission: MissionWithDetails = {
     logo_url: null,
     website_url: null,
     address: null,
-    postal_code: null,
     city: null,
     latitude: null,
     longitude: null,
@@ -67,7 +66,14 @@ const mockMission: MissionWithDetails = {
     updated_at: '2024-01-01T00:00:00Z',
     creation_date: null,
     siret_number: null,
-    location: null
+    location: null,
+    sector: {
+      id: 'sector-id',
+      name: 'Secteur Test',
+      description: 'Description secteur',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z'
+    }
   },
   required_skills: [],
   participants_count: 0,

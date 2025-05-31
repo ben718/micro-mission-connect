@@ -53,7 +53,7 @@ describe('usePaginatedQuery', () => {
     });
 
     expect(result.current.data).toBeDefined();
-    expect(result.current.pagination.currentPage).toBe(1);
+    expect(result.current.currentPage).toBe(1);
   });
 
   it('should navigate to next page', async () => {
@@ -75,10 +75,10 @@ describe('usePaginatedQuery', () => {
       expect(result.current.isLoading).toBe(false);
     });
 
-    result.current.pagination.goToNextPage();
+    result.current.goToNextPage();
 
     await waitFor(() => {
-      expect(result.current.pagination.currentPage).toBe(2);
+      expect(result.current.currentPage).toBe(2);
     });
   });
 });
