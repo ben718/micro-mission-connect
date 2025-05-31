@@ -1,11 +1,10 @@
 
+
 -- Script complet de données pour MicroBénévole
 -- Inclut les données de production + données de test complètes
 
 -- Réinitialisation des tables (optionnel - à décommenter si besoin)
 -- TRUNCATE TABLE mission_registrations, missions, organization_profiles, user_badges, user_skills, profiles CASCADE;
-
--- ... keep existing code (profiles insertion) the same ...
 
 -- 1. Insertion des utilisateurs de test dans la table profiles
 INSERT INTO profiles (
@@ -40,8 +39,6 @@ ON CONFLICT (id) DO UPDATE SET
     last_name = EXCLUDED.last_name,
     email = EXCLUDED.email,
     updated_at = now();
-
--- ... keep existing code (organization profiles insertion) the same ...
 
 -- 2. Insertion des profils d'organisations
 INSERT INTO organization_profiles (
@@ -81,8 +78,6 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
--- ... keep existing code (user skills insertion) the same ...
-
 -- 3. Attribution des compétences aux utilisateurs
 INSERT INTO user_skills (id, user_id, skill_id, level, created_at, updated_at) VALUES 
 -- Marie Dubois (Éducation/Social)
@@ -114,8 +109,6 @@ ON CONFLICT (user_id, skill_id) DO UPDATE SET
     level = EXCLUDED.level,
     updated_at = now();
 
--- ... keep existing code (user badges insertion) the same ...
-
 -- 4. Attribution des premiers badges
 INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VALUES 
 (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '6 months', now()),
@@ -135,8 +128,6 @@ INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VA
 (gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '3 months', now())
 
 ON CONFLICT (user_id, badge_id) DO NOTHING;
-
--- ... keep existing code (missions insertion) the same ...
 
 -- 5. Création de missions variées
 INSERT INTO missions (
@@ -196,8 +187,6 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
--- ... keep existing code (mission skills insertion) the same ...
-
 -- 6. Compétences requises pour les missions
 INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_required, created_at) VALUES 
 -- Distribution alimentaire - Communication recommandée
@@ -226,8 +215,6 @@ INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_require
 ON CONFLICT (mission_id, skill_id) DO UPDATE SET
     required_level = EXCLUDED.required_level,
     is_required = EXCLUDED.is_required;
-
--- ... keep existing code (mission registrations insertion) the same ...
 
 -- 7. Inscriptions aux missions (historique et actuelles)
 INSERT INTO mission_registrations (
@@ -279,8 +266,6 @@ INSERT INTO notifications (
 
 ON CONFLICT (id) DO NOTHING;
 
--- ... keep existing code (testimonials insertion) the same ...
-
 -- 9. Témoignages publics
 INSERT INTO testimonials (
     id,
@@ -310,3 +295,4 @@ SELECT
     (SELECT COUNT(*) FROM user_skills) as nb_user_skills,
     (SELECT COUNT(*) FROM user_badges) as nb_user_badges,
     (SELECT COUNT(*) FROM notifications) as nb_notifications;
+
