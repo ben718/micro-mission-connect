@@ -6,9 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDuration } from "@/utils/date";
 import { MapPin, Clock, Users, Briefcase, Target, Award } from "lucide-react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { notificationService } from "@/services/notificationService";
 
 export default function MissionDetail() {
   const { missionId } = useParams<{ missionId: string }>();
+  const { user } = useAuth();
   const {
     mission,
     isLoading,
@@ -19,27 +22,45 @@ export default function MissionDetail() {
   } = useMissionDetails(missionId!);
 
   if (isLoading) {
-    return <div>Chargement...</div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
   }
 
   if (!mission) {
-    return <div>Mission non trouvée</div>;
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Mission non trouvée</h2>
+        <p className="text-gray-600">Cette mission n'existe pas ou a été supprimée.</p>
+      </div>
+    );
   }
 
-  const handleParticipation = () => {
+  const handleParticipation = async () => {
+    if (!user) return;
+
     if (mission.is_registered) {
       updateRegistrationStatus({ status: "annulé" });
+      // Créer une notification d'annulation
+      await notificationService.notifyMissionCancellation(user.id, mission.title);
     } else {
       participate();
+      // Créer une notification d'inscription
+      await notificationService.notifyMissionRegistration(user.id, mission.title, mission.id);
     }
   };
+
+  const canParticipate = user && !mission.is_registered && mission.participants_count < mission.available_spots;
+  const canCancel = user && mission.is_registered && mission.registration_status !== "terminé";
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>{mission.title}</CardTitle>
+            <CardTitle className="text-2xl">{mission.title}</CardTitle>
             <div className="flex gap-2">
               <Badge variant="outline">{mission.format}</Badge>
               <Badge variant="outline">{mission.difficulty_level}</Badge>
@@ -55,10 +76,12 @@ export default function MissionDetail() {
                 <p className="text-muted-foreground">{mission.description}</p>
               </div>
 
-              <div>
-                <h3 className="font-medium mb-2">Impact recherché</h3>
-                <p className="text-muted-foreground">{mission.desired_impact}</p>
-              </div>
+              {mission.desired_impact && (
+                <div>
+                  <h3 className="font-medium mb-2">Impact recherché</h3>
+                  <p className="text-muted-foreground">{mission.desired_impact}</p>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center gap-2">
@@ -71,7 +94,7 @@ export default function MissionDetail() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{mission.participants_count} participant(s)</span>
+                  <span>{mission.participants_count} / {mission.available_spots} participant(s)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Briefcase className="h-4 w-4 text-muted-foreground" />
@@ -111,9 +134,9 @@ export default function MissionDetail() {
                       <h4 className="font-medium">
                         {mission.organization.organization_name}
                       </h4>
-                      {mission.organization.sector && (
+                      {mission.organization.organization_sectors && (
                         <p className="text-sm text-muted-foreground">
-                          {mission.organization.sector.name}
+                          {mission.organization.organization_sectors.name}
                         </p>
                       )}
                     </div>
@@ -139,19 +162,64 @@ export default function MissionDetail() {
                     )}
                     <div>
                       <span className="font-medium">Places disponibles :</span>{" "}
-                      {mission.available_spots}
+                      {mission.available_spots - mission.participants_count}
                     </div>
+                    {mission.is_registered && (
+                      <div>
+                        <span className="font-medium">Statut :</span>{" "}
+                        <Badge variant="outline">{mission.registration_status}</Badge>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Button
-                className="w-full"
-                onClick={handleParticipation}
-                disabled={isParticipating || isUpdatingStatus}
-              >
-                {mission.is_registered ? "Annuler la participation" : "Participer"}
-              </Button>
+              {!user ? (
+                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Connectez-vous pour participer à cette mission
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {canParticipate && (
+                    <Button
+                      className="w-full"
+                      onClick={handleParticipation}
+                      disabled={isParticipating}
+                    >
+                      {isParticipating ? "Inscription en cours..." : "Participer à cette mission"}
+                    </Button>
+                  )}
+                  
+                  {canCancel && (
+                    <Button
+                      variant="destructive"
+                      className="w-full"
+                      onClick={handleParticipation}
+                      disabled={isUpdatingStatus}
+                    >
+                      {isUpdatingStatus ? "Annulation en cours..." : "Annuler ma participation"}
+                    </Button>
+                  )}
+                  
+                  {mission.is_registered && mission.registration_status === "terminé" && (
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <p className="text-sm text-green-600">
+                        Mission terminée - Merci pour votre participation !
+                      </p>
+                    </div>
+                  )}
+                  
+                  {!canParticipate && !mission.is_registered && mission.participants_count >= mission.available_spots && (
+                    <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                      <p className="text-sm text-yellow-600">
+                        Mission complète - Plus de places disponibles
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </CardContent>

@@ -1,12 +1,14 @@
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMissions } from "@/hooks/useMissions";
+import { useNotifications } from "@/hooks/useNotifications";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search } from "lucide-react";
+import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search, Bell } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -15,23 +17,59 @@ const DashboardBenevole = () => {
   const { user, profile } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
   const { data: userMissions, isLoading } = useUserMissions(user?.id);
+  const { unreadCount } = useNotifications(user?.id);
   
   // Séparer les missions à venir et passées
   const now = new Date();
-  const upcomingMissions = userMissions?.filter(m => new Date(m.mission.start_date) >= now && m.status === 'inscrit') || [];
-  const pastMissions = userMissions?.filter(m => new Date(m.mission.start_date) < now || m.status === 'terminé') || [];
+  const upcomingMissions = userMissions?.filter(m => 
+    new Date(m.mission.start_date) >= now && 
+    ['inscrit', 'confirmé'].includes(m.status)
+  ) || [];
+  
+  const pastMissions = userMissions?.filter(m => 
+    new Date(m.mission.start_date) < now || 
+    ['terminé', 'annulé'].includes(m.status)
+  ) || [];
 
-  // Statistiques
+  // Statistiques calculées dynamiquement
   const totalMissions = userMissions?.length || 0;
-  const pastMissionsCount = pastMissions.length;
+  const completedMissions = userMissions?.filter(m => m.status === 'terminé').length || 0;
   const upcomingMissionsCount = upcomingMissions.length;
-  const totalHours = userMissions?.reduce((acc, m) => acc + (m.mission.duration_minutes || 0) / 60, 0) || 0;
+  
+  // Calcul des heures totales basé sur les missions terminées
+  const totalHours = userMissions?.filter(m => m.status === 'terminé')
+    .reduce((acc, m) => acc + (m.mission.duration_minutes || 0) / 60, 0) || 0;
 
-  // Badges simples
+  // Badges dynamiques basés sur les vraies statistiques
   const badges = [];
-  if (pastMissionsCount >= 1) badges.push({ label: "Nouveau bénévole", icon: <Star className="w-4 h-4 mr-1" /> });
-  if (pastMissionsCount >= 5) badges.push({ label: "Engagé", icon: <CheckCircle2 className="w-4 h-4 mr-1" /> });
-  if (totalHours >= 20) badges.push({ label: "Super bénévole", icon: <User className="w-4 h-4 mr-1" /> });
+  if (completedMissions >= 1) {
+    badges.push({ 
+      label: "Nouveau bénévole", 
+      icon: <Star className="w-4 h-4 mr-1" />,
+      color: "bg-blue-100 text-blue-800"
+    });
+  }
+  if (completedMissions >= 5) {
+    badges.push({ 
+      label: "Bénévole engagé", 
+      icon: <CheckCircle2 className="w-4 h-4 mr-1" />,
+      color: "bg-green-100 text-green-800"
+    });
+  }
+  if (totalHours >= 20) {
+    badges.push({ 
+      label: "Super bénévole", 
+      icon: <User className="w-4 h-4 mr-1" />,
+      color: "bg-purple-100 text-purple-800"
+    });
+  }
+  if (completedMissions >= 10) {
+    badges.push({ 
+      label: "Bénévole expert", 
+      icon: <Star className="w-4 h-4 mr-1" />,
+      color: "bg-yellow-100 text-yellow-800"
+    });
+  }
 
   const getInitials = (firstName?: string, lastName?: string) => {
     if (!firstName && !lastName) return "?";
@@ -60,6 +98,16 @@ const DashboardBenevole = () => {
           </div>
         </div>
         <div className="flex flex-col gap-2 items-end">
+          <div className="flex gap-2">
+            {unreadCount > 0 && (
+              <Button asChild variant="outline" size="sm">
+                <Link to="/notifications" className="flex items-center gap-2">
+                  <Bell className="w-4 h-4" />
+                  {unreadCount} notification{unreadCount > 1 ? 's' : ''}
+                </Link>
+              </Button>
+            )}
+          </div>
           <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3">
             <Link to="/missions">
               <Search className="w-5 h-5 mr-2" />
@@ -80,39 +128,45 @@ const DashboardBenevole = () => {
             <span className="text-3xl font-bold text-bleu">{upcomingMissionsCount}</span>
           </CardContent>
         </Card>
+        
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <CheckCircle2 className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Missions terminées</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{pastMissionsCount}</span>
+            <span className="text-3xl font-bold text-bleu">{completedMissions}</span>
           </CardContent>
         </Card>
+        
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Clock className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Heures de bénévolat</CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-3xl font-bold text-bleu">{Math.round(totalHours)}</span>
+            <span className="text-3xl font-bold text-bleu">{Math.round(totalHours * 10) / 10}</span>
           </CardContent>
         </Card>
+        
         <Card className="shadow-sm border-bleu/20">
           <CardHeader className="flex flex-row items-center gap-3 pb-2">
             <Star className="w-6 h-6 text-bleu" />
             <CardTitle className="text-base font-semibold text-gray-500">Badges</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-wrap gap-1">
             {badges.length === 0 ? (
-              <span className="text-gray-400">Aucun badge</span>
+              <span className="text-gray-400 text-sm">Aucun badge</span>
             ) : (
-              badges.map((b, i) => (
-                <Badge key={i} className="flex items-center gap-1 bg-bleu/10 text-bleu font-medium">
-                  {b.icon}
-                  {b.label}
+              badges.slice(0, 2).map((badge, i) => (
+                <Badge key={i} className={`flex items-center gap-1 text-xs ${badge.color}`}>
+                  {badge.icon}
+                  {badge.label}
                 </Badge>
               ))
+            )}
+            {badges.length > 2 && (
+              <span className="text-xs text-gray-500">+{badges.length - 2}</span>
             )}
           </CardContent>
         </Card>
@@ -122,7 +176,7 @@ const DashboardBenevole = () => {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
         <TabsList className="mb-6">
           <TabsTrigger value="upcoming">Missions à venir ({upcomingMissionsCount})</TabsTrigger>
-          <TabsTrigger value="past">Historique ({pastMissionsCount})</TabsTrigger>
+          <TabsTrigger value="past">Historique ({pastMissions.length})</TabsTrigger>
         </TabsList>
 
         {/* Upcoming missions */}
@@ -166,7 +220,7 @@ const DashboardBenevole = () => {
         <TabsContent value="past">
           {isLoading ? (
             <p>Chargement…</p>
-          ) : pastMissionsCount === 0 ? (
+          ) : pastMissions.length === 0 ? (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">Vous n'avez pas encore terminé de missions.</p>
               <Button asChild>
