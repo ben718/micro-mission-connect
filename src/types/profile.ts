@@ -25,7 +25,6 @@ export type Profile = Database['public']['Tables']['profiles']['Row'] & {
       id: string;
       name: string;
       description: string;
-      icon_url?: string;
     };
     acquisition_date: string;
   }>;
@@ -56,7 +55,6 @@ export type CompleteProfile = Profile & {
       id: string;
       name: string;
       description: string;
-      icon_url?: string;
     };
     acquisition_date: string;
   }>;

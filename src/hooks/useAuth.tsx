@@ -43,7 +43,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           ),
           user_badges:user_badges(
             id,
-            badge:badges(id, name, description, icon_url),
+            badge:badges(id, name, description),
             acquisition_date
           )
         `)
