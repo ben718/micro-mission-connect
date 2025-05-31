@@ -18,7 +18,7 @@ export const useOrganization = (organizationId?: string) => {
         .from('organization_profiles')
         .select(`
           *,
-          sectors!sector_id (
+          organization_sectors!sector_id(
             id,
             name,
             description
