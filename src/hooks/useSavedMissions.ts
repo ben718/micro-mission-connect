@@ -17,7 +17,7 @@ export const useSavedMissions = (userId?: string, missionId?: string) => {
         .select('id')
         .eq('user_id', userId)
         .eq('mission_id', missionId)
-        .single();
+        .maybeSingle();
       
       if (error && error.code !== 'PGRST116') throw error;
       return !!data;

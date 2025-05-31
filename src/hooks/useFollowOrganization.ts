@@ -17,7 +17,7 @@ export const useFollowOrganization = (userId?: string, organizationId?: string) 
         .select('id')
         .eq('user_id', userId)
         .eq('organization_id', organizationId)
-        .single();
+        .maybeSingle();
       
       if (error && error.code !== 'PGRST116') throw error;
       return !!data;

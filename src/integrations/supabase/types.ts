@@ -389,6 +389,35 @@ export type Database = {
           },
         ]
       }
+      organization_followers: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_followers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organization_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_profiles: {
         Row: {
           address: string | null
@@ -564,6 +593,42 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      saved_missions: {
+        Row: {
+          created_at: string
+          id: string
+          mission_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mission_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mission_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "available_missions_details"
+            referencedColumns: ["mission_id"]
+          },
+          {
+            foreignKeyName: "saved_missions_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       skills: {
         Row: {
