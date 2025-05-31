@@ -27,41 +27,45 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-grow">
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/confirmation" element={<Confirmation />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/missions" element={<Missions />} />
-              <Route path="/missions/:id" element={<MissionDetail />} />
-              <Route path="/missions/create" element={<CreateMission />} />
-              <Route path="/missions/:id/edit" element={<EditMission />} />
-              <Route path="/associations" element={<AssociationsPage />} />
-              <Route path="/associations/activity" element={<AssociationsActivity />} />
-              <Route path="/profile/*" element={<ProfileRouter />} />
-              <Route path="/volunteer/:userId" element={<PublicVolunteerProfile />} />
-              <Route path="/organization/:organizationId" element={<PublicOrganizationProfile />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  console.log('App component rendering');
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <div className="min-h-screen flex flex-col">
+            <Header />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/contact" element={<Contact />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/confirmation" element={<Confirmation />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/missions" element={<Missions />} />
+                <Route path="/missions/:id" element={<MissionDetail />} />
+                <Route path="/missions/create" element={<CreateMission />} />
+                <Route path="/missions/:id/edit" element={<EditMission />} />
+                <Route path="/associations" element={<AssociationsPage />} />
+                <Route path="/associations/activity" element={<AssociationsActivity />} />
+                <Route path="/profile/*" element={<ProfileRouter />} />
+                <Route path="/volunteer/:userId" element={<PublicVolunteerProfile />} />
+                <Route path="/organization/:organizationId" element={<PublicOrganizationProfile />} />
+                <Route path="/notifications" element={<Notifications />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
