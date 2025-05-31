@@ -9,6 +9,7 @@ import { Bell, BellOff, Trash2, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
+import NotificationTestGenerator from '@/components/notifications/NotificationTestGenerator';
 
 const NotificationsPage = () => {
   const { user } = useAuth();
@@ -68,6 +69,8 @@ const NotificationsPage = () => {
           )}
         </div>
       </div>
+
+      <NotificationTestGenerator />
 
       {notifications.length === 0 ? (
         <Card>
