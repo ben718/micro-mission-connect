@@ -75,10 +75,60 @@
   }
   
   .section {
-    @apply py-12 md:py-16 lg:py-20;
+    @apply py-8 sm:py-12 md:py-16 lg:py-20;
   }
   
   .container-custom {
     @apply px-4 mx-auto max-w-7xl sm:px-6 lg:px-8;
   }
+
+  /* Amélioration de la responsivité pour les grilles */
+  .responsive-grid {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
+  }
+
+  /* Amélioration pour les cartes sur mobile */
+  .mobile-card {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Amélioration pour les boutons sur mobile */
+  .mobile-btn {
+    @apply w-full sm:w-auto;
+  }
+
+  /* Espacement responsive */
+  .responsive-spacing {
+    @apply space-y-4 sm:space-y-6 lg:space-y-8;
+  }
+
+  /* Texte responsive */
+  .responsive-text {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  /* Amélioration pour les formulaires sur mobile */
+  .mobile-form {
+    @apply space-y-4 sm:space-y-6;
+  }
+
+  /* Amélioration pour les modales sur mobile */
+  .mobile-modal {
+    @apply mx-4 sm:mx-auto;
+  }
+}
+
+/* Amélioration pour les dropdown menus */
+.dropdown-content {
+  @apply bg-white shadow-lg border border-gray-200 rounded-md z-50;
+}
+
+/* Amélioration pour le focus et l'accessibilité */
+.focus-visible {
+  @apply focus:outline-none focus:ring-2 focus:ring-bleu focus:ring-offset-2;
+}
+
+/* Amélioration pour les transitions */
+.smooth-transition {
+  @apply transition-all duration-200 ease-in-out;
 }
