@@ -44,8 +44,8 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
       engagement_level: engagementLevel as any,
       missionTypeIds: selectedTypeIds.length > 0 ? selectedTypeIds : undefined,
       dateRange: dateRange?.from && dateRange?.to ? {
-        from: dateRange.from,
-        to: dateRange.to
+        start: dateRange.from,
+        end: dateRange.to
       } : undefined,
       page: 0,
       pageSize: 12
@@ -102,7 +102,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
 
         {/* Format */}
         <div className="w-full lg:w-48">
-          <Select value={format} onValueChange={setFormat}>
+          <Select value={format || ""} onValueChange={(value) => setFormat(value || undefined)}>
             <SelectTrigger>
               <SelectValue placeholder="Format" />
             </SelectTrigger>
@@ -119,7 +119,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
 
         {/* Niveau d'engagement */}
         <div className="w-full lg:w-48">
-          <Select value={engagementLevel} onValueChange={setEngagementLevel}>
+          <Select value={engagementLevel || ""} onValueChange={(value) => setEngagementLevel(value || undefined)}>
             <SelectTrigger>
               <SelectValue placeholder="Engagement" />
             </SelectTrigger>
@@ -136,7 +136,7 @@ const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
 
         {/* Difficulté */}
         <div className="w-full lg:w-48">
-          <Select value={difficultyLevel} onValueChange={setDifficultyLevel}>
+          <Select value={difficultyLevel || ""} onValueChange={(value) => setDifficultyLevel(value || undefined)}>
             <SelectTrigger>
               <SelectValue placeholder="Difficulté" />
             </SelectTrigger>

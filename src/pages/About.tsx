@@ -21,8 +21,16 @@ export default function About() {
   }
 
   const getContent = (key: string) => {
-    const item = content?.find(c => c.section_key === key);
-    return item;
+    // Vérifier si content est un tableau
+    if (Array.isArray(content)) {
+      const item = content.find(c => c.section_key === key);
+      return item;
+    }
+    // Si c'est un objet unique, vérifier la clé
+    if (content && content.section_key === key) {
+      return content;
+    }
+    return null;
   };
 
   const heroTitle = getContent('hero_title');
