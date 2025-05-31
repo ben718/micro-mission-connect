@@ -1,104 +1,118 @@
 
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import React from "react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Users } from "lucide-react";
+import { MapPin, Calendar, Users, Bookmark, BookmarkCheck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Mission } from "@/types/mission";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useSavedMissions } from "@/hooks/useSavedMissions";
+import { useAuth } from "@/hooks/useAuth";
 
 interface MissionCardProps {
-  mission: any;
+  mission: Mission;
 }
 
 export function MissionCard({ mission }: MissionCardProps) {
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (hours > 0) {
-      return remainingMinutes > 0 ? `${hours}h${remainingMinutes}` : `${hours}h`;
+  const { user } = useAuth();
+  const { isSaved, save, unsave, isSaveLoading, isUnsaveLoading } = useSavedMissions(user?.id, mission.id);
+
+  const handleSaveToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isSaved) {
+      unsave();
+    } else {
+      save();
     }
-    return `${minutes}min`;
   };
 
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-shadow">
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <div className="flex gap-1 flex-wrap">
-            {mission.format && (
-              <Badge variant="secondary" className="text-xs">
-                {mission.format}
-              </Badge>
-            )}
-            {mission.difficulty_level && (
-              <Badge variant="outline" className="text-xs">
-                {mission.difficulty_level}
-              </Badge>
-            )}
-          </div>
-        </div>
-        
-        {/* Titre complet sans troncature */}
-        <h3 className="font-semibold text-lg leading-tight mb-2">
-          {mission.title}
-        </h3>
-        
-        {/* Description avec limitation de lignes mais titre complet */}
-        <p className="text-sm text-muted-foreground line-clamp-3">
-          {mission.description}
-        </p>
-      </CardHeader>
-
-      <CardContent className="flex-1 flex flex-col">
-        <div className="space-y-2 mb-4 flex-1">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="w-4 h-4" />
-            <span>
-              {mission.start_date ? 
-                format(new Date(mission.start_date), "dd MMM yyyy", { locale: fr }) : 
-                "Date à définir"
-              }
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span>
-              {mission.duration_minutes ? formatDuration(mission.duration_minutes) : "Durée à définir"}
-            </span>
-          </div>
-          
-          {mission.location && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <MapPin className="w-4 h-4" />
-              <span>{mission.location}</span>
-            </div>
-          )}
-          
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="w-4 h-4" />
-            <span>
-              {mission.participants_count || 0} / {mission.available_spots || 1} participants
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-auto pt-3 border-t">
-          <div className="flex items-center justify-between mb-3">
-            <div className="text-sm">
-              <p className="font-medium">{mission.organization?.organization_name || "Organisation"}</p>
-              {mission.mission_type && (
-                <p className="text-muted-foreground">{mission.mission_type.name}</p>
-              )}
-            </div>
-          </div>
-          
-          <Button asChild className="w-full">
-            <Link to={`/missions/${mission.id}`}>
-              Voir les détails
+    <Card className="hover:shadow-md transition-shadow duration-300">
+      <CardContent className="p-4 sm:p-6">
+        <div className="space-y-3 sm:space-y-4">
+          {/* Header avec titre et bouton save */}
+          <div className="flex justify-between items-start gap-3">
+            <Link 
+              to={`/missions/${mission.id}`}
+              className="flex-1 min-w-0"
+            >
+              <h3 className="font-semibold text-base sm:text-lg text-gray-900 hover:text-primary transition-colors line-clamp-2">
+                {mission.title}
+              </h3>
             </Link>
-          </Button>
+            {user && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSaveToggle}
+                disabled={isSaveLoading || isUnsaveLoading}
+                className="flex-shrink-0 p-2"
+              >
+                {isSaved ? (
+                  <BookmarkCheck className="w-4 h-4 text-primary" />
+                ) : (
+                  <Bookmark className="w-4 h-4" />
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Organisation */}
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-medium text-sm text-gray-700 truncate">
+              {mission.organization?.organization_name}
+            </span>
+          </div>
+
+          {/* Description */}
+          <p className="text-sm text-gray-600 line-clamp-2">
+            {mission.description}
+          </p>
+
+          {/* Informations mission - responsive grid */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-600 truncate">
+                {format(new Date(mission.start_date), 'dd MMM yyyy', { locale: fr })}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2 min-w-0">
+              <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-600 truncate">
+                {mission.location}
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-600">
+                {mission.participants_count || 0} / {mission.available_spots} participant(s)
+              </span>
+            </div>
+          </div>
+
+          {/* Badges - responsive */}
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="text-xs">{mission.format}</Badge>
+            <Badge variant="secondary" className="text-xs">{mission.difficulty_level}</Badge>
+            {mission.available_spots && (
+              <Badge variant="outline" className="text-xs">
+                {(mission.available_spots - (mission.participants_count || 0))} places restantes
+              </Badge>
+            )}
+          </div>
+
+          {/* Bouton d'action */}
+          <Link to={`/missions/${mission.id}`}>
+            <Button variant="outline" size="sm" className="w-full text-sm">
+              Voir les détails
+            </Button>
+          </Link>
         </div>
       </CardContent>
     </Card>

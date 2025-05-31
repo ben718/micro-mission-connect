@@ -1,8 +1,17 @@
+
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
 export const formatDate = (dateString: string) => {
   return format(new Date(dateString), "d MMMM yyyy à HH'h'mm", { locale: fr });
+};
+
+export const formatDateShort = (dateString: string) => {
+  return format(new Date(dateString), "d MMM yyyy", { locale: fr });
+};
+
+export const formatDateMobile = (dateString: string) => {
+  return format(new Date(dateString), "dd/MM/yy HH'h'mm", { locale: fr });
 };
 
 export const formatDuration = (minutes: number) => {
