@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMissions } from "@/hooks/useMissions";
@@ -107,6 +106,12 @@ const DashboardBenevole = () => {
                 </Link>
               </Button>
             )}
+            <Button asChild variant="outline" size="sm">
+              <Link to="/associations" className="flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Mes associations
+              </Link>
+            </Button>
           </div>
           <Button asChild className="bg-bleu hover:bg-bleu-700 text-white text-lg px-6 py-3">
             <Link to="/missions">

@@ -21,6 +21,7 @@ import Footer from "./components/layout/Footer";
 import { Loader2 } from "lucide-react";
 import ProfileOrganization from "@/pages/profile/ProfileOrganization";
 import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
+import AssociationsActivity from "@/pages/associations/AssociationsActivity";
 
 const queryClient = new QueryClient({
   defaultOptions: {
