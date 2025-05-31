@@ -2,7 +2,7 @@
 import { lazy, Suspense } from 'react';
 import { MissionListSkeleton } from '@/components/ui/mission-skeleton';
 
-const MissionDetail = lazy(() => import('@/components/missions/MissionDetail').then(module => ({ default: module.MissionDetail })));
+const MissionDetail = lazy(() => import('@/components/missions/MissionDetail'));
 
 export function LazyMissionDetail(props: any) {
   return (

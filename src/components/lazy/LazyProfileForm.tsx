@@ -2,7 +2,7 @@
 import { lazy, Suspense } from 'react';
 import { ProfileFormSkeleton } from '@/components/ui/profile-skeleton';
 
-const ProfileForm = lazy(() => import('@/components/profile/ProfileForm').then(module => ({ default: module.ProfileForm })));
+const ProfileForm = lazy(() => import('@/components/profile/ProfileForm'));
 
 export function LazyProfileForm(props: any) {
   return (
