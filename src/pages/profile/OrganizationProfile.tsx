@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
@@ -11,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "react-router-dom";
-import { MapPin, Phone, Mail, Globe, Users, Clock, Calendar, Star, Plus, BarChart2, Settings } from "lucide-react";
+import { MapPin, Phone, Mail, Globe, Users, Clock, Calendar, Star, Plus, BarChart2, Settings, User } from "lucide-react";
 
 const OrganizationProfile = () => {
   const { user, profile } = useAuth();
