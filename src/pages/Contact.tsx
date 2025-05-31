@@ -1,280 +1,252 @@
 
-import React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { useToast } from '@/hooks/use-toast';
-import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
-import { useContactForm } from '@/hooks/useContactForm';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { toast } from "sonner";
+import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useContactInfo } from "@/hooks/useContactInfo";
 
-const contactSchema = z.object({
-  name: z.string().min(2, "Le nom doit faire au moins 2 caractères"),
-  email: z.string().email("Email invalide"),
-  subject: z.string().min(5, "Le sujet doit faire au moins 5 caractères"),
-  message: z.string().min(10, "Le message doit faire au moins 10 caractères"),
-  organization: z.string().optional(),
-  phone: z.string().optional()
-});
-
-type ContactFormData = z.infer<typeof contactSchema>;
-
-const Contact = () => {
-  const { toast } = useToast();
-  const { submitContactForm, isLoading } = useContactForm();
-
-  const form = useForm<ContactFormData>({
-    resolver: zodResolver(contactSchema),
-    defaultValues: {
-      name: '',
-      email: '',
-      subject: '',
-      message: '',
-      organization: '',
-      phone: ''
-    }
+export default function Contact() {
+  const { data: contactInfo, isLoading: isLoadingContact } = useContactInfo();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    organization: "",
+    subject: "",
+    message: ""
   });
 
-  const onSubmit = async (data: ContactFormData) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
     try {
-      // S'assurer que tous les champs requis sont présents
-      const validData = {
-        name: data.name,
-        email: data.email,
-        subject: data.subject,
-        message: data.message,
-        organization: data.organization,
-        phone: data.phone
-      };
-      
-      await submitContactForm.mutateAsync(validData);
-      toast({
-        title: "Message envoyé",
-        description: "Votre message a été envoyé avec succès. Nous vous répondrons dans les plus brefs délais."
+      const { error } = await supabase
+        .from('contact_messages')
+        .insert([formData]);
+
+      if (error) throw error;
+
+      toast.success("Message envoyé avec succès !");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        organization: "",
+        subject: "",
+        message: ""
       });
-      form.reset();
     } catch (error) {
-      toast({
-        title: "Erreur",
-        description: "Une erreur est survenue lors de l'envoi du message.",
-        variant: "destructive"
-      });
+      console.error('Erreur lors de l\'envoi:', error);
+      toast.error("Erreur lors de l'envoi du message");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }));
+  };
+
+  const getIconComponent = (iconName?: string) => {
+    switch (iconName) {
+      case 'Mail': return Mail;
+      case 'Phone': return Phone;
+      case 'MapPin': return MapPin;
+      case 'Clock': return Clock;
+      default: return Mail;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-bleu-700 to-bleu py-16 sm:py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-4xl mx-auto text-center text-white">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6">
-              Contactez-nous
-            </h1>
-            <p className="text-xl text-blue-50">
-              Une question ? Une suggestion ? Nous sommes là pour vous écouter.
-            </p>
-          </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      <div className="container mx-auto px-4 py-16">
+        <div className="text-center mb-16">
+          <h1 className="text-4xl md:text-6xl font-bold text-bleu mb-6">
+            Contactez-nous
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Une question ? Une suggestion ? Nous sommes là pour vous écouter.
+          </p>
         </div>
-      </section>
 
-      <section className="py-16 sm:py-20">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-              {/* Informations de contact */}
-              <div className="space-y-8">
+        <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
+          {/* Formulaire de contact */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Envoyez-nous un message</CardTitle>
+              <CardDescription>
+                Remplissez le formulaire ci-dessous et nous vous répondrons dans les plus brefs délais.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="name" className="block text-sm font-medium mb-2">
+                      Nom complet *
+                    </label>
+                    <Input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={handleChange}
+                      placeholder="Votre nom"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium mb-2">
+                      Email *
+                    </label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="votre@email.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium mb-2">
+                      Téléphone
+                    </label>
+                    <Input
+                      id="phone"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleChange}
+                      placeholder="06 12 34 56 78"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="organization" className="block text-sm font-medium mb-2">
+                      Organisation
+                    </label>
+                    <Input
+                      id="organization"
+                      name="organization"
+                      type="text"
+                      value={formData.organization}
+                      onChange={handleChange}
+                      placeholder="Nom de votre organisation"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                    Restons en contact
-                  </h2>
-                  <p className="text-lg text-gray-600 mb-8">
-                    Que vous soyez un bénévole, une association ou simplement curieux de notre projet, 
-                    n'hésitez pas à nous contacter. Nous serons ravis d'échanger avec vous.
-                  </p>
+                  <label htmlFor="subject" className="block text-sm font-medium mb-2">
+                    Sujet *
+                  </label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    type="text"
+                    required
+                    value={formData.subject}
+                    onChange={handleChange}
+                    placeholder="Objet de votre message"
+                  />
                 </div>
 
-                <div className="space-y-6">
-                  <div className="flex items-start space-x-4">
-                    <Mail className="w-6 h-6 text-bleu mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Email</h3>
-                      <p className="text-gray-600">contact@offrezvotretemp.fr</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <Phone className="w-6 h-6 text-bleu mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Téléphone</h3>
-                      <p className="text-gray-600">+33 1 23 45 67 89</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <MapPin className="w-6 h-6 text-bleu mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Adresse</h3>
-                      <p className="text-gray-600">
-                        123 Rue de la Solidarité<br />
-                        75001 Paris, France
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start space-x-4">
-                    <Clock className="w-6 h-6 text-bleu mt-1" />
-                    <div>
-                      <h3 className="font-semibold text-gray-900">Horaires</h3>
-                      <p className="text-gray-600">
-                        Lundi - Vendredi : 9h - 18h<br />
-                        Week-end : Sur rendez-vous
-                      </p>
-                    </div>
-                  </div>
+                <div>
+                  <label htmlFor="message" className="block text-sm font-medium mb-2">
+                    Message *
+                  </label>
+                  <Textarea
+                    id="message"
+                    name="message"
+                    required
+                    value={formData.message}
+                    onChange={handleChange}
+                    placeholder="Votre message..."
+                    rows={6}
+                  />
                 </div>
 
-                <Card className="bg-bleu-50 border-bleu-200">
-                  <CardContent className="p-6">
-                    <h3 className="font-semibold text-bleu-800 mb-2">
-                      Vous êtes une association ?
-                    </h3>
-                    <p className="text-bleu-700 text-sm">
-                      Nous proposons un accompagnement personnalisé pour vous aider à 
-                      créer vos premières missions et optimiser votre présence sur la plateforme.
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Envoi en cours..." : "Envoyer le message"}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
-              {/* Formulaire de contact */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-2xl">Envoyez-nous un message</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Nom complet *</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Votre nom" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email *</FormLabel>
-                              <FormControl>
-                                <Input type="email" placeholder="votre@email.com" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+          {/* Informations de contact */}
+          <div className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Nos coordonnées</CardTitle>
+                <CardDescription>
+                  Vous pouvez aussi nous contacter directement via ces moyens.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {isLoadingContact ? (
+                  <div className="animate-pulse space-y-4">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="flex items-center space-x-3">
+                        <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                        <div className="space-y-2 flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                          <div className="h-3 bg-gray-200 rounded w-3/4"></div>
+                        </div>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <FormField
-                          control={form.control}
-                          name="organization"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Organisation (optionnel)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="Nom de votre association" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <FormField
-                          control={form.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Téléphone (optionnel)</FormLabel>
-                              <FormControl>
-                                <Input placeholder="06 12 34 56 78" {...field} />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                    ))}
+                  </div>
+                ) : (
+                  contactInfo?.map((info) => {
+                    const IconComponent = getIconComponent(info.icon_name);
+                    return (
+                      <div key={info.id} className="flex items-start space-x-3">
+                        <IconComponent className="w-5 h-5 text-bleu mt-1 flex-shrink-0" />
+                        <div>
+                          <h4 className="font-medium text-gray-900">{info.label}</h4>
+                          <p className="text-gray-600 whitespace-pre-line">{info.value}</p>
+                        </div>
                       </div>
+                    );
+                  })
+                )}
+              </CardContent>
+            </Card>
 
-                      <FormField
-                        control={form.control}
-                        name="subject"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Sujet *</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Objet de votre message" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="message"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Message *</FormLabel>
-                            <FormControl>
-                              <Textarea 
-                                placeholder="Décrivez votre demande, question ou suggestion..."
-                                className="min-h-[120px]"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <Button 
-                        type="submit" 
-                        className="w-full"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <>Envoi en cours...</>
-                        ) : (
-                          <>
-                            <Send className="w-4 h-4 mr-2" />
-                            Envoyer le message
-                          </>
-                        )}
-                      </Button>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Nous rejoindre</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-gray-600 mb-4">
+                  Vous souhaitez contribuer au développement de la plateforme ou nous rejoindre en tant que bénévole ? 
+                  N'hésitez pas à nous contacter !
+                </p>
+                <p className="text-sm text-gray-500">
+                  Nous sommes toujours à la recherche de personnes motivées pour nous aider à améliorer 
+                  l'expérience des bénévoles et des associations.
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </section>
+      </div>
     </div>
   );
-};
-
-export default Contact;
+}

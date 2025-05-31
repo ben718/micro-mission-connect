@@ -1,306 +1,228 @@
 
-import React, { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, Filter, X, ChevronDown } from "lucide-react";
-import { toast } from "sonner";
+import React from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { CalendarIcon, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { MissionFilters as MissionFiltersType } from '@/types/mission';
+import { useMissionTypes } from '@/hooks/useMissionTypes';
+import { useMissionFormats } from '@/hooks/useMissionFormats';
+import { useEngagementLevels } from '@/hooks/useEngagementLevels';
+import { useDifficultyLevels } from '@/hooks/useDifficultyLevels';
 
 interface MissionFiltersProps {
-  onFiltersChange: (filters: any) => void;
-  userLocation?: { lat: number; lng: number };
+  onFiltersChange: (filters: MissionFiltersType) => void;
 }
 
-interface FilterState {
-  searchQuery: string;
-  format: string[];
-  difficulty: string[];
-  engagement: string[];
-  distance: number;
-  skills: string[];
-  sectors: string[];
-  types: string[];
-}
+const MissionFilters: React.FC<MissionFiltersProps> = ({ onFiltersChange }) => {
+  const { data: missionTypes } = useMissionTypes();
+  const { data: missionFormats } = useMissionFormats();
+  const { data: engagementLevels } = useEngagementLevels();
+  const { data: difficultyLevels } = useDifficultyLevels();
 
-const MissionFilters = ({ onFiltersChange, userLocation }: MissionFiltersProps) => {
-  const [filters, setFilters] = useState<FilterState>({
-    searchQuery: "",
-    format: [],
-    difficulty: [],
-    engagement: [],
-    distance: 10,
-    skills: [],
-    sectors: [],
-    types: [],
-  });
+  const [query, setQuery] = React.useState('');
+  const [location, setLocation] = React.useState('');
+  const [format, setFormat] = React.useState<string | undefined>(undefined);
+  const [difficultyLevel, setDifficultyLevel] = React.useState<string | undefined>(undefined);
+  const [engagementLevel, setEngagementLevel] = React.useState<string | undefined>(undefined);
+  const [selectedTypeIds, setSelectedTypeIds] = React.useState<string[]>([]);
+  const [dateRange, setDateRange] = React.useState<DateRange | undefined>(undefined);
 
-  const [availableSkills, setAvailableSkills] = useState<string[]>([]);
-  const [availableSectors, setAvailableSectors] = useState<string[]>([]);
-  const [availableTypes, setAvailableTypes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Collapsible states
-  const [isFormatOpen, setIsFormatOpen] = useState(false);
-  const [isDifficultyOpen, setIsDifficultyOpen] = useState(false);
-  const [isEngagementOpen, setIsEngagementOpen] = useState(false);
-  const [isSkillsOpen, setIsSkillsOpen] = useState(false);
-  const [isSectorsOpen, setIsSectorsOpen] = useState(false);
-  const [isTypesOpen, setIsTypesOpen] = useState(false);
-
-  useEffect(() => {
-    fetchFilterOptions();
-  }, []);
-
-  useEffect(() => {
+  const updateFilters = React.useCallback(() => {
+    const filters: MissionFiltersType = {
+      query: query || undefined,
+      location: location || undefined,
+      format: format as any,
+      difficulty_level: difficultyLevel as any,
+      engagement_level: engagementLevel as any,
+      missionTypeIds: selectedTypeIds.length > 0 ? selectedTypeIds : undefined,
+      dateRange: dateRange?.from && dateRange?.to ? {
+        from: dateRange.from,
+        to: dateRange.to
+      } : undefined,
+      page: 0,
+      pageSize: 12
+    };
+    
     onFiltersChange(filters);
-  }, [filters, onFiltersChange]);
+  }, [query, location, format, difficultyLevel, engagementLevel, selectedTypeIds, dateRange, onFiltersChange]);
 
-  const fetchFilterOptions = async () => {
-    try {
-      const { data: skills } = await supabase
-        .from("skills")
-        .select("name")
-        .order("name");
+  React.useEffect(() => {
+    updateFilters();
+  }, [updateFilters]);
 
-      const { data: sectors } = await supabase
-        .from("organization_sectors")
-        .select("name")
-        .order("name");
-
-      const { data: types } = await supabase
-        .from("mission_types")
-        .select("name")
-        .order("name");
-
-      setAvailableSkills(skills?.map((s) => s.name) || []);
-      setAvailableSectors(sectors?.map((s) => s.name) || []);
-      setAvailableTypes(types?.map((t) => t.name) || []);
-    } catch (error) {
-      console.error("Erreur lors de la récupération des options de filtrage:", error);
-      toast.error("Erreur lors du chargement des filtres");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFilterChange = (key: keyof FilterState, value: any) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const toggleArrayFilter = (key: 'format' | 'difficulty' | 'engagement' | 'skills' | 'sectors' | 'types', value: string) => {
-    setFilters(prev => {
-      const currentArray = prev[key];
-      const newArray = currentArray.includes(value)
-        ? currentArray.filter(item => item !== value)
-        : [...currentArray, value];
-      return { ...prev, [key]: newArray };
-    });
+  const handleTypeToggle = (typeId: string) => {
+    setSelectedTypeIds(prev => 
+      prev.includes(typeId) 
+        ? prev.filter(id => id !== typeId)
+        : [...prev, typeId]
+    );
   };
 
   const clearFilters = () => {
-    setFilters({
-      searchQuery: "",
-      format: [],
-      difficulty: [],
-      engagement: [],
-      distance: 10,
-      skills: [],
-      sectors: [],
-      types: [],
-    });
+    setQuery('');
+    setLocation('');
+    setFormat(undefined);
+    setDifficultyLevel(undefined);
+    setEngagementLevel(undefined);
+    setSelectedTypeIds([]);
+    setDateRange(undefined);
   };
 
-  const getActiveFiltersCount = () => {
-    return filters.format.length + filters.difficulty.length + filters.engagement.length + 
-           filters.skills.length + filters.sectors.length + filters.types.length +
-           (filters.searchQuery ? 1 : 0);
-  };
+  const hasActiveFilters = query || location || format || difficultyLevel || engagementLevel || selectedTypeIds.length > 0 || dateRange;
 
   return (
-    <Card className="w-full max-w-xs">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4" />
-            <CardTitle className="text-sm">Filtres</CardTitle>
-            {getActiveFiltersCount() > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                {getActiveFiltersCount()}
-              </Badge>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" onClick={clearFilters}>
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {/* Barre de recherche */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+    <div className="bg-white p-6 rounded-lg shadow-sm border">
+      <div className="flex flex-col lg:flex-row gap-4">
+        {/* Recherche textuelle */}
+        <div className="flex-1">
           <Input
-            placeholder="Rechercher..."
-            value={filters.searchQuery}
-            onChange={(e) => handleFilterChange("searchQuery", e.target.value)}
-            className="pl-10 h-8 text-sm"
+            placeholder="Rechercher une mission..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="w-full"
+          />
+        </div>
+
+        {/* Localisation */}
+        <div className="w-full lg:w-64">
+          <Input
+            placeholder="Ville ou région..."
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
           />
         </div>
 
         {/* Format */}
-        <Collapsible open={isFormatOpen} onOpenChange={setIsFormatOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Format {filters.format.length > 0 && `(${filters.format.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isFormatOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            {["Présentiel", "À distance", "Hybride"].map((format) => (
-              <div key={format} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`format-${format}`}
-                  checked={filters.format.includes(format)}
-                  onCheckedChange={() => toggleArrayFilter('format', format)}
-                />
-                <label htmlFor={`format-${format}`} className="text-xs cursor-pointer">
-                  {format}
-                </label>
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
+        <div className="w-full lg:w-48">
+          <Select value={format} onValueChange={setFormat}>
+            <SelectTrigger>
+              <SelectValue placeholder="Format" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Tous les formats</SelectItem>
+              {missionFormats?.map((fmt) => (
+                <SelectItem key={fmt.id} value={fmt.name}>
+                  {fmt.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Niveau d'engagement */}
+        <div className="w-full lg:w-48">
+          <Select value={engagementLevel} onValueChange={setEngagementLevel}>
+            <SelectTrigger>
+              <SelectValue placeholder="Engagement" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Tous les niveaux</SelectItem>
+              {engagementLevels?.map((level) => (
+                <SelectItem key={level.id} value={level.name}>
+                  {level.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
         {/* Difficulté */}
-        <Collapsible open={isDifficultyOpen} onOpenChange={setIsDifficultyOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Difficulté {filters.difficulty.length > 0 && `(${filters.difficulty.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isDifficultyOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            {["débutant", "intermédiaire", "expert"].map((level) => (
-              <div key={level} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`difficulty-${level}`}
-                  checked={filters.difficulty.includes(level)}
-                  onCheckedChange={() => toggleArrayFilter('difficulty', level)}
-                />
-                <label htmlFor={`difficulty-${level}`} className="text-xs cursor-pointer capitalize">
-                  {level}
-                </label>
-              </div>
+        <div className="w-full lg:w-48">
+          <Select value={difficultyLevel} onValueChange={setDifficultyLevel}>
+            <SelectTrigger>
+              <SelectValue placeholder="Difficulté" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">Toutes difficultés</SelectItem>
+              {difficultyLevels?.map((level) => (
+                <SelectItem key={level.id} value={level.name}>
+                  {level.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Dates */}
+        <div className="w-full lg:w-64">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full justify-start text-left font-normal",
+                  !dateRange && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateRange?.from ? (
+                  dateRange.to ? (
+                    <>
+                      {format(dateRange.from, "dd MMM", { locale: fr })} -{" "}
+                      {format(dateRange.to, "dd MMM", { locale: fr })}
+                    </>
+                  ) : (
+                    format(dateRange.from, "dd MMM", { locale: fr })
+                  )
+                ) : (
+                  "Choisir des dates"
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                initialFocus
+                mode="range"
+                defaultMonth={dateRange?.from}
+                selected={dateRange}
+                onSelect={setDateRange}
+                numberOfMonths={2}
+                locale={fr}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Bouton clear */}
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            onClick={clearFilters}
+            className="whitespace-nowrap"
+          >
+            <X className="mr-2 h-4 w-4" />
+            Effacer
+          </Button>
+        )}
+      </div>
+
+      {/* Types de missions */}
+      {missionTypes && missionTypes.length > 0 && (
+        <div className="mt-4">
+          <p className="text-sm font-medium text-gray-700 mb-2">Types de missions :</p>
+          <div className="flex flex-wrap gap-2">
+            {missionTypes.map((type) => (
+              <Badge
+                key={type.id}
+                variant={selectedTypeIds.includes(type.id) ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => handleTypeToggle(type.id)}
+              >
+                {type.name}
+              </Badge>
             ))}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Engagement */}
-        <Collapsible open={isEngagementOpen} onOpenChange={setIsEngagementOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Engagement {filters.engagement.length > 0 && `(${filters.engagement.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isEngagementOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            {["Ultra-rapide", "Petit coup de main", "Mission avec suivi", "Projet long"].map((level) => (
-              <div key={level} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`engagement-${level}`}
-                  checked={filters.engagement.includes(level)}
-                  onCheckedChange={() => toggleArrayFilter('engagement', level)}
-                />
-                <label htmlFor={`engagement-${level}`} className="text-xs cursor-pointer">
-                  {level}
-                </label>
-              </div>
-            ))}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Compétences */}
-        <Collapsible open={isSkillsOpen} onOpenChange={setIsSkillsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Compétences {filters.skills.length > 0 && `(${filters.skills.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isSkillsOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            <div className="max-h-24 overflow-y-auto space-y-1">
-              {availableSkills.map((skill) => (
-                <div key={skill} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`skill-${skill}`}
-                    checked={filters.skills.includes(skill)}
-                    onCheckedChange={() => toggleArrayFilter('skills', skill)}
-                  />
-                  <label htmlFor={`skill-${skill}`} className="text-xs cursor-pointer">
-                    {skill}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Secteurs */}
-        <Collapsible open={isSectorsOpen} onOpenChange={setIsSectorsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Secteurs {filters.sectors.length > 0 && `(${filters.sectors.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isSectorsOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            <div className="max-h-24 overflow-y-auto space-y-1">
-              {availableSectors.map((sector) => (
-                <div key={sector} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`sector-${sector}`}
-                    checked={filters.sectors.includes(sector)}
-                    onCheckedChange={() => toggleArrayFilter('sectors', sector)}
-                  />
-                  <label htmlFor={`sector-${sector}`} className="text-xs cursor-pointer">
-                    {sector}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Types de mission */}
-        <Collapsible open={isTypesOpen} onOpenChange={setIsTypesOpen}>
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between p-2 h-auto text-xs">
-              <span>Types {filters.types.length > 0 && `(${filters.types.length})`}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isTypesOpen ? 'rotate-180' : ''}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="space-y-2 mt-1">
-            <div className="max-h-24 overflow-y-auto space-y-1">
-              {availableTypes.map((type) => (
-                <div key={type} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`type-${type}`}
-                    checked={filters.types.includes(type)}
-                    onCheckedChange={() => toggleArrayFilter('types', type)}
-                  />
-                  <label htmlFor={`type-${type}`} className="text-xs cursor-pointer">
-                    {type}
-                  </label>
-                </div>
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-      </CardContent>
-    </Card>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 
