@@ -8,8 +8,6 @@ export function isDemoMode(): boolean {
          import.meta.env.VITE_SUPABASE_URL === "your_supabase_url_here";
 }
 
-// Ces données ne sont conservées que pour la compatibilité avec d'éventuels tests
-// En production, toutes les données viennent de la base de données
+// Plus de données de démo - tout provient maintenant de la base de données
 export const DEMO_MISSIONS: Partial<MissionWithDetails>[] = [];
-
 export const DEMO_ORGANIZATIONS = [];

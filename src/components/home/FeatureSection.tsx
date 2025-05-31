@@ -1,60 +1,82 @@
 
-import { Award, Clock, Search } from "lucide-react";
+import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
+import * as LucideIcons from "lucide-react";
 
 const FeatureSection = () => {
-  const features = [
-    {
-      icon: <Search className="h-8 w-8 text-bleu" />,
-      title: "Trouver rapidement",
-      description:
-        "Trouvez des missions qui correspondent à vos disponibilités en quelques clics grâce à notre moteur de recherche avancé."
-    },
-    {
-      icon: <Clock className="h-8 w-8 text-jaune" />,
-      title: "Missions flexibles",
-      description:
-        "Des missions de courte durée, faciles à intégrer dans votre emploi du temps, même le plus chargé."
-    },
-    {
-      icon: <Award className="h-8 w-8 text-bleu" />,
-      title: "Valider ses compétences",
-      description:
-        "Gagnez des badges numériques qui valorisent votre engagement et les compétences acquises lors de vos missions."
-    }
-  ];
+  const { data: features, isLoading, error } = usePlatformFeatures();
+
+  if (isLoading) {
+    return (
+      <section className="section bg-gray-50">
+        <div className="container-custom">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Pourquoi choisir MicroBénévole ?
+            </h2>
+            <p className="mt-4 text-lg text-gray-600">
+              Une plateforme pensée pour simplifier l'engagement bénévole
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="text-center animate-pulse">
+                <div className="bg-gray-200 h-16 w-16 rounded-full mx-auto mb-6"></div>
+                <div className="bg-gray-200 h-6 w-32 mx-auto mb-4 rounded"></div>
+                <div className="bg-gray-200 h-20 w-full rounded"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  if (error || !features || features.length === 0) {
+    return (
+      <section className="section bg-gray-50">
+        <div className="container-custom">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold">
+              Pourquoi choisir MicroBénévole ?
+            </h2>
+            <p className="mt-4 text-lg text-gray-600">
+              Une plateforme pensée pour simplifier l'engagement bénévole
+            </p>
+          </div>
+          <div className="text-center text-gray-500">
+            <p>Fonctionnalités en cours de chargement...</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="py-16 sm:py-20 lg:py-24 bg-gray-50">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-4xl mx-auto mb-12 lg:mb-16">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-6">
-            Une nouvelle façon de s'engager
+    <section className="section bg-gray-50">
+      <div className="container-custom">
+        <div className="text-center mb-16">
+          <h2 className="text-3xl md:text-4xl font-bold">
+            Pourquoi choisir MicroBénévole ?
           </h2>
-          <p className="text-base sm:text-lg lg:text-xl text-gray-600 leading-relaxed max-w-3xl mx-auto">
-            MicroBénévole rend le bénévolat accessible à tous, quelle que soit 
-            votre disponibilité et vos compétences.
+          <p className="mt-4 text-lg text-gray-600">
+            Une plateforme pensée pour simplifier l'engagement bénévole
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-10">
-          {features.map((feature, index) => (
-            <div
-              key={index}
-              className="bg-white rounded-2xl p-8 border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 group"
-            >
-              <div className="flex flex-col items-center text-center">
-                <div className="p-4 bg-gray-50 rounded-2xl mb-6 group-hover:bg-blue-50 transition-colors duration-300">
-                  {feature.icon}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {features.map((feature) => {
+            const IconComponent = (LucideIcons as any)[feature.icon_name];
+            
+            return (
+              <div key={feature.id} className="text-center">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-white shadow-md mb-6 ${feature.color_class}`}>
+                  {IconComponent && <IconComponent className="w-8 h-8" />}
                 </div>
-                <h3 className="text-xl sm:text-2xl font-semibold mb-4 text-gray-900">
-                  {feature.title}
-                </h3>
-                <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
-                  {feature.description}
-                </p>
+                <h3 className="text-xl font-semibold mb-4">{feature.title}</h3>
+                <p className="text-gray-600">{feature.description}</p>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
