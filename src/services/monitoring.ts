@@ -1,4 +1,3 @@
-
 interface MetricData {
   timestamp: number;
   value: number;
@@ -13,6 +12,16 @@ interface Alert {
   message: string;
   isActive: boolean;
   triggeredAt?: number;
+}
+
+interface PerformanceMemory {
+  usedJSHeapSize: number;
+  totalJSHeapSize: number;
+  jsHeapSizeLimit: number;
+}
+
+interface ExtendedPerformance extends Performance {
+  memory?: PerformanceMemory;
 }
 
 export class MonitoringService {
@@ -158,9 +167,10 @@ export class MonitoringService {
       const errorRate = this.getErrorRate();
       this.recordMetric('error_rate', errorRate);
 
-      // Utilisation mémoire
-      if (performance.memory) {
-        const memoryUsage = performance.memory.usedJSHeapSize / performance.memory.totalJSHeapSize;
+      // Utilisation mémoire (avec vérification de type)
+      const extendedPerformance = performance as ExtendedPerformance;
+      if (extendedPerformance.memory) {
+        const memoryUsage = extendedPerformance.memory.usedJSHeapSize / extendedPerformance.memory.totalJSHeapSize;
         this.recordMetric('memory_usage', memoryUsage);
       }
 
