@@ -1,5 +1,3 @@
-
-
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,13 +49,15 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     }
   };
 
-  // Logique corrigée pour la réinscription multiple
+  // Logique pour la limitation des annulations
   const isCancelled = mission.registration_status === "annulé";
   const isActivelyRegistered = mission.is_registered && !isCancelled;
   const hasAvailableSpots = mission.participants_count < mission.available_spots;
+  const cancellationCount = mission.cancellation_count || 0;
+  const hasReachedCancellationLimit = cancellationCount >= 2;
   
-  // Un utilisateur peut participer s'il n'est pas activement inscrit ET qu'il y a des places
-  const canParticipate = user && !isActivelyRegistered && hasAvailableSpots;
+  // Un utilisateur peut participer s'il n'est pas activement inscrit ET qu'il y a des places ET qu'il n'a pas atteint la limite d'annulations
+  const canParticipate = user && !isActivelyRegistered && hasAvailableSpots && !hasReachedCancellationLimit;
   // Un utilisateur peut annuler s'il est activement inscrit et que la mission n'est pas terminée
   const canCancel = user && isActivelyRegistered && mission.registration_status !== "terminé";
 
@@ -219,7 +219,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
                     
-                    {!canParticipate && !canCancel && !hasAvailableSpots && (
+                    {!canParticipate && !canCancel && !hasAvailableSpots && !hasReachedCancellationLimit && (
                       <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <p className="text-sm text-yellow-600">
                           Mission complète - Plus de places disponibles
@@ -227,7 +227,15 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
 
-                    {isCancelled && !hasAvailableSpots && (
+                    {hasReachedCancellationLimit && (
+                      <div className="text-center p-4 bg-red-50 rounded-lg">
+                        <p className="text-sm text-red-600">
+                          Vous avez atteint le nombre maximum d'annulations (2) pour cette mission.
+                        </p>
+                      </div>
+                    )}
+
+                    {isCancelled && !hasAvailableSpots && !hasReachedCancellationLimit && (
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
                           Vous avez annulé cette mission. La mission est maintenant complète.
@@ -244,4 +252,3 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     </div>
   );
 }
-

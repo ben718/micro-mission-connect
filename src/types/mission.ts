@@ -67,6 +67,7 @@ export type MissionWithDetails = MissionWithOrganization & {
   participants_count: number;
   is_registered?: boolean;
   registration_status?: ParticipationStatus;
+  cancellation_count?: number;
   mission_registrations?: any[];
 };
 

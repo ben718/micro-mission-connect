@@ -51,15 +51,25 @@ export function useMissionDetails(missionId: string) {
 
         let isRegistered = false;
         let registrationStatus: ParticipationStatus | undefined;
+        let cancellationCount = 0;
         
         if (user) {
-          const userRegistration = mission.mission_registrations?.find(
-            (reg: any) => reg.user_id === user.id
-          );
-          
-          if (userRegistration) {
-            isRegistered = true;
-            registrationStatus = userRegistration.status as ParticipationStatus;
+          // Récupérer toutes les inscriptions de l'utilisateur pour cette mission
+          const { data: userRegistrations } = await supabase
+            .from("mission_registrations")
+            .select("*")
+            .eq("mission_id", missionId)
+            .eq("user_id", user.id)
+            .order("registration_date", { ascending: false });
+
+          if (userRegistrations && userRegistrations.length > 0) {
+            // Compter les annulations
+            cancellationCount = userRegistrations.filter(reg => reg.status === "annulé").length;
+            
+            // Prendre le statut de la dernière inscription
+            const latestRegistration = userRegistrations[0];
+            isRegistered = latestRegistration.status !== "annulé";
+            registrationStatus = latestRegistration.status as ParticipationStatus;
           }
         }
 
@@ -69,6 +79,7 @@ export function useMissionDetails(missionId: string) {
           participants_count: participantsCount || 0,
           is_registered: isRegistered,
           registration_status: registrationStatus,
+          cancellation_count: cancellationCount,
           organization: mission.organization,
           mission_type: mission.mission_type,
           mission_registrations: mission.mission_registrations || [],
@@ -99,6 +110,11 @@ export function useMissionDetails(missionId: string) {
     mutationFn: async () => {
       if (!user) throw new Error("Vous devez être connecté pour participer");
       if (!mission) throw new Error("Mission non trouvée");
+
+      // Vérifier si l'utilisateur a déjà annulé 2 fois
+      if (mission.cancellation_count >= 2) {
+        throw new Error("Vous avez atteint le nombre maximum d'annulations pour cette mission");
+      }
 
       console.log("Inscription en cours pour l'utilisateur:", user.id, "mission:", mission.id);
 
