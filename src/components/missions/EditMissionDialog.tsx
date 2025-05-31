@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -37,7 +38,7 @@ const formSchema = z.object({
   title: z.string().min(1, "Le titre est requis"),
   description: z.string().min(1, "La description est requise"),
   start_date: z.date(),
-  duration: z.string().min(1, "La durée est requise"),
+  duration_minutes: z.string().min(1, "La durée est requise"),
   location: z.string().min(1, "Le lieu est requis"),
   format: z.enum(["remote", "hybrid", "onsite"]),
   difficulty_level: z.enum(["beginner", "intermediate", "advanced"]),
@@ -67,7 +68,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
       title: "",
       description: "",
       start_date: new Date(),
-      duration: "",
+      duration_minutes: "",
       location: "",
       format: "onsite",
       difficulty_level: "beginner",
@@ -97,11 +98,11 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         title: data.title,
         description: data.description,
         start_date: new Date(data.start_date),
-        duration: data.duration,
+        duration_minutes: data.duration_minutes?.toString() || "",
         location: data.location,
-        format: data.format,
-        difficulty_level: data.difficulty_level,
-        engagement_level: data.engagement_level,
+        format: (data.format as "remote" | "hybrid" | "onsite") || "onsite",
+        difficulty_level: (data.difficulty_level as "beginner" | "intermediate" | "advanced") || "beginner",
+        engagement_level: (data.engagement_level as "low" | "medium" | "high") || "medium",
         available_spots: data.available_spots.toString(),
       });
     } catch (error) {
@@ -120,7 +121,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
           title: values.title,
           description: values.description,
           start_date: values.start_date.toISOString(),
-          duration: values.duration,
+          duration_minutes: parseInt(values.duration_minutes),
           location: values.location,
           format: values.format,
           difficulty_level: values.difficulty_level,
@@ -210,12 +211,12 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
               <div className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="duration"
+                  name="duration_minutes"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Durée</FormLabel>
+                      <FormLabel>Durée (minutes)</FormLabel>
                       <FormControl>
-                        <Input placeholder="Ex: 2 heures" {...field} />
+                        <Input type="number" placeholder="Ex: 120" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -357,4 +358,4 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
   );
 };
 
-export default EditMissionDialog; 
+export default EditMissionDialog;

@@ -1,6 +1,11 @@
+
 import { Database } from "@/integrations/supabase/types";
 
-export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
+export type Notification = Database["public"]["Tables"]["notifications"]["Row"] & {
+  is_read: boolean;
+  content: string;
+  link_url?: string;
+};
 
 export type NotificationType = 
   | "inscription"
@@ -26,4 +31,4 @@ export type NotificationFilters = {
   type?: NotificationType;
   start_date?: Date;
   end_date?: Date;
-}; 
+};

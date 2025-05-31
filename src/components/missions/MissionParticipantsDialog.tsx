@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Dialog,
@@ -14,10 +15,10 @@ import { toast } from "sonner";
 
 interface Participant {
   id: string;
-  full_name: string;
-  avatar_url: string | null;
-  email: string;
-  status: "pending" | "approved" | "rejected";
+  first_name: string;
+  last_name: string;
+  profile_picture_url: string | null;
+  status: "inscrit" | "confirmé" | "annulé" | "terminé";
   created_at: string;
 }
 
@@ -36,7 +37,7 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
   const [participants, setParticipants] = React.useState<Participant[]>([]);
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && missionId) {
       fetchParticipants();
     }
   }, [isOpen, missionId]);
@@ -49,30 +50,42 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
           id,
           status,
           created_at,
-          user:profiles (
-            id,
-            full_name,
-            avatar_url,
-            email
-          )
+          user_id
         `)
         .eq("mission_id", missionId);
 
       if (error) throw error;
 
-      const formattedParticipants = data.map((registration) => ({
-        id: registration.user.id,
-        full_name: registration.user.full_name,
-        avatar_url: registration.user.avatar_url,
-        email: registration.user.email,
-        status: registration.status as "pending" | "approved" | "rejected",
-        created_at: registration.created_at,
-      }));
+      if (data && data.length > 0) {
+        // Get user profiles separately
+        const userIds = data.map(reg => reg.user_id);
+        const { data: profiles, error: profilesError } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, profile_picture_url")
+          .in("id", userIds);
 
-      setParticipants(formattedParticipants);
+        if (profilesError) throw profilesError;
+
+        const formattedParticipants = data.map((registration) => {
+          const profile = profiles?.find(p => p.id === registration.user_id);
+          return {
+            id: registration.user_id,
+            first_name: profile?.first_name || "Utilisateur",
+            last_name: profile?.last_name || "",
+            profile_picture_url: profile?.profile_picture_url,
+            status: registration.status as "inscrit" | "confirmé" | "annulé" | "terminé",
+            created_at: registration.created_at,
+          };
+        });
+
+        setParticipants(formattedParticipants);
+      } else {
+        setParticipants([]);
+      }
     } catch (error) {
       console.error("Erreur lors de la récupération des participants:", error);
       toast.error("Erreur lors de la récupération des participants");
+      setParticipants([]);
     } finally {
       setIsLoading(false);
     }
@@ -80,14 +93,16 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "pending":
+      case "inscrit":
         return <Badge variant="outline">En attente</Badge>;
-      case "approved":
-        return <Badge variant="default">Approuvé</Badge>;
-      case "rejected":
-        return <Badge variant="destructive">Rejeté</Badge>;
+      case "confirmé":
+        return <Badge variant="default">Confirmé</Badge>;
+      case "terminé":
+        return <Badge variant="secondary">Terminé</Badge>;
+      case "annulé":
+        return <Badge variant="destructive">Annulé</Badge>;
       default:
-        return null;
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
@@ -118,26 +133,20 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
                 >
                   <div className="flex items-center space-x-4">
                     <Avatar>
-                      <AvatarImage src={participant.avatar_url || undefined} />
+                      <AvatarImage src={participant.profile_picture_url || undefined} />
                       <AvatarFallback>
-                        {participant.full_name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
+                        {participant.first_name[0]}{participant.last_name[0]}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-medium">{participant.full_name}</p>
+                      <p className="font-medium">{participant.first_name} {participant.last_name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {participant.email}
+                        Inscrit le {new Date(participant.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
                     {getStatusBadge(participant.status)}
-                    <p className="text-sm text-muted-foreground">
-                      Inscrit le {new Date(participant.created_at).toLocaleDateString()}
-                    </p>
                   </div>
                 </div>
               ))}
@@ -149,4 +158,4 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
   );
 };
 
-export default MissionParticipantsDialog; 
+export default MissionParticipantsDialog;

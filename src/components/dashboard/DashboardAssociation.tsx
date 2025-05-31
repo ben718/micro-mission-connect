@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -77,12 +78,12 @@ const DashboardAssociation = () => {
       for (const mission of missions) {
         const { data: registrations } = await supabase
           .from("mission_registrations")
-          .select("user_id, feedback_rating")
+          .select("user_id, volunteer_rating")
           .eq("mission_id", mission.id);
 
         registrations?.forEach(reg => {
           uniqueVolunteers.add(reg.user_id);
-          if (reg.feedback_rating) {
+          if (reg.volunteer_rating) {
             totalMinutes += (mission.duration_minutes || 0);
           }
         });
@@ -105,11 +106,11 @@ const DashboardAssociation = () => {
       // Calculer la satisfaction moyenne des bénévoles
       const { data: feedbacks } = await supabase
         .from("mission_registrations")
-        .select("feedback_rating")
-        .not("feedback_rating", "is", null);
+        .select("volunteer_rating")
+        .not("volunteer_rating", "is", null);
 
       const satisfactionMoyenne = feedbacks?.length 
-        ? Math.round(feedbacks.reduce((acc, curr) => acc + (curr.feedback_rating || 0), 0) / feedbacks.length)
+        ? Math.round(feedbacks.reduce((acc, curr) => acc + (curr.volunteer_rating || 0), 0) / feedbacks.length)
         : 0;
 
       setStats({
@@ -487,31 +488,13 @@ const DashboardAssociation = () => {
           <DialogHeader>
             <DialogTitle>Participants à la mission</DialogTitle>
             <DialogDescription>
-              Liste des bénévoles inscrits à la mission "{selectedMission?.title}"
+              Liste des bénévoles inscrits à cette mission
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="h-[400px] pr-4">
-            {selectedMission?.participants?.map((participant: any) => (
-              <Card key={participant.id} className="mb-4">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar>
-                        <AvatarImage src={participant.profile_picture_url} />
-                        <AvatarFallback>
-                          {participant.first_name?.[0]}{participant.last_name?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-medium">{participant.first_name} {participant.last_name}</p>
-                        <p className="text-sm text-gray-500">{participant.email}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">{participant.status}</Badge>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+            <p className="text-center text-muted-foreground">
+              Utilisez le dialogue dédié pour voir les participants.
+            </p>
           </ScrollArea>
         </DialogContent>
       </Dialog>
