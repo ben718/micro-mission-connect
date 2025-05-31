@@ -22,6 +22,8 @@ import { Loader2 } from "lucide-react";
 import ProfileOrganization from "@/pages/profile/ProfileOrganization";
 import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
 import AssociationsActivity from "@/pages/associations/AssociationsActivity";
+import VolunteerProfile from "@/pages/profile/VolunteerProfile";
+import OrganizationProfile from "@/pages/profile/OrganizationProfile";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -134,6 +136,22 @@ const App = () => {
                     element={
                       <PrivateRoute>
                         <ProfileVolunteer />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/volunteer/public"
+                    element={
+                      <PrivateRoute>
+                        <VolunteerProfile />
+                      </PrivateRoute>
+                    }
+                  />
+                  <Route
+                    path="/profile/organization/public"
+                    element={
+                      <PrivateRoute>
+                        <OrganizationProfile />
                       </PrivateRoute>
                     }
                   />
