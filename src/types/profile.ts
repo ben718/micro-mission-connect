@@ -10,6 +10,9 @@ export type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
   email?: string;
   phone?: string;
   bio?: string;
+  avatar_url?: string;
+  location?: string;
+  website?: string;
 };
 
 // Type pour un profil d'organisation
