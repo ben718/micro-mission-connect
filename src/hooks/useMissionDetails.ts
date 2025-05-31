@@ -1,112 +1,131 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
+import { toast } from "sonner";
 
 export function useMissionDetails(missionId: string) {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
 
   const { data: mission, isLoading } = useQuery({
     queryKey: ["mission", missionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("missions")
-        .select(`
-          *,
-          organization:organization_id(
+    queryFn: async (): Promise<MissionWithDetails | null> => {
+      try {
+        const { data: mission, error } = await supabase
+          .from("missions")
+          .select(`
             *,
-            sector:sector_id(*)
-          ),
-          mission_type:mission_type_id(*),
-          mission_skills(
-            *,
-            skill:skill_id(*)
-          ),
-          mission_registrations(
-            *,
-            user:user_id(*)
-          )
-        `)
-        .eq("id", missionId)
-        .single();
+            organization:organization_id(
+              *,
+              sector:sector_id(*)
+            ),
+            mission_type:mission_type_id(*),
+            mission_skills(
+              *,
+              skill:skill_id(*)
+            )
+          `)
+          .eq("id", missionId)
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
+        if (!mission) return null;
 
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+        const { count: participantsCount } = await supabase
+          .from("mission_registrations")
+          .select("*", { count: "exact" })
+          .eq("mission_id", missionId)
+          .eq("status", "inscrit");
 
-      // Transformer les données pour inclure les informations supplémentaires
-      const transformedMission: MissionWithDetails = {
-        ...data,
-        required_skills: data.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
-        participants_count: data.mission_registrations?.length || 0,
-        is_registered: data.mission_registrations?.some(
-          (reg: any) => reg.user_id === user?.id
-        ) || false,
-        registration_status: data.mission_registrations?.find(
-          (reg: any) => reg.user_id === user?.id
-        )?.status as ParticipationStatus,
-        mission_registrations: data.mission_registrations || [],
-        organization: data.organization,
-        mission_type: data.mission_type,
-        // Handle geo_location safely
-        geo_location: data.geo_location && typeof data.geo_location === 'object' && 'type' in data.geo_location && 'coordinates' in data.geo_location
-          ? data.geo_location as { type: "Point"; coordinates: [number, number] }
-          : null
-      };
+        let isRegistered = false;
+        let registrationStatus: ParticipationStatus | undefined;
+        
+        if (user) {
+          const { data: registration } = await supabase
+            .from("mission_registrations")
+            .select("status")
+            .eq("mission_id", missionId)
+            .eq("user_id", user.id)
+            .single();
+          
+          if (registration) {
+            isRegistered = true;
+            registrationStatus = registration.status as ParticipationStatus;
+          }
+        }
 
-      return transformedMission;
-    }
+        return {
+          ...mission,
+          required_skills: mission.mission_skills?.map((ms: any) => ms.skill?.name).filter(Boolean) || [],
+          participants_count: participantsCount || 0,
+          is_registered: isRegistered,
+          registration_status: registrationStatus,
+          organization: mission.organization,
+          mission_type: mission.mission_type,
+          geo_location: mission.geo_location && 
+            typeof mission.geo_location === 'object' && 
+            'type' in mission.geo_location && 
+            'coordinates' in mission.geo_location
+              ? mission.geo_location as { type: "Point"; coordinates: [number, number] }
+              : null
+        };
+      } catch (error) {
+        console.error("[useMissionDetails] Error fetching mission:", error);
+        toast.error("Erreur lors du chargement de la mission");
+        return null;
+      }
+    },
+    enabled: !!missionId
   });
 
   const participateMutation = useMutation({
     mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non authentifié");
+      if (!user) throw new Error("Vous devez être connecté pour participer");
+      if (!mission) throw new Error("Mission non trouvée");
 
       const { error } = await supabase
         .from("mission_registrations")
         .insert({
-          mission_id: missionId,
           user_id: user.id,
-          status: "inscrit"
+          mission_id: mission.id,
+          status: "inscrit" as ParticipationStatus,
+          registration_date: new Date().toISOString()
         });
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+      toast.success("Inscription réussie !");
+    },
+    onError: (error: any) => {
+      console.error("[useMissionDetails] Participation error:", error);
+      toast.error(error.message || "Erreur lors de l'inscription");
     }
   });
 
   const updateRegistrationStatusMutation = useMutation({
     mutationFn: async ({ status }: { status: ParticipationStatus }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non authentifié");
+      if (!user) throw new Error("Vous devez être connecté");
+      if (!mission) throw new Error("Mission non trouvée");
 
       const { error } = await supabase
         .from("mission_registrations")
         .update({ status })
-        .eq("mission_id", missionId)
+        .eq("mission_id", mission.id)
         .eq("user_id", user.id);
 
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
-    }
-  });
-
-  const validateParticipationMutation = useMutation({
-    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status })
-        .eq("id", registrationId);
-
-      if (error) throw error;
+      toast.success("Statut mis à jour");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+    onError: (error: any) => {
+      console.error("[useMissionDetails] Update status error:", error);
+      toast.error(error.message || "Erreur lors de la mise à jour");
     }
   });
 
@@ -115,7 +134,6 @@ export function useMissionDetails(missionId: string) {
     isLoading,
     participate: participateMutation.mutate,
     updateRegistrationStatus: updateRegistrationStatusMutation.mutate,
-    validateParticipation: validateParticipationMutation,
     isParticipating: participateMutation.isPending,
     isUpdatingStatus: updateRegistrationStatusMutation.isPending
   };
