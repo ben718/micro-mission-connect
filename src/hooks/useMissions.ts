@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Mission, MissionStats } from "@/types/mission";
@@ -106,19 +107,32 @@ export const useMissions = (filters?: UseMissionsFilters) => {
           *,
           organization_profiles!organization_id (
             id,
+            user_id,
             organization_name,
             description,
             website_url,
             logo_url,
-            organization_sectors (
+            address,
+            latitude,
+            longitude,
+            location,
+            sector_id,
+            siret_number,
+            creation_date,
+            created_at,
+            updated_at,
+            organization_sectors!sector_id (
               id,
-              name
+              name,
+              description
             )
           ),
           mission_types (
             id,
             name,
-            description
+            description,
+            created_at,
+            updated_at
           ),
           mission_skills (
             skill:skill_id (
@@ -152,7 +166,10 @@ export const useMissions = (filters?: UseMissionsFilters) => {
 
       const transformedData = (data || []).map(mission => ({
         ...mission,
-        organization: mission.organization_profiles,
+        organization: {
+          ...mission.organization_profiles,
+          organization_sectors: mission.organization_profiles?.organization_sectors
+        },
         mission_type: mission.mission_types,
         required_skills: mission.mission_skills?.map(ms => ms.skill?.name).filter(Boolean) || [],
         participants_count: mission.mission_registrations?.filter(mr => mr.status === 'accepté').length || 0,

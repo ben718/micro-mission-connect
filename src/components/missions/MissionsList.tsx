@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useMissions } from '@/hooks/useMissions';
 import { MissionCard } from '@/components/mission/MissionCard';
@@ -83,13 +82,9 @@ const MissionsList: React.FC = () => {
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {missions.map((mission) => {
-              // Utiliser directement les données retournées par le hook useMissions
-              // qui sont déjà transformées correctement
-              return (
-                <MissionCard key={mission.id} mission={mission} />
-              );
-            })}
+            {missions.map((mission) => (
+              <MissionCard key={mission.id} mission={mission} />
+            ))}
           </div>
 
           {hasMore && (
