@@ -98,6 +98,11 @@ const App = () => {
                       <NotificationsPage />
                     </PrivateRoute>
                   } />
+                  <Route path="/associations" element={
+                    <PrivateRoute>
+                      <AssociationsActivity />
+                    </PrivateRoute>
+                  } />
                   <Route path="/auth/login" element={<Login />} />
                   <Route path="/auth/register" element={<Register />} />
                   <Route path="/auth/confirmation" element={<Confirmation />} />
