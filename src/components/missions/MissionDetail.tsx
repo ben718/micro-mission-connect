@@ -1,3 +1,4 @@
+
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +7,7 @@ import { formatDate, formatDuration } from "@/utils/date";
 import { MapPin, Clock, Users, Briefcase, Target, Award } from "lucide-react";
 import { useParams } from "react-router-dom";
 
-export function MissionDetail() {
+export default function MissionDetail() {
   const { missionId } = useParams<{ missionId: string }>();
   const {
     mission,
@@ -155,4 +156,4 @@ export function MissionDetail() {
       </Card>
     </div>
   );
-} 
+}
