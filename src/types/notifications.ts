@@ -10,11 +10,15 @@ export type Notification = Database["public"]["Tables"]["notifications"]["Row"] 
 export type NotificationType = 
   | "inscription"
   | "annulation"
+  | "annulation_organisation"
   | "confirmation"
   | "reminder"
   | "badge"
   | "skill_validation"
-  | "mission_update";
+  | "mission_update"
+  | "mission_cancelled"
+  | "mission_completed"
+  | "no_show";
 
 export type NotificationWithDetails = Notification & {
   related_entity?: {
@@ -22,6 +26,7 @@ export type NotificationWithDetails = Notification & {
     type: "mission" | "badge" | "skill" | "user";
     name?: string;
   };
+  source?: "user" | "organization" | "system";
 };
 
 // Types pour les filtres de notifications
@@ -30,4 +35,5 @@ export type NotificationFilters = {
   type?: NotificationType;
   start_date?: Date;
   end_date?: Date;
+  source?: "user" | "organization" | "system";
 };

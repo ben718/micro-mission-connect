@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Dialog,
@@ -12,11 +13,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { notificationService } from "@/services/notificationService";
 
 interface SuspendMissionDialogProps {
   isOpen: boolean;
   onClose: () => void;
   missionId: string;
+  missionTitle: string;
   onSuccess: () => void;
 }
 
@@ -24,6 +27,7 @@ const SuspendMissionDialog: React.FC<SuspendMissionDialogProps> = ({
   isOpen,
   onClose,
   missionId,
+  missionTitle,
   onSuccess,
 }) => {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -47,6 +51,24 @@ const SuspendMissionDialog: React.FC<SuspendMissionDialogProps> = ({
         .eq("id", missionId);
 
       if (error) throw error;
+      
+      // Récupérer tous les participants pour les notifier
+      const { data: participants } = await supabase
+        .from("mission_registrations")
+        .select("user_id")
+        .eq("mission_id", missionId)
+        .in("status", ["inscrit", "confirmé"]);
+        
+      if (participants && participants.length > 0) {
+        // Notifier tous les participants de l'annulation
+        for (const participant of participants) {
+          await notificationService.notifyMissionCancelledByOrganization(
+            participant.user_id, 
+            missionTitle,
+            reason
+          );
+        }
+      }
 
       toast.success("Mission suspendue avec succès");
       onSuccess();
@@ -65,7 +87,7 @@ const SuspendMissionDialog: React.FC<SuspendMissionDialogProps> = ({
         <DialogHeader>
           <DialogTitle>Suspendre la mission</DialogTitle>
           <DialogDescription>
-            Veuillez fournir une raison pour la suspension de cette mission.
+            Veuillez fournir une raison pour la suspension de cette mission. Tous les participants seront notifiés.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-4">
@@ -101,4 +123,4 @@ const SuspendMissionDialog: React.FC<SuspendMissionDialogProps> = ({
   );
 };
 
-export default SuspendMissionDialog; 
+export default SuspendMissionDialog;

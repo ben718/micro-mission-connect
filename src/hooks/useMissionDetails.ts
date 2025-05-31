@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -195,7 +196,7 @@ export function useMissionDetails(missionId: string) {
       queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
       queryClient.invalidateQueries({ queryKey: ["missions"] });
       queryClient.refetchQueries({ queryKey });
-      toast.success("✅ Inscription confirmée ! Vous recevrez bientôt les détails de participation.");
+      toast.success("✅ Inscription confirmée ! Votre candidature a été soumise à l'organisation.");
     },
     onError: (error: any) => {
       console.error("Erreur complète d'inscription:", error);
@@ -212,7 +213,7 @@ export function useMissionDetails(missionId: string) {
   });
 
   const updateRegistrationStatusMutation = useMutation({
-    mutationFn: async ({ status }: { status: ParticipationStatus }) => {
+    mutationFn: async ({ status, cancelledByUser = true }: { status: ParticipationStatus; cancelledByUser?: boolean }) => {
       if (!user) throw new Error("Vous devez être connecté pour modifier votre inscription");
       if (!mission) throw new Error("Mission introuvable");
 
@@ -235,20 +236,24 @@ export function useMissionDetails(missionId: string) {
       // Créer la notification après l'annulation réussie
       if (status === "annulé") {
         try {
-          await notificationService.notifyMissionCancellation(user.id, mission.title);
+          await notificationService.notifyMissionCancellation(user.id, mission.title, cancelledByUser);
         } catch (notifError) {
           console.error("Erreur lors de la création de notification d'annulation:", notifError);
           // Ne pas faire échouer l'annulation si la notification échoue
         }
       }
     },
-    onSuccess: (_, { status }) => {
+    onSuccess: (_, { status, cancelledByUser }) => {
       // Invalider plusieurs clés de cache pour s'assurer que tout est mis à jour
       queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
       queryClient.invalidateQueries({ queryKey: ["missions"] });
       queryClient.refetchQueries({ queryKey });
       if (status === "annulé") {
-        toast.success("❌ Inscription annulée. Vous pouvez vous réinscrire si des places se libèrent.");
+        if (cancelledByUser) {
+          toast.success("❌ Vous avez annulé votre inscription. Vous pouvez vous réinscrire si des places sont disponibles.");
+        } else {
+          toast.info("ℹ️ Votre inscription a été annulée par l'organisation.");
+        }
       } else {
         toast.success("✅ Statut mis à jour avec succès.");
       }
@@ -264,19 +269,50 @@ export function useMissionDetails(missionId: string) {
   });
 
   const validateParticipationMutation = useMutation({
-    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
+    mutationFn: async ({ 
+      registrationId, 
+      status, 
+      userId, 
+      reason 
+    }: { 
+      registrationId: string; 
+      status: string; 
+      userId: string;
+      reason?: string;
+    }) => {
       if (!user) throw new Error("Vous devez être connecté");
       
+      // Obtenir les informations de la mission pour les notifications
+      const { data: registration } = await supabase
+        .from("mission_registrations")
+        .select("*")
+        .eq("id", registrationId)
+        .single();
+        
+      if (!registration) throw new Error("Inscription non trouvée");
+      
+      // Mettre à jour le statut
       const { error } = await supabase
         .from("mission_registrations")
         .update({ status })
         .eq("id", registrationId);
 
       if (error) throw error;
+      
+      // Envoyer la notification appropriée en fonction du statut
+      if (status === "confirmé") {
+        await notificationService.notifyMissionConfirmation(userId, mission?.title || "", mission?.id || "");
+      } else if (status === "annulé") {
+        await notificationService.notifyMissionCancellation(userId, mission?.title || "", false);
+      } else if (status === "terminé") {
+        await notificationService.notifyMissionCompleted(userId, mission?.title || "", mission?.id || "");
+      } else if (status === "no_show") {
+        await notificationService.notifyNoShow(userId, mission?.title || "");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
-      toast.success("✅ Validation mise à jour avec succès");
+      toast.success("✅ Statut du participant mis à jour avec succès");
     },
     onError: (error: any) => {
       handleError(error, "Erreur lors de la validation");
