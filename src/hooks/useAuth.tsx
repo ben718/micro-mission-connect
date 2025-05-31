@@ -22,7 +22,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   console.log('AuthProvider - current user:', user);
 
-  const { data: profile } = useQuery({
+  const { data: profile, isLoading: profileLoading, error: profileError } = useQuery({
     queryKey: ["profile", user?.id],
     queryFn: async () => {
       if (!user?.id) {
@@ -56,10 +56,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       console.log('AuthProvider - profile fetched:', profileData);
+      console.log('AuthProvider - is_organization value:', profileData?.is_organization);
       return profileData as Profile;
     },
     enabled: !!user?.id,
+    retry: 3,
+    retryDelay: 1000,
   });
+
+  // Log profile errors
+  useEffect(() => {
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+    }
+  }, [profileError]);
 
   const signIn = async (email: string, password: string) => {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -114,14 +124,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const value: AuthContextType = {
     user,
     profile: profile || null,
-    isLoading: isLoading || (!!user && profile === undefined),
-    loading: isLoading || (!!user && profile === undefined),
+    isLoading: isLoading || profileLoading,
+    loading: isLoading || profileLoading,
     signIn,
     signUp,
     signOut,
   };
 
   console.log('AuthProvider - providing value:', value);
+  console.log('AuthProvider - profile is_organization:', profile?.is_organization);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

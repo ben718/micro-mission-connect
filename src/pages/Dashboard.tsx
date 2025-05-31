@@ -11,6 +11,7 @@ const Dashboard = () => {
   console.log('Dashboard - user:', user);
   console.log('Dashboard - profile:', profile);
   console.log('Dashboard - isLoading:', isLoading);
+  console.log('Dashboard - profile.is_organization:', profile?.is_organization);
 
   if (isLoading) {
     console.log('Dashboard - showing loading state');
@@ -24,12 +25,24 @@ const Dashboard = () => {
     );
   }
 
+  if (!user) {
+    console.log('Dashboard - no user found, showing message');
+    return (
+      <div className="container py-8">
+        <div className="text-center">
+          <p className="text-muted-foreground">Utilisateur non connecté</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!profile) {
-    console.log('Dashboard - no profile found');
+    console.log('Dashboard - no profile found, showing message');
     return (
       <div className="container py-8">
         <div className="text-center">
           <p className="text-muted-foreground">Profil non trouvé</p>
+          <p className="text-sm text-gray-500 mt-2">Essayez de vous reconnecter</p>
         </div>
       </div>
     );
@@ -39,6 +52,7 @@ const Dashboard = () => {
   const isOrganization = profile.is_organization === true;
   
   console.log('Dashboard - isOrganization:', isOrganization);
+  console.log('Dashboard - rendering dashboard for:', isOrganization ? 'organization' : 'volunteer');
 
   return isOrganization ? <DashboardAssociation /> : <DashboardBenevole />;
 };
