@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { MissionCard } from '../MissionCard';
@@ -59,7 +59,6 @@ const mockMission: MissionWithDetails = {
     latitude: null,
     longitude: null,
     sector_id: null,
-    verification_date: null,
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
     creation_date: null,
@@ -96,48 +95,48 @@ const renderWithProviders = (component: React.ReactElement) => {
 
 describe('MissionCard', () => {
   it('should render mission information correctly', () => {
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
-    expect(screen.getByText('Mission Test')).toBeInTheDocument();
-    expect(screen.getByText('Description de test pour la mission')).toBeInTheDocument();
-    expect(screen.getByText('Paris, France')).toBeInTheDocument();
-    expect(screen.getByText('Organisation Test')).toBeInTheDocument();
+    expect(getByText('Mission Test')).toBeInTheDocument();
+    expect(getByText('Description de test pour la mission')).toBeInTheDocument();
+    expect(getByText('Paris, France')).toBeInTheDocument();
+    expect(getByText('Organisation Test')).toBeInTheDocument();
   });
 
   it('should display the correct duration format', () => {
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
-    expect(screen.getByText('2h 0min')).toBeInTheDocument();
+    expect(getByText('2h 0min')).toBeInTheDocument();
   });
 
   it('should show available spots', () => {
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
-    expect(screen.getByText('5 place(s) disponible(s)')).toBeInTheDocument();
+    expect(getByText('5 place(s) disponible(s)')).toBeInTheDocument();
   });
 
   it('should display difficulty and engagement levels', () => {
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
-    expect(screen.getByText('beginner')).toBeInTheDocument();
-    expect(screen.getByText('medium')).toBeInTheDocument();
+    expect(getByText('beginner')).toBeInTheDocument();
+    expect(getByText('medium')).toBeInTheDocument();
   });
 
   it('should handle mission registration click', () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
-    const detailsButton = screen.getByText('Voir les détails');
+    const detailsButton = getByText('Voir les détails');
     expect(detailsButton).toBeInTheDocument();
     
     consoleSpy.mockRestore();
   });
 
   it('should format date correctly', () => {
-    renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
+    const { getByText } = renderWithProviders(React.createElement(MissionCard, { mission: mockMission }));
     
     // La date devrait être affichée au format français
-    expect(screen.getByText(/1 juin 2024/)).toBeInTheDocument();
+    expect(getByText(/1 juin 2024/)).toBeInTheDocument();
   });
 });

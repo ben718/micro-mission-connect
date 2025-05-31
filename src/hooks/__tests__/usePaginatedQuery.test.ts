@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { usePaginatedQuery } from '../usePaginatedQuery';
@@ -48,9 +48,8 @@ describe('usePaginatedQuery', () => {
       { wrapper }
     );
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    // Wait for the query to complete
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     expect(result.current.data).toBeDefined();
     expect(result.current.currentPage).toBe(1);
@@ -71,14 +70,14 @@ describe('usePaginatedQuery', () => {
       { wrapper }
     );
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
+    // Wait for initial load
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     result.current.goToNextPage();
 
-    await waitFor(() => {
-      expect(result.current.currentPage).toBe(2);
-    });
+    // Wait for page change
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    expect(result.current.currentPage).toBe(2);
   });
 });
