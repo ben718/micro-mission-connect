@@ -124,7 +124,9 @@ export const useMissions = (filters?: UseMissionsFilters) => {
             organization_sectors!sector_id (
               id,
               name,
-              description
+              description,
+              created_at,
+              updated_at
             )
           ),
           mission_types (
