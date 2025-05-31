@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,13 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { CalendarDays, MapPin, Phone, Mail, User, Award, Star } from "lucide-react";
-import { BadgeDetailModal } from "@/components/profile/BadgeDetailModal";
 
 const ProfileVolunteer = () => {
   const { profile, user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
-  const [selectedBadge, setSelectedBadge] = useState<any>(null);
-  const [isBadgeModalOpen, setIsBadgeModalOpen] = useState(false);
 
   if (!profile) {
     return (
@@ -28,11 +26,6 @@ const ProfileVolunteer = () => {
 
   const userSkills = profile.user_skills || [];
   const userBadges = profile.user_badges || [];
-
-  const handleBadgeClick = (userBadge: any) => {
-    setSelectedBadge(userBadge);
-    setIsBadgeModalOpen(true);
-  };
 
   return (
     <div className="container py-8 space-y-6">
@@ -203,11 +196,7 @@ const ProfileVolunteer = () => {
           {userBadges.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {userBadges.map((userBadge) => (
-                <div 
-                  key={userBadge.id} 
-                  className="flex items-center space-x-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
-                  onClick={() => handleBadgeClick(userBadge)}
-                >
+                <div key={userBadge.id} className="flex items-center space-x-3 p-3 border rounded-lg">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                     <Award className="w-5 h-5 text-primary" />
                   </div>
@@ -225,12 +214,6 @@ const ProfileVolunteer = () => {
           )}
         </CardContent>
       </Card>
-
-      <BadgeDetailModal
-        badge={selectedBadge}
-        isOpen={isBadgeModalOpen}
-        onClose={() => setIsBadgeModalOpen(false)}
-      />
     </div>
   );
 };

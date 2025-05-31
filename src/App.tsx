@@ -21,7 +21,6 @@ import Footer from "./components/layout/Footer";
 import { Loader2 } from "lucide-react";
 import ProfileOrganization from "@/pages/profile/ProfileOrganization";
 import ProfileVolunteer from "@/pages/profile/ProfileVolunteer";
-import BadgesPage from "@/pages/badges/BadgesPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,11 +95,6 @@ const App = () => {
                   <Route path="/notifications" element={
                     <PrivateRoute>
                       <NotificationsPage />
-                    </PrivateRoute>
-                  } />
-                  <Route path="/badges" element={
-                    <PrivateRoute>
-                      <BadgesPage />
                     </PrivateRoute>
                   } />
                   <Route path="/auth/login" element={<Login />} />
