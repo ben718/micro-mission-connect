@@ -1,3 +1,4 @@
+
 import React from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,9 +48,9 @@ const formSchema = MissionSchema.pick({
   difficulty_level: true,
   engagement_level: true,
 }).extend({
-  start_date: MissionSchema.shape.start_date.transform(val => new Date(val)),
-  duration_minutes: MissionSchema.shape.duration_minutes.transform(val => val.toString()),
-  available_spots: MissionSchema.shape.available_spots.transform(val => val.toString()),
+  start_date: z.date(),
+  duration_minutes: z.number().transform(val => val.toString()),
+  available_spots: z.number().transform(val => val.toString()),
 });
 
 interface EditMissionDialogProps {
@@ -107,9 +108,9 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         start_date: new Date(data.start_date),
         duration_minutes: data.duration_minutes?.toString() || "",
         location: data.location,
-        format: data.format || "onsite",
-        difficulty_level: data.difficulty_level || "beginner",
-        engagement_level: data.engagement_level || "medium",
+        format: (data.format || "onsite") as "onsite" | "remote" | "hybrid",
+        difficulty_level: (data.difficulty_level || "beginner") as "beginner" | "intermediate" | "advanced",
+        engagement_level: (data.engagement_level || "medium") as "low" | "medium" | "high",
         available_spots: data.available_spots.toString(),
       });
     } catch (error) {
@@ -133,8 +134,8 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
       }
 
       // Validation côté serveur
-      const { data: authUser } = await supabase.auth.getUser();
-      if (!authUser.user) {
+      const { data: authData } = await supabase.auth.getSession();
+      if (!authData.session?.access_token) {
         throw new Error("Non authentifié");
       }
 
@@ -142,7 +143,7 @@ const EditMissionDialog: React.FC<EditMissionDialogProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authUser.user.access_token}`
+          'Authorization': `Bearer ${authData.session.access_token}`
         },
         body: JSON.stringify({
           ...values,

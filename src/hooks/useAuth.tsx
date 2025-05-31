@@ -70,24 +70,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .eq('user_id', user.id)
           .maybeSingle();
 
-        // Construct complete profile - mapping database fields to expected interface
+        // Construct complete profile with proper typing
         const completeProfile: Profile = {
           id: user.id,
-          first_name: profileData?.first_name || '',
-          last_name: profileData?.last_name || '',
-          city: profileData?.city || '',
-          postal_code: profileData?.postal_code || '',
-          address: profileData?.address || '',
-          profile_picture_url: profileData?.profile_picture_url || '',
+          first_name: profileData?.first_name || null,
+          last_name: profileData?.last_name || null,
+          email: user.email || null,
+          phone: profileData?.phone || null,
+          bio: profileData?.bio || null,
+          website: profileData?.website || null,
+          city: profileData?.city || null,
+          postal_code: profileData?.postal_code || null,
+          address: profileData?.address || null,
+          profile_picture_url: profileData?.profile_picture_url || null,
           latitude: profileData?.latitude || null,
           longitude: profileData?.longitude || null,
           last_login: profileData?.last_login || null,
           created_at: profileData?.created_at || new Date().toISOString(),
           updated_at: profileData?.updated_at || new Date().toISOString(),
           // Additional fields for compatibility
-          email: user.email || '',
-          avatar_url: profileData?.profile_picture_url || '', // Map profile_picture_url to avatar_url
-          location: profileData?.city || '', // Map city to location
+          avatar_url: profileData?.profile_picture_url || null,
+          location: profileData?.city || null,
           user_skills: skillsData || [],
           user_badges: badgesData || [],
           is_organization: !!orgData,
