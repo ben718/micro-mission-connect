@@ -1,17 +1,36 @@
 
-
 -- Script complet de données pour MicroBénévole
--- Inclut les données de production + données de test complètes
+-- Utilise les utilisateurs existants pour les tests
 
--- Réinitialisation des tables (optionnel - à décommenter si besoin)
--- TRUNCATE TABLE mission_registrations, missions, organization_profiles, user_badges, user_skills, profiles CASCADE;
+-- IMPORTANT: Ce script utilise des utilisateurs existants dans auth.users
+-- Utilisateurs de test :
+-- a444bae9-3193-465c-853b-9528abe1023e - rioall77@gmail.com (Alpha Association)
+-- ea44982b-ba08-45cd-b051-255541c38bff - benmvouama@gmail.com (Ben, bénévole)
 
--- IMPORTANT: Ce script assume que les utilisateurs existent déjà dans auth.users
--- Pour utiliser ce script, vous devez d'abord créer les utilisateurs via l'interface Supabase Auth
--- ou modifier les IDs pour correspondre à des utilisateurs existants
+-- 1. Mise à jour des profils existants avec des données de test enrichies
+UPDATE profiles SET 
+    first_name = 'Alpha',
+    last_name = 'Association',
+    bio = 'Association humanitaire engagée dans l''aide aux plus démunis et l''action sociale locale.',
+    city = 'Paris',
+    postal_code = '75001',
+    phone = '+33123456789',
+    profile_picture_url = '/avatars/alpha.jpg',
+    updated_at = now()
+WHERE id = 'a444bae9-3193-465c-853b-9528abe1023e';
 
--- 1. Insertion des utilisateurs de test dans la table profiles
--- ATTENTION: Ces IDs doivent correspondre à des utilisateurs existants dans auth.users
+UPDATE profiles SET 
+    first_name = 'Ben',
+    last_name = 'Mvouama',
+    bio = 'Bénévole passionné souhaitant aider les associations dans leurs missions d''aide sociale.',
+    city = 'Lyon',
+    postal_code = '69000',
+    phone = '+33987654321',
+    profile_picture_url = '/avatars/ben.jpg',
+    updated_at = now()
+WHERE id = 'ea44982b-ba08-45cd-b051-255541c38bff';
+
+-- 2. Ajout de quelques profils de test supplémentaires (optionnel)
 INSERT INTO profiles (
     id, 
     first_name, 
@@ -25,19 +44,9 @@ INSERT INTO profiles (
     created_at,
     updated_at
 ) VALUES 
--- Bénévoles (Remplacez ces IDs par des IDs d'utilisateurs réels de votre auth.users)
-('11111111-1111-1111-1111-111111111111', 'Marie', 'Dubois', 'marie.dubois@email.com', 'Passionnée d''éducation et d''aide aux personnes âgées. 5 ans d''expérience dans le bénévolat.', 'Paris', '75001', '+33123456789', '/avatars/marie.jpg', now(), now()),
-('22222222-2222-2222-2222-222222222222', 'Pierre', 'Martin', 'pierre.martin@email.com', 'Développeur web souhaitant partager ses compétences techniques avec les associations.', 'Lyon', '69000', '+33987654321', '/avatars/pierre.jpg', now(), now()),
-('33333333-3333-3333-3333-333333333333', 'Sophie', 'Leroy', 'sophie.leroy@email.com', 'Étudiante en médecine, active dans l''aide humanitaire et les premiers secours.', 'Marseille', '13000', '+33456789123', '/avatars/sophie.jpg', now(), now()),
-('44444444-4444-4444-4444-444444444444', 'Thomas', 'Durand', 'thomas.durand@email.com', 'Photographe professionnel engagé dans la protection de l''environnement.', 'Toulouse', '31000', '+33789123456', '/avatars/thomas.jpg', now(), now()),
-('55555555-5555-5555-5555-555555555555', 'Emma', 'Moreau', 'emma.moreau@email.com', 'Chef cuisinière bénévole pour les associations caritatives.', 'Nice', '06000', '+33321654987', '/avatars/emma.jpg', now(), now()),
-
--- Responsables d'organisations
-('aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Jean', 'Responsable', 'jean@croixrouge.fr', 'Coordinateur bénévole à la Croix-Rouge française.', 'Paris', '75008', '+33111111111', '/avatars/jean.jpg', now(), now()),
-('aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Claire', 'Coordinatrice', 'claire@restosducoeur.fr', 'Responsable des bénévoles aux Restos du Cœur.', 'Lyon', '69001', '+33222222222', '/avatars/claire.jpg', now(), now()),
-('aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Marc', 'Directeur', 'marc@emmaus.fr', 'Directeur régional d''Emmaüs France.', 'Marseille', '13001', '+33333333333', '/avatars/marc.jpg', now(), now()),
-('aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Julie', 'Manager', 'julie@secourspopulaire.fr', 'Responsable du Secours Populaire local.', 'Bordeaux', '33000', '+33444444444', '/avatars/julie.jpg', now(), now()),
-('aaaaaaa5-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'David', 'Coordinateur', 'david@unicef.fr', 'Coordinateur régional UNICEF France.', 'Strasbourg', '67000', '+33555555555', '/avatars/david.jpg', now(), now())
+-- Bénévoles fictifs pour enrichir les tests
+('22222222-2222-2222-2222-222222222222', 'Sophie', 'Martin', 'sophie.martin@email.com', 'Étudiante en médecine, active dans l''aide humanitaire.', 'Marseille', '13000', '+33456789123', '/avatars/sophie.jpg', now(), now()),
+('33333333-3333-3333-3333-333333333333', 'Thomas', 'Durand', 'thomas.durand@email.com', 'Développeur web engagé dans la protection de l''environnement.', 'Toulouse', '31000', '+33789123456', '/avatars/thomas.jpg', now(), now())
 
 ON CONFLICT (id) DO UPDATE SET
     first_name = EXCLUDED.first_name,
@@ -45,7 +54,7 @@ ON CONFLICT (id) DO UPDATE SET
     email = EXCLUDED.email,
     updated_at = now();
 
--- 2. Insertion des profils d'organisations
+-- 3. Création du profil d'organisation pour Alpha Association
 INSERT INTO organization_profiles (
     id,
     user_id,
@@ -62,79 +71,45 @@ INSERT INTO organization_profiles (
     created_at,
     updated_at
 ) VALUES 
-('org00001-1111-1111-1111-111111111111', 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Croix-Rouge française', 'Organisation humanitaire internationale active dans l''aide d''urgence, l''action sociale et la formation aux premiers secours.', (SELECT id FROM organization_sectors WHERE name = 'Humanitaire'), '98 Rue Didot, 75014 Paris', 'https://www.croix-rouge.fr', '/logos/croix-rouge.png', '77567227900224', '1864-02-17', 48.8317, 2.3200, now(), now()),
-
-('org00002-2222-2222-2222-222222222222', 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Restos du Cœur', 'Association caritative française qui distribue des repas gratuits aux plus démunis et propose un accompagnement vers l''insertion.', (SELECT id FROM organization_sectors WHERE name = 'Social'), '25 Rue du Louvre, 75001 Paris', 'https://www.restosducoeur.org', '/logos/restos-du-coeur.png', '32206653900189', '1985-09-26', 48.8606, 2.3376, now(), now()),
-
-('org00003-3333-3333-3333-333333333333', 'aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Emmaüs France', 'Mouvement de lutte contre l''exclusion fondé sur l''accueil inconditionnel et le travail avec les plus démunis.', (SELECT id FROM organization_sectors WHERE name = 'Social'), '47 Avenue de la Résistance, 93104 Montreuil', 'https://www.emmaus-france.org', '/logos/emmaus.png', '77561403200275', '1954-01-01', 48.8589, 2.4390, now(), now()),
-
-('org00004-4444-4444-4444-444444444444', 'aaaaaaa4-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Secours Populaire Français', 'Association à but non lucratif reconnue d''utilité publique qui agit contre la pauvreté et l''exclusion en France et dans le monde.', (SELECT id FROM organization_sectors WHERE name = 'Humanitaire'), '9-11 Rue Froissart, 75003 Paris', 'https://www.secourspopulaire.fr', '/logos/secours-populaire.png', '77568476200289', '1945-05-29', 48.8606, 2.3660, now(), now()),
-
-('org00005-5555-5555-5555-555555555555', 'aaaaaaa5-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'UNICEF France', 'Fonds des Nations unies pour l''enfance qui œuvre pour la défense des droits des enfants dans le monde.', (SELECT id FROM organization_sectors WHERE name = 'Humanitaire'), '3 Rue Duguay-Trouin, 75006 Paris', 'https://www.unicef.fr', '/logos/unicef.png', '77566576700123', '1946-12-11', 48.8489, 2.3292, now(), now()),
-
-('org00006-6666-6666-6666-666666666666', 'aaaaaaa1-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'WWF France', 'Organisation mondiale de protection de la nature et de l''environnement.', (SELECT id FROM organization_sectors WHERE name = 'Environnement'), '1 Carrefour de Longchamp, 75016 Paris', 'https://www.wwf.fr', '/logos/wwf.png', '30236406400047', '1973-03-07', 48.8590, 2.2869, now(), now()),
-
-('org00007-7777-7777-7777-777777777777', 'aaaaaaa2-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Médecins Sans Frontières', 'Organisation médicale humanitaire internationale qui apporte une assistance médicale aux populations en détresse.', (SELECT id FROM organization_sectors WHERE name = 'Santé'), '8 Rue Saint-Sabin, 75011 Paris', 'https://www.msf.fr', '/logos/msf.png', '31798653400203', '1971-12-20', 48.8566, 2.3703, now(), now()),
-
-('org00008-8888-8888-8888-888888888888', 'aaaaaaa3-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Greenpeace France', 'Organisation environnementale qui mène des campagnes pour la protection de l''environnement.', (SELECT id FROM organization_sectors WHERE name = 'Environnement'), '13 Rue d''Enghien, 75010 Paris', 'https://www.greenpeace.fr', '/logos/greenpeace.png', '39509121700096', '1971-09-15', 48.8713, 2.3503, now(), now())
+('org-alpha-001', 'a444bae9-3193-465c-853b-9528abe1023e', 'Alpha Association', 'Association humanitaire française active dans l''aide d''urgence, l''action sociale et la formation aux premiers secours.', (SELECT id FROM organization_sectors WHERE name = 'Humanitaire'), '98 Rue de Rivoli, 75001 Paris', 'https://www.alpha-association.fr', '/logos/alpha.png', '77567227900224', '2020-01-15', 48.8606, 2.3376, now(), now())
 
 ON CONFLICT (id) DO UPDATE SET
     organization_name = EXCLUDED.organization_name,
     description = EXCLUDED.description,
     updated_at = now();
 
--- 3. Attribution des compétences aux utilisateurs
+-- 4. Attribution des compétences aux utilisateurs réels
 INSERT INTO user_skills (id, user_id, skill_id, level, created_at, updated_at) VALUES 
--- Marie Dubois (Éducation/Social)
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Communication'), 'expert', now(), now()),
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Animation'), 'expert', now(), now()),
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Organisation'), 'avancé', now(), now()),
+-- Ben (bénévole) - Compétences variées
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Organisation'), 'intermédiaire', now(), now()),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM skills WHERE name = 'Informatique'), 'avancé', now(), now()),
 
--- Pierre Martin (Tech)
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Informatique'), 'expert', now(), now()),
+-- Profils fictifs
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'expert', now(), now()),
 (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Organisation'), 'avancé', now(), now()),
 
--- Sophie Leroy (Santé)
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'expert', now(), now()),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Langues étrangères'), 'intermédiaire', now(), now()),
-
--- Thomas Durand (Environnement/Créatif)
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Photographie'), 'expert', now(), now()),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', now(), now()),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', (SELECT id FROM skills WHERE name = 'Conduite'), 'avancé', now(), now()),
-
--- Emma Moreau (Cuisine/Social)
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Cuisine'), 'expert', now(), now()),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Organisation'), 'avancé', now(), now()),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM skills WHERE name = 'Animation'), 'intermédiaire', now(), now())
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Informatique'), 'expert', now(), now()),
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Photographie'), 'avancé', now(), now())
 
 ON CONFLICT (user_id, skill_id) DO UPDATE SET
     level = EXCLUDED.level,
     updated_at = now();
 
--- 4. Attribution des premiers badges
+-- 5. Attribution des premiers badges
 INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VALUES 
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '6 months', now()),
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '3 months', now()),
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Spécialiste social'), now() - interval '1 month', now()),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '2 months', now()),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '1 month', now()),
 
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '4 months', now()),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '2 months', now()),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Innovateur'), now() - interval '1 week', now()),
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '3 months', now()),
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', (SELECT id FROM badges WHERE name = 'Spécialiste santé'), now() - interval '1 month', now()),
 
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '2 months', now()),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Bénévole actif'), now() - interval '2 weeks', now()),
-
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '5 months', now()),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', (SELECT id FROM badges WHERE name = 'Défenseur de l''environnement'), now() - interval '1 month', now()),
-
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '3 months', now())
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '4 months', now()),
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', (SELECT id FROM badges WHERE name = 'Innovateur'), now() - interval '2 weeks', now())
 
 ON CONFLICT (user_id, badge_id) DO NOTHING;
 
--- 5. Création de missions variées
+-- 6. Création de missions par Alpha Association
 INSERT INTO missions (
     id,
     organization_id,
@@ -160,68 +135,39 @@ INSERT INTO missions (
     updated_at
 ) VALUES 
 
--- Missions Croix-Rouge
-('mission01-1111-1111-1111-111111111111', 'org00001-1111-1111-1111-111111111111', 'Distribution alimentaire hebdomadaire', 'Aidez-nous à distribuer des colis alimentaires aux familles dans le besoin. Formation fournie sur place.', 'Paris 14e', '98 Rue Didot, 75014 Paris', '75014', now() + interval '3 days', now() + interval '3 days' + interval '4 hours', 240, 15, 'Présentiel', 'débutant', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Collecte'), 'Nourrir 150 familles en précarité alimentaire', 'active', '/missions/distribution-alimentaire.jpg', 48.8317, 2.3200, now(), now()),
+-- Missions créées par Alpha Association
+('mission-alpha-01', 'org-alpha-001', 'Distribution alimentaire hebdomadaire', 'Aidez-nous à distribuer des colis alimentaires aux familles dans le besoin. Formation fournie sur place.', 'Paris 1er', '98 Rue de Rivoli, 75001 Paris', '75001', now() + interval '3 days', now() + interval '3 days' + interval '4 hours', 240, 15, 'Présentiel', 'débutant', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Collecte'), 'Nourrir 150 familles en précarité alimentaire', 'active', '/missions/distribution-alimentaire.jpg', 48.8606, 2.3376, now(), now()),
 
-('mission02-2222-2222-2222-222222222222', 'org00001-1111-1111-1111-111111111111', 'Formation premiers secours', 'Devenez formateur aux gestes qui sauvent ! Formation d''une journée pour apprendre à enseigner les premiers secours.', 'Paris 8e', '1 Place Henry Dunant, 75008 Paris', '75008', now() + interval '1 week', now() + interval '1 week' + interval '8 hours', 480, 8, 'Présentiel', 'intermédiaire', 'Mission avec suivi', (SELECT id FROM mission_types WHERE name = 'Conseil'), 'Former 50 nouveaux secouristes dans l''année', 'active', '/missions/premiers-secours.jpg', 48.8742, 2.3089, now(), now()),
+('mission-alpha-02', 'org-alpha-001', 'Formation premiers secours', 'Devenez formateur aux gestes qui sauvent ! Formation d''une journée pour apprendre à enseigner les premiers secours.', 'Paris 1er', '98 Rue de Rivoli, 75001 Paris', '75001', now() + interval '1 week', now() + interval '1 week' + interval '8 hours', 480, 8, 'Présentiel', 'intermédiaire', 'Mission avec suivi', (SELECT id FROM mission_types WHERE name = 'Conseil'), 'Former 50 nouveaux secouristes dans l''année', 'active', '/missions/premiers-secours.jpg', 48.8606, 2.3376, now(), now()),
 
--- Missions Restos du Cœur
-('mission03-3333-3333-3333-333333333333', 'org00002-2222-2222-2222-222222222222', 'Service repas du soir', 'Servir des repas chauds aux personnes sans-abri. Accueil, service et écoute bienveillante.', 'Lyon 1er', '25 Rue de la République, 69001 Lyon', '69001', now() + interval '2 days', now() + interval '2 days' + interval '3 hours', 180, 12, 'Présentiel', 'débutant', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Accompagnement'), 'Servir 80 repas par soirée', 'active', '/missions/service-repas.jpg', 45.7640, 4.8357, now(), now()),
+('mission-alpha-03', 'org-alpha-001', 'Accompagnement scolaire', 'Aidez des enfants en difficulté scolaire avec leurs devoirs et leçons. Patience et bienveillance essentielles.', 'Paris 1er', '12 Rue des Écoles, 75001 Paris', '75001', now() + interval '2 days', now() + interval '2 days' + interval '2 hours', 120, 6, 'Présentiel', 'débutant', 'Mission avec suivi', (SELECT id FROM mission_types WHERE name = 'Accompagnement'), 'Accompagner 20 enfants par semaine', 'active', '/missions/aide-devoirs.jpg', 48.8522, 2.3470, now(), now()),
 
-('mission04-4444-4444-4444-444444444444', 'org00002-2222-2222-2222-222222222222', 'Collecte alimentaire en supermarché', 'Sensibiliser les clients et collecter des denrées alimentaires dans un supermarché partenaire.', 'Lyon 3e', 'Centre Commercial Part-Dieu, 69003 Lyon', '69003', now() + interval '5 days', now() + interval '5 days' + interval '6 hours', 360, 6, 'Présentiel', 'débutant', 'Ultra-rapide', (SELECT id FROM mission_types WHERE name = 'Collecte'), 'Collecter 500kg de denrées', 'active', '/missions/collecte-supermarche.jpg', 45.7606, 4.8506, now(), now()),
-
--- Missions Emmaüs
-('mission05-5555-5555-5555-555555555555', 'org00003-3333-3333-3333-333333333333', 'Tri et valorisation d''objets', 'Participez au tri et à la remise en état d''objets donnés. Contribuez à l''économie circulaire !', 'Montreuil', '47 Avenue de la Résistance, 93104 Montreuil', '93104', now() + interval '4 days', now() + interval '4 days' + interval '4 hours', 240, 10, 'Présentiel', 'débutant', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Logistique'), 'Valoriser 200 objets par jour', 'active', '/missions/tri-objets.jpg', 48.8589, 2.4390, now(), now()),
-
--- Missions environnementales
-('mission06-6666-6666-6666-666666666666', 'org00006-6666-6666-6666-666666666666', 'Nettoyage de la Seine', 'Action écologique de nettoyage des berges de Seine. Matériel fourni, tenue adaptée recommandée.', 'Bois de Boulogne', 'Lac Inférieur, 75016 Paris', '75016', now() + interval '6 days', now() + interval '6 days' + interval '3 hours', 180, 25, 'Présentiel', 'débutant', 'Ultra-rapide', (SELECT id FROM mission_types WHERE name = 'Sensibilisation'), 'Nettoyer 2km de berges', 'active', '/missions/nettoyage-seine.jpg', 48.8590, 2.2869, now(), now()),
-
-('mission07-7777-7777-7777-777777777777', 'org00008-8888-8888-8888-888888888888', 'Sensibilisation recyclage', 'Campagne de sensibilisation au recyclage dans les écoles primaires. Animation ludique et pédagogique.', 'Paris 10e', 'École élémentaire, Rue de Marseille, 75010 Paris', '75010', now() + interval '1 week', now() + interval '1 week' + interval '2 hours', 120, 4, 'Présentiel', 'intermédiaire', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Animation'), 'Sensibiliser 150 enfants', 'active', '/missions/sensibilisation-ecole.jpg', 48.8713, 2.3503, now(), now()),
-
--- Missions de soutien scolaire
-('mission08-8888-8888-8888-888888888888', 'org00004-4444-4444-4444-444444444444', 'Aide aux devoirs primaire', 'Accompagnement scolaire d''enfants de CP à CM2. Patience et bienveillance essentielles.', 'Bordeaux Centre', '15 Rue Sainte-Catherine, 33000 Bordeaux', '33000', now() + interval '2 days', now() + interval '2 days' + interval '2 hours', 120, 8, 'Présentiel', 'débutant', 'Mission avec suivi', (SELECT id FROM mission_types WHERE name = 'Accompagnement'), 'Accompagner 20 enfants par semaine', 'active', '/missions/aide-devoirs.jpg', 44.8378, -0.5792, now(), now()),
-
--- Missions tech/innovation
-('mission09-9999-9999-9999-999999999999', 'org00005-5555-5555-5555-555555555555', 'Formation numérique seniors', 'Initiation à l''informatique pour les personnes âgées. Tablettes et smartphones au programme.', 'Paris 6e', '3 Rue Duguay-Trouin, 75006 Paris', '75006', now() + interval '8 days', now() + interval '8 days' + interval '3 hours', 180, 6, 'Présentiel', 'intermédiaire', 'Petit coup de main', (SELECT id FROM mission_types WHERE name = 'Conseil'), 'Former 30 seniors au numérique', 'active', '/missions/formation-seniors.jpg', 48.8489, 2.3292, now(), now()),
-
--- Mission à distance
-('mission10-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'org00007-7777-7777-7777-777777777777', 'Traduction documents médicaux', 'Traduction de documents de sensibilisation santé en plusieurs langues. Travail à distance.', 'Télétravail', 'Mission à distance', '', now() + interval '3 days', now() + interval '10 days', 600, 5, 'À distance', 'intermédiaire', 'Mission avec suivi', (SELECT id FROM mission_types WHERE name = 'Communication'), 'Traduire guides en 5 langues', 'active', '/missions/traduction.jpg', null, null, now(), now())
+('mission-alpha-04', 'org-alpha-001', 'Collecte vestimentaire', 'Participez à notre collecte de vêtements pour les personnes sans-abri. Tri et distribution prévus.', 'Paris 1er', '25 Rue Saint-Honoré, 75001 Paris', '75001', now() + interval '5 days', now() + interval '5 days' + interval '6 hours', 360, 10, 'Présentiel', 'débutant', 'Ultra-rapide', (SELECT id FROM mission_types WHERE name = 'Collecte'), 'Collecter et distribuer 500 vêtements', 'active', '/missions/collecte-vetements.jpg', 48.8628, 2.3292, now(), now())
 
 ON CONFLICT (id) DO UPDATE SET
     title = EXCLUDED.title,
     description = EXCLUDED.description,
     updated_at = now();
 
--- 6. Compétences requises pour les missions
+-- 7. Compétences requises pour les missions
 INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_required, created_at) VALUES 
 -- Distribution alimentaire - Communication recommandée
-(gen_random_uuid(), 'mission01-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Communication'), 'débutant', false, now()),
-(gen_random_uuid(), 'mission01-1111-1111-1111-111111111111', (SELECT id FROM skills WHERE name = 'Organisation'), 'débutant', false, now()),
+(gen_random_uuid(), 'mission-alpha-01', (SELECT id FROM skills WHERE name = 'Communication'), 'débutant', false, now()),
+(gen_random_uuid(), 'mission-alpha-01', (SELECT id FROM skills WHERE name = 'Organisation'), 'débutant', false, now()),
 
 -- Formation premiers secours - Compétences requises
-(gen_random_uuid(), 'mission02-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'avancé', true, now()),
-(gen_random_uuid(), 'mission02-2222-2222-2222-222222222222', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', true, now()),
+(gen_random_uuid(), 'mission-alpha-02', (SELECT id FROM skills WHERE name = 'Premiers secours'), 'avancé', true, now()),
+(gen_random_uuid(), 'mission-alpha-02', (SELECT id FROM skills WHERE name = 'Communication'), 'avancé', true, now()),
 
--- Service repas - Communication importante
-(gen_random_uuid(), 'mission03-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Communication'), 'débutant', false, now()),
-(gen_random_uuid(), 'mission03-3333-3333-3333-333333333333', (SELECT id FROM skills WHERE name = 'Cuisine'), 'débutant', false, now()),
-
--- Soutien scolaire - Animation requise
-(gen_random_uuid(), 'mission08-8888-8888-8888-888888888888', (SELECT id FROM skills WHERE name = 'Animation'), 'intermédiaire', true, now()),
-(gen_random_uuid(), 'mission08-8888-8888-8888-888888888888', (SELECT id FROM skills WHERE name = 'Communication'), 'intermédiaire', false, now()),
-
--- Formation numérique - Informatique requise
-(gen_random_uuid(), 'mission09-9999-9999-9999-999999999999', (SELECT id FROM skills WHERE name = 'Informatique'), 'avancé', true, now()),
-(gen_random_uuid(), 'mission09-9999-9999-9999-999999999999', (SELECT id FROM skills WHERE name = 'Communication'), 'intermédiaire', true, now()),
-
--- Traduction - Langues requises
-(gen_random_uuid(), 'mission10-aaaa-aaaa-aaaa-aaaaaaaaaaaa', (SELECT id FROM skills WHERE name = 'Langues étrangères'), 'expert', true, now())
+-- Accompagnement scolaire - Animation recommandée
+(gen_random_uuid(), 'mission-alpha-03', (SELECT id FROM skills WHERE name = 'Animation'), 'intermédiaire', false, now()),
+(gen_random_uuid(), 'mission-alpha-03', (SELECT id FROM skills WHERE name = 'Communication'), 'intermédiaire', true, now())
 
 ON CONFLICT (mission_id, skill_id) DO UPDATE SET
     required_level = EXCLUDED.required_level,
     is_required = EXCLUDED.is_required;
 
--- 7. Inscriptions aux missions (historique et actuelles)
+-- 8. Inscriptions de Ben aux missions
 INSERT INTO mission_registrations (
     id,
     user_id,
@@ -237,23 +183,21 @@ INSERT INTO mission_registrations (
     updated_at
 ) VALUES 
 
--- Inscriptions confirmées
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'mission01-1111-1111-1111-111111111111', 'confirmé', now() - interval '2 days', now() - interval '1 day', null, null, null, null, now() - interval '2 days', now() - interval '1 day'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'mission02-2222-2222-2222-222222222222', 'confirmé', now() - interval '3 days', now() - interval '2 days', null, null, null, null, now() - interval '3 days', now() - interval '2 days'),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'mission03-3333-3333-3333-333333333333', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'mission06-6666-6666-6666-666666666666', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day'),
-(gen_random_uuid(), '55555555-5555-5555-5555-555555555555', 'mission03-3333-3333-3333-333333333333', 'confirmé', now() - interval '2 days', now() - interval '1 day', null, null, null, null, now() - interval '2 days', now() - interval '1 day'),
+-- Ben inscrit à la distribution alimentaire (confirmé)
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'mission-alpha-01', 'confirmé', now() - interval '2 days', now() - interval '1 day', null, null, null, null, now() - interval '2 days', now() - interval '1 day'),
 
--- Missions terminées avec évaluations
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'mission04-4444-4444-4444-444444444444', 'terminé', now() - interval '1 month', now() - interval '3 weeks', 5, 4, 'Mission très enrichissante, organisation parfaite !', 'Bénévole très motivée et efficace.', now() - interval '1 month', now() - interval '3 weeks'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'mission05-5555-5555-5555-555555555555', 'terminé', now() - interval '2 weeks', now() - interval '10 days', 4, 5, 'Très bonne expérience, équipe accueillante.', 'Compétences techniques très appréciées.', now() - interval '2 weeks', now() - interval '10 days'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'mission07-7777-7777-7777-777777777777', 'terminé', now() - interval '3 weeks', now() - interval '2 weeks', 5, 5, 'Mission parfaitement organisée, impact visible.', 'Excellent bénévole, créatif et engagé.', now() - interval '3 weeks', now() - interval '2 weeks')
+-- Ben inscrit à l'accompagnement scolaire (en attente)
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'mission-alpha-03', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day'),
+
+-- Inscriptions d'autres bénévoles
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'mission-alpha-02', 'confirmé', now() - interval '3 days', now() - interval '2 days', null, null, null, null, now() - interval '3 days', now() - interval '2 days'),
+(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'mission-alpha-04', 'inscrit', now() - interval '1 day', null, null, null, null, null, now() - interval '1 day', now() - interval '1 day')
 
 ON CONFLICT (user_id, mission_id) DO UPDATE SET
     status = EXCLUDED.status,
     updated_at = now();
 
--- 8. Notifications de test
+-- 9. Notifications pour les utilisateurs réels
 INSERT INTO notifications (
     id,
     user_id,
@@ -263,15 +207,18 @@ INSERT INTO notifications (
     link_url,
     created_at
 ) VALUES 
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'Mission confirmée !', 'Votre participation à "Distribution alimentaire hebdomadaire" a été confirmée.', false, '/missions/mission01-1111-1111-1111-111111111111', now() - interval '1 day'),
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'Nouveau badge obtenu !', 'Félicitations ! Vous avez obtenu le badge "Spécialiste social".', false, '/profile', now() - interval '1 month'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Rappel de mission', 'Votre mission "Formation premiers secours" commence demain.', false, '/missions/mission02-2222-2222-2222-222222222222', now() - interval '2 hours'),
-(gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Nouvelle mission disponible', 'Une mission "Aide aux devoirs" correspond à vos compétences !', true, '/missions', now() - interval '2 days'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Évaluation en attente', 'N''oubliez pas d''évaluer votre dernière mission terminée.', false, '/profile/missions', now() - interval '3 days')
+-- Notifications pour Ben
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'Mission confirmée !', 'Votre participation à "Distribution alimentaire hebdomadaire" a été confirmée.', false, '/missions/mission-alpha-01', now() - interval '1 day'),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'Nouveau badge obtenu !', 'Félicitations ! Vous avez obtenu le badge "Bénévole actif".', false, '/profile', now() - interval '1 month'),
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'Nouvelle mission disponible', 'Une mission "Collecte vestimentaire" correspond à vos compétences !', true, '/missions', now() - interval '2 days'),
+
+-- Notifications pour Alpha Association
+(gen_random_uuid(), 'a444bae9-3193-465c-853b-9528abe1023e', 'Nouvelle inscription', 'Ben s''est inscrit à votre mission "Distribution alimentaire".', false, '/missions/mission-alpha-01', now() - interval '2 days'),
+(gen_random_uuid(), 'a444bae9-3193-465c-853b-9528abe1023e', 'Mission bientôt complète', 'Il ne reste que 3 places pour "Formation premiers secours".', false, '/missions/mission-alpha-02', now() - interval '1 day')
 
 ON CONFLICT (id) DO NOTHING;
 
--- 9. Témoignages publics
+-- 10. Témoignages avec les vrais utilisateurs
 INSERT INTO testimonials (
     id,
     user_id,
@@ -281,23 +228,15 @@ INSERT INTO testimonials (
     created_at,
     updated_at
 ) VALUES 
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'MicroBénévole m''a permis de trouver des missions parfaitement adaptées à mes compétences. L''équipe de la Croix-Rouge était formidable !', 'Éducatrice spécialisée', true, now() - interval '2 weeks', now() - interval '2 weeks'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Grâce à cette plateforme, j''ai pu mettre mes compétences techniques au service d''associations qui en avaient vraiment besoin.', 'Développeur web', true, now() - interval '1 month', now() - interval '1 month'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Une expérience enrichissante ! J''ai pu contribuer à la sensibilisation environnementale tout en développant de nouvelles compétences.', 'Photographe', true, now() - interval '3 weeks', now() - interval '3 weeks')
+(gen_random_uuid(), 'ea44982b-ba08-45cd-b051-255541c38bff', 'MicroBénévole m''a permis de trouver facilement des missions qui correspondent à mes compétences. L''équipe d''Alpha Association était formidable !', 'Développeur', true, now() - interval '2 weeks', now() - interval '2 weeks'),
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Une expérience enrichissante ! J''ai pu utiliser mes compétences médicales pour aider lors des formations premiers secours.', 'Étudiante en médecine', true, now() - interval '3 weeks', now() - interval '3 weeks')
 
 ON CONFLICT (id) DO NOTHING;
 
--- Mise à jour des statistiques (optionnel)
-ANALYZE profiles, organization_profiles, missions, mission_registrations, user_skills, user_badges;
-
 -- Message de confirmation
 SELECT 
-    'Script exécuté avec succès !' as message,
-    (SELECT COUNT(*) FROM profiles) as nb_profiles,
-    (SELECT COUNT(*) FROM organization_profiles) as nb_organizations,
-    (SELECT COUNT(*) FROM missions) as nb_missions,
-    (SELECT COUNT(*) FROM mission_registrations) as nb_registrations,
-    (SELECT COUNT(*) FROM user_skills) as nb_user_skills,
-    (SELECT COUNT(*) FROM user_badges) as nb_user_badges,
-    (SELECT COUNT(*) FROM notifications) as nb_notifications;
-
+    'Script exécuté avec succès avec les vrais utilisateurs !' as message,
+    (SELECT COUNT(*) FROM profiles WHERE id IN ('a444bae9-3193-465c-853b-9528abe1023e', 'ea44982b-ba08-45cd-b051-255541c38bff')) as nb_profiles_reels,
+    (SELECT COUNT(*) FROM organization_profiles WHERE user_id = 'a444bae9-3193-465c-853b-9528abe1023e') as nb_organizations,
+    (SELECT COUNT(*) FROM missions WHERE organization_id = 'org-alpha-001') as nb_missions_alpha,
+    (SELECT COUNT(*) FROM mission_registrations WHERE user_id = 'ea44982b-ba08-45cd-b051-255541c38bff') as nb_inscriptions_ben;
