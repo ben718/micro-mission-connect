@@ -116,8 +116,8 @@ const PublicOrganizationProfile = () => {
                 <p className="text-muted-foreground">{organization.description}</p>
               )}
 
-              {organization.sector && (
-                <Badge variant="secondary">{organization.sector.name}</Badge>
+              {organization.organization_sectors && (
+                <Badge variant="secondary">{organization.organization_sectors.name}</Badge>
               )}
             </div>
           </div>

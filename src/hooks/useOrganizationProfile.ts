@@ -13,7 +13,7 @@ export function useOrganizationProfile(userId?: string) {
         .from("organization_profiles")
         .select(`
           *,
-          sector:sector_id(*)
+          organization_sectors(*)
         `)
         .eq("user_id", userId)
         .maybeSingle();
