@@ -21,6 +21,8 @@ import EditMission from "./pages/missions/EditMission";
 import AssociationsActivity from "./pages/associations/AssociationsActivity";
 import AssociationsPage from "./pages/associations/AssociationsPage";
 import ProfileRouter from "./pages/profile/ProfileRouter";
+import ProfileVolunteer from "./pages/profile/ProfileVolunteer";
+import ProfileOrganization from "./pages/profile/ProfileOrganization";
 import PublicVolunteerProfile from "./pages/profile/PublicVolunteerProfile";
 import PublicOrganizationProfile from "./pages/profile/PublicOrganizationProfile";
 import Notifications from "./pages/Notifications";
@@ -46,7 +48,9 @@ const App = () => {
                   <Route path="/about" element={<About />} />
                   <Route path="/contact" element={<Contact />} />
                   <Route path="/login" element={<Login />} />
+                  <Route path="/auth/login" element={<Login />} />
                   <Route path="/register" element={<Register />} />
+                  <Route path="/auth/register" element={<Register />} />
                   <Route path="/confirmation" element={<Confirmation />} />
                   <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/missions" element={<Missions />} />
@@ -55,7 +59,9 @@ const App = () => {
                   <Route path="/missions/:id/edit" element={<EditMission />} />
                   <Route path="/associations" element={<AssociationsPage />} />
                   <Route path="/associations/activity" element={<AssociationsActivity />} />
-                  <Route path="/profile/*" element={<ProfileRouter />} />
+                  <Route path="/profile" element={<ProfileRouter />} />
+                  <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
+                  <Route path="/profile/organization" element={<ProfileOrganization />} />
                   <Route path="/volunteer/:userId" element={<PublicVolunteerProfile />} />
                   <Route path="/organization/:organizationId" element={<PublicOrganizationProfile />} />
                   <Route path="/notifications" element={<Notifications />} />
