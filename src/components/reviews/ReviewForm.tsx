@@ -104,7 +104,7 @@ export default function ReviewForm({ missionId, missionTitle, onSuccess }: Revie
             <Checkbox
               id="anonymous"
               checked={isAnonymous}
-              onCheckedChange={setIsAnonymous}
+              onCheckedChange={(checked) => setIsAnonymous(checked === true)}
             />
             <label htmlFor="anonymous" className="text-sm">
               Publier cet avis de manière anonyme

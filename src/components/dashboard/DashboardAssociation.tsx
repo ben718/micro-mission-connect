@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
@@ -41,9 +40,10 @@ const DashboardAssociation = () => {
       new Date(m.start_date) > now && m.status === 'active'
     );
     
-    const totalVolunteers = new Set(
-      missions.flatMap(m => m.mission_registrations?.map(r => r.user_id) || [])
-    ).size;
+    // Correction : utiliser les participants déjà comptés dans participants_count
+    const totalVolunteers = missions.reduce((sum, m) => 
+      sum + (m.participants_count || 0), 0
+    );
 
     const totalHours = missions.reduce((sum, m) => 
       sum + (m.duration_minutes || 0), 0

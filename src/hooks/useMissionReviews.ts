@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface MissionReview {
   id: string;
@@ -65,6 +66,7 @@ export const useMissionReviews = (missionId?: string) => {
 
 export const useCreateReview = () => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   return useMutation({
     mutationFn: async (reviewData: {
@@ -73,9 +75,16 @@ export const useCreateReview = () => {
       comment?: string;
       is_anonymous?: boolean;
     }) => {
+      if (!user) throw new Error('User not authenticated');
+      
+      const dataToInsert = {
+        ...reviewData,
+        user_id: user.id
+      };
+
       const { data, error } = await supabase
         .from('mission_reviews')
-        .insert([reviewData])
+        .insert([dataToInsert])
         .select()
         .single();
 
