@@ -47,6 +47,49 @@ export function validateOrganization(data: any) {
   return organizationSchema.safeParse(data);
 }
 
+// Individual validation functions for forms
+export function validateEmail(email: string): { isValid: boolean; message?: string } {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return {
+    isValid: emailRegex.test(email),
+    message: emailRegex.test(email) ? undefined : "Format d'email invalide"
+  };
+}
+
+export function validatePassword(password: string): { isValid: boolean; message?: string } {
+  if (password.length < 6) {
+    return {
+      isValid: false,
+      message: "Le mot de passe doit contenir au moins 6 caractères"
+    };
+  }
+  return { isValid: true };
+}
+
+export function validateWebsite(url: string): boolean {
+  if (!url) return true; // Optional field
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function validatePhone(phone: string): boolean {
+  if (!phone) return true; // Optional field
+  const phoneRegex = /^(\+33|0)[1-9](\d{8})$/;
+  return phoneRegex.test(phone.replace(/\s/g, ''));
+}
+
+export function validateRequired(value: string): boolean {
+  return value && value.trim().length > 0;
+}
+
+export function validateMinLength(value: string, minLength: number): boolean {
+  return value && value.length >= minLength;
+}
+
 // Type guards
 export function isValidEmail(email: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
 import { toast } from "sonner";
+import { handleError } from "@/utils/errorHandler";
 
 export function useMissionDetails(missionId: string) {
   const { user } = useAuth();
@@ -25,6 +26,10 @@ export function useMissionDetails(missionId: string) {
             mission_skills(
               *,
               skill:skill_id(*)
+            ),
+            mission_registrations(
+              *,
+              user:user_id(first_name, last_name)
             )
           `)
           .eq("id", missionId)
@@ -64,6 +69,7 @@ export function useMissionDetails(missionId: string) {
           registration_status: registrationStatus,
           organization: mission.organization,
           mission_type: mission.mission_type,
+          mission_registrations: mission.mission_registrations || [],
           geo_location: mission.geo_location && 
             typeof mission.geo_location === 'object' && 
             'type' in mission.geo_location && 
@@ -72,8 +78,7 @@ export function useMissionDetails(missionId: string) {
               : null
         };
       } catch (error) {
-        console.error("[useMissionDetails] Error fetching mission:", error);
-        toast.error("Erreur lors du chargement de la mission");
+        handleError(error, "Erreur lors du chargement de la mission");
         return null;
       }
     },
@@ -101,8 +106,7 @@ export function useMissionDetails(missionId: string) {
       toast.success("Inscription réussie !");
     },
     onError: (error: any) => {
-      console.error("[useMissionDetails] Participation error:", error);
-      toast.error(error.message || "Erreur lors de l'inscription");
+      handleError(error, "Erreur lors de l'inscription");
     }
   });
 
@@ -124,8 +128,27 @@ export function useMissionDetails(missionId: string) {
       toast.success("Statut mis à jour");
     },
     onError: (error: any) => {
-      console.error("[useMissionDetails] Update status error:", error);
-      toast.error(error.message || "Erreur lors de la mise à jour");
+      handleError(error, "Erreur lors de la mise à jour");
+    }
+  });
+
+  const validateParticipationMutation = useMutation({
+    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
+      if (!user) throw new Error("Vous devez être connecté");
+      
+      const { error } = await supabase
+        .from("mission_registrations")
+        .update({ status })
+        .eq("id", registrationId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mission", missionId] });
+      toast.success("Validation mise à jour");
+    },
+    onError: (error: any) => {
+      handleError(error, "Erreur lors de la validation");
     }
   });
 
@@ -134,6 +157,7 @@ export function useMissionDetails(missionId: string) {
     isLoading,
     participate: participateMutation.mutate,
     updateRegistrationStatus: updateRegistrationStatusMutation.mutate,
+    validateParticipation: validateParticipationMutation,
     isParticipating: participateMutation.isPending,
     isUpdatingStatus: updateRegistrationStatusMutation.isPending
   };
