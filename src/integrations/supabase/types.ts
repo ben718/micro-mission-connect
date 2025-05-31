@@ -675,6 +675,7 @@ export type Database = {
           email: string | null
           first_name: string | null
           id: string
+          is_organization: boolean | null
           last_login: string | null
           last_name: string | null
           latitude: number | null
@@ -693,6 +694,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id: string
+          is_organization?: boolean | null
           last_login?: string | null
           last_name?: string | null
           latitude?: number | null
@@ -711,6 +713,7 @@ export type Database = {
           email?: string | null
           first_name?: string | null
           id?: string
+          is_organization?: boolean | null
           last_login?: string | null
           last_name?: string | null
           latitude?: number | null
