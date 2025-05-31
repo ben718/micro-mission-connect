@@ -32,7 +32,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       console.log('AuthProvider - fetching profile for user:', user.id);
       
-      const { data, error } = await supabase
+      const { data: profileData, error } = await supabase
         .from("profiles")
         .select(`
           *,
@@ -44,10 +44,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           user_badges:user_badges(
             id,
             badge:badges(id, name, description, icon_url),
-            acquired_at
+            acquisition_date
           )
         `)
-        .eq("user_id" in data ? "user_id" : "id", user.id)
+        .eq("id", user.id)
         .single();
 
       if (error) {
@@ -55,8 +55,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
 
-      console.log('AuthProvider - profile fetched:', data);
-      return data as Profile;
+      console.log('AuthProvider - profile fetched:', profileData);
+      return profileData as Profile;
     },
     enabled: !!user?.id,
   });

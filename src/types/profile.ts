@@ -27,7 +27,7 @@ export type Profile = Database['public']['Tables']['profiles']['Row'] & {
       description: string;
       icon_url?: string;
     };
-    acquired_at: string;
+    acquisition_date: string;
   }>;
   is_organization?: boolean;
 };
@@ -58,7 +58,7 @@ export type CompleteProfile = Profile & {
       description: string;
       icon_url?: string;
     };
-    acquired_at: string;
+    acquisition_date: string;
   }>;
 };
 

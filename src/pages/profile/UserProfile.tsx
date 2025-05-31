@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Edit, LogOut, Users, Clock, Award, Mail, MapPin } from 'lucide-react';
 import { useMissions } from '@/hooks/useMissions';
 import type { Profile } from '@/types/profile';
-import { MissionWithAssociation, UserSkill, UserBadge } from '@/types/mission';
+import { MissionWithAssociation } from '@/types/mission';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -99,7 +99,7 @@ export default function UserProfile() {
           <p className="text-muted-foreground mb-2">{profile.bio || "Ajoutez une bio pour vous présenter."}</p>
           {skills && skills.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-2">
-              {skills.map((userSkill: UserSkill) => (
+              {skills.map((userSkill) => (
                 <Badge key={userSkill.id} variant="secondary">{userSkill.skill?.name}</Badge>
               ))}
             </div>
@@ -155,7 +155,7 @@ export default function UserProfile() {
             <p className="text-muted-foreground">Aucun badge obtenu pour l'instant.</p>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {badges.map((userBadge: UserBadge) => (
+              {badges.map((userBadge) => (
                 <Tooltip key={userBadge.id}>
                   <TooltipTrigger asChild>
                     <Badge variant="default" className="cursor-help">{userBadge.badge?.name}</Badge>
