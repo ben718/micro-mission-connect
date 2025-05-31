@@ -1,24 +1,22 @@
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
-import { toast } from "sonner";
 import { useErrorHandler } from "@/hooks/useErrorHandler";
 import { useMemo } from "react";
 
-export function useMissionDetails(missionId: string) {
+export function useOptimizedMissionDetails(missionId: string) {
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const { handleError } = useErrorHandler();
 
-  // Optimisation de la clé de cache
   const queryKey = useMemo(() => ["mission", missionId, user?.id], [missionId, user?.id]);
 
-  const { data: mission, isLoading, error } = useQuery({
+  const { data: mission, isLoading, error, refetch } = useQuery({
     queryKey,
     queryFn: async (): Promise<MissionWithDetails | null> => {
       try {
+        // Requête optimisée avec un seul appel pour toutes les données
         const { data: mission, error } = await supabase
           .from("missions")
           .select(`
@@ -43,12 +41,14 @@ export function useMissionDetails(missionId: string) {
         if (error) throw error;
         if (!mission) return null;
 
+        // Compter les participants en une seule requête
         const { count: participantsCount } = await supabase
           .from("mission_registrations")
           .select("*", { count: "exact" })
           .eq("mission_id", missionId)
           .eq("status", "inscrit");
 
+        // Vérifier l'inscription de l'utilisateur si connecté
         let isRegistered = false;
         let registrationStatus: ParticipationStatus | undefined;
         
@@ -88,88 +88,19 @@ export function useMissionDetails(missionId: string) {
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {
+      // Retry jusqu'à 3 fois, sauf pour les erreurs 404
       if (error && typeof error === 'object' && 'code' in error && error.code === 'PGRST116') {
-        return false;
+        return false; // Pas de retry pour "not found"
       }
       return failureCount < 3;
-    }
-  });
-
-  const participateMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("Vous devez être connecté pour participer");
-      if (!mission) throw new Error("Mission non trouvée");
-
-      const { error } = await supabase
-        .from("mission_registrations")
-        .insert({
-          user_id: user.id,
-          mission_id: mission.id,
-          status: "inscrit" as ParticipationStatus,
-          registration_date: new Date().toISOString()
-        });
-
-      if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-      toast.success("Inscription réussie !");
-    },
-    onError: (error: any) => {
-      handleError(error, "Erreur lors de l'inscription");
-    }
-  });
-
-  const updateRegistrationStatusMutation = useMutation({
-    mutationFn: async ({ status }: { status: ParticipationStatus }) => {
-      if (!user) throw new Error("Vous devez être connecté");
-      if (!mission) throw new Error("Mission non trouvée");
-
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status })
-        .eq("mission_id", mission.id)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-      toast.success("Statut mis à jour");
-    },
-    onError: (error: any) => {
-      handleError(error, "Erreur lors de la mise à jour");
-    }
-  });
-
-  const validateParticipationMutation = useMutation({
-    mutationFn: async ({ registrationId, status }: { registrationId: string; status: string }) => {
-      if (!user) throw new Error("Vous devez être connecté");
-      
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status })
-        .eq("id", registrationId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey });
-      toast.success("Validation mise à jour");
-    },
-    onError: (error: any) => {
-      handleError(error, "Erreur lors de la validation");
-    }
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000)
   });
 
   return {
     mission,
     isLoading,
     error,
-    participate: participateMutation.mutate,
-    updateRegistrationStatus: updateRegistrationStatusMutation.mutate,
-    validateParticipation: validateParticipationMutation,
-    isParticipating: participateMutation.isPending,
-    isUpdatingStatus: updateRegistrationStatusMutation.isPending
+    refetch
   };
 }

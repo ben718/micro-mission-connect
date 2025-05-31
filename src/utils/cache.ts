@@ -1,20 +1,37 @@
 
-class SimpleCache<T> {
-  private cache = new Map<string, { data: T; timestamp: number; ttl: number }>();
+// Système de cache intelligent avec expiration et stratégies d'invalidation
+interface CacheItem<T> {
+  data: T;
+  timestamp: number;
+  expiry: number;
+}
 
-  set(key: string, data: T, ttlMs: number = 5 * 60 * 1000): void {
+class IntelligentCache {
+  private cache = new Map<string, CacheItem<any>>();
+  private maxSize = 100;
+
+  set<T>(key: string, data: T, ttl: number = 5 * 60 * 1000): void {
+    // Nettoyer le cache si nécessaire
+    if (this.cache.size >= this.maxSize) {
+      this.cleanup();
+    }
+
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: ttlMs
+      expiry: Date.now() + ttl
     });
   }
 
-  get(key: string): T | null {
+  get<T>(key: string): T | null {
     const item = this.cache.get(key);
-    if (!item) return null;
+    
+    if (!item) {
+      return null;
+    }
 
-    if (Date.now() - item.timestamp > item.ttl) {
+    // Vérifier l'expiration
+    if (Date.now() > item.expiry) {
       this.cache.delete(key);
       return null;
     }
@@ -22,38 +39,74 @@ class SimpleCache<T> {
     return item.data;
   }
 
+  has(key: string): boolean {
+    const item = this.cache.get(key);
+    if (!item) return false;
+    
+    if (Date.now() > item.expiry) {
+      this.cache.delete(key);
+      return false;
+    }
+    
+    return true;
+  }
+
+  delete(key: string): void {
+    this.cache.delete(key);
+  }
+
   clear(): void {
     this.cache.clear();
   }
 
-  delete(key: string): boolean {
-    return this.cache.delete(key);
+  private cleanup(): void {
+    const now = Date.now();
+    const expiredKeys = [];
+    
+    for (const [key, item] of this.cache) {
+      if (now > item.expiry) {
+        expiredKeys.push(key);
+      }
+    }
+    
+    expiredKeys.forEach(key => this.cache.delete(key));
+    
+    // Si toujours trop d'éléments, supprimer les plus anciens
+    if (this.cache.size >= this.maxSize) {
+      const entries = Array.from(this.cache.entries())
+        .sort((a, b) => a[1].timestamp - b[1].timestamp);
+      
+      const toRemove = entries.slice(0, Math.floor(this.maxSize * 0.2));
+      toRemove.forEach(([key]) => this.cache.delete(key));
+    }
   }
 
-  size(): number {
-    return this.cache.size;
+  getStats() {
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      keys: Array.from(this.cache.keys())
+    };
   }
 }
 
-// Cache global pour les données
-export const dataCache = new SimpleCache<any>();
+// Instance globale du cache
+export const cache = new IntelligentCache();
 
-// Cache pour les images
-export const imageCache = new SimpleCache<string>();
-
-// Fonction utilitaire pour cache des requêtes
-export function withCache<T>(
+// Fonction helper pour utilisation avec des promesses
+export async function withCache<T>(
   key: string,
   fetcher: () => Promise<T>,
-  ttl: number = 5 * 60 * 1000
+  ttl?: number
 ): Promise<T> {
-  const cached = dataCache.get(key);
-  if (cached) {
-    return Promise.resolve(cached);
+  // Vérifier le cache d'abord
+  const cached = cache.get<T>(key);
+  if (cached !== null) {
+    return cached;
   }
 
-  return fetcher().then(data => {
-    dataCache.set(key, data, ttl);
-    return data;
-  });
+  // Récupérer les données et les mettre en cache
+  const data = await fetcher();
+  cache.set(key, data, ttl);
+  return data;
 }
