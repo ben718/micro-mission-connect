@@ -10,6 +10,7 @@ import Register from "@/pages/auth/Register";
 import Confirmation from "@/pages/auth/Confirmation";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import NotificationsPage from "./pages/Notifications";
 import { MissionsPage } from "@/pages/missions/MissionsPage";
 import MissionDetail from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
@@ -83,6 +84,11 @@ const App = () => {
               <Route path="/dashboard" element={
                 <PrivateRoute>
                   <Dashboard />
+                </PrivateRoute>
+              } />
+              <Route path="/notifications" element={
+                <PrivateRoute>
+                  <NotificationsPage />
                 </PrivateRoute>
               } />
               <Route path="/auth/login" element={<Login />} />
