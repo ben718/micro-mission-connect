@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { MissionCard } from '../MissionCard';
@@ -56,7 +57,6 @@ const mockMission: MissionWithDetails = {
     logo_url: null,
     website_url: null,
     address: null,
-    city: null,
     latitude: null,
     longitude: null,
     sector_id: null,
