@@ -12,12 +12,8 @@ interface MissionCardProps {
 }
 
 export function MissionCard({ mission }: MissionCardProps) {
-  // Préparer les valeurs à afficher
-  const organizationName = mission.organization ? 
-    mission.organization.organization_name || 'Organisation' : 
-    'Organisation';
-  
-  const categoryName = mission.category || 'Général';
+  // Utiliser les vraies données de la base
+  const organizationName = mission.organization?.organization_name || 'Organisation';
   
   const formattedDate = mission.start_date ? 
     new Date(mission.start_date).toLocaleDateString('fr-FR', {
@@ -26,21 +22,24 @@ export function MissionCard({ mission }: MissionCardProps) {
       month: 'long',
       day: 'numeric'
     }) : 
-    mission.date || 'Date non spécifiée';
+    'Date non spécifiée';
   
-  const formattedTimeSlot = mission.timeSlot || 
-    (mission.start_date ? new Date(mission.start_date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '');
+  const formattedTime = mission.start_date ? 
+    new Date(mission.start_date).toLocaleTimeString('fr-FR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    }) : '';
   
-  const formattedDuration = mission.duration || 
-    (mission.duration_minutes ? `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 || ''}` : '');
+  const formattedDuration = mission.duration_minutes ? 
+    `${Math.floor(mission.duration_minutes / 60)}h${mission.duration_minutes % 60 > 0 ? ` ${mission.duration_minutes % 60}min` : ''}` : 
+    '';
   
-  const formattedLocation = mission.location || 
-    (mission.address ? mission.address : '');
+  const formattedLocation = mission.location || mission.address || '';
   
-  const formattedParticipants = mission.participants || 
-    `${mission.participants || 0}/${mission.available_spots || 0}`;
+  const formattedParticipants = `${mission.participants_count || 0}/${mission.available_spots || 0}`;
   
   const skills = mission.required_skills || [];
+  const missionType = mission.mission_type?.name || 'Général';
 
   return (
     <Card className="h-full flex flex-col">
@@ -56,7 +55,7 @@ export function MissionCard({ mission }: MissionCardProps) {
               {organizationName}
             </p>
           </div>
-          <Badge variant="outline">{categoryName}</Badge>
+          <Badge variant="outline">{missionType}</Badge>
         </div>
       </CardHeader>
 
@@ -71,15 +70,19 @@ export function MissionCard({ mission }: MissionCardProps) {
             {formattedDate}
           </div>
 
-          <div className="flex items-center text-sm text-muted-foreground">
-            <Clock className="h-4 w-4 mr-2" />
-            {formattedTimeSlot} - {formattedDuration}
-          </div>
+          {(formattedTime || formattedDuration) && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 mr-2" />
+              {formattedTime} {formattedTime && formattedDuration && '-'} {formattedDuration}
+            </div>
+          )}
 
-          <div className="flex items-center text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4 mr-2" />
-            {formattedLocation}
-          </div>
+          {formattedLocation && (
+            <div className="flex items-center text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4 mr-2" />
+              {formattedLocation}
+            </div>
+          )}
 
           <div className="flex items-center text-sm text-muted-foreground">
             <Users className="h-4 w-4 mr-2" />
@@ -90,8 +93,8 @@ export function MissionCard({ mission }: MissionCardProps) {
             <div className="flex items-start text-sm text-muted-foreground">
               <Tag className="h-4 w-4 mr-2 mt-1" />
               <div className="flex flex-wrap gap-1">
-                {skills.map((skill) => (
-                  <Badge key={skill} variant="secondary" className="text-xs">
+                {skills.map((skill, index) => (
+                  <Badge key={index} variant="secondary" className="text-xs">
                     {skill}
                   </Badge>
                 ))}

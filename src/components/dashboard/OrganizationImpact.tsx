@@ -2,53 +2,86 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Edit, CalendarDays, Users, Star, TrendingUp } from 'lucide-react';
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
 import { useOrganizationMissions } from "@/hooks/useMissions";
-import { CalendarDays, Users, Star, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const OrganizationImpact = () => {
-  const { profile, user } = useAuth();
-  const { data: organizationProfile } = useOrganizationProfile(user?.id);
-  const { data: missions } = useOrganizationMissions(organizationProfile?.id);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { data: organizationProfile, isLoading: isLoadingOrg } = useOrganizationProfile(user?.id);
+  const { data: missions, isLoading: isLoadingMissions } = useOrganizationMissions(organizationProfile?.id);
 
-  // Calculer les statistiques
+  if (isLoadingOrg || isLoadingMissions) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="animate-pulse h-16 bg-gray-200 rounded"></div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!organizationProfile) {
+    return (
+      <div className="p-4 text-center text-muted-foreground">
+        <p className="mb-4">Profil organisation non trouvé</p>
+        <Button onClick={() => navigate('/profile/association/edit')}>
+          Créer le profil de l'organisation
+        </Button>
+      </div>
+    );
+  }
+
+  // Calculer les statistiques à partir des vraies données
   const stats = {
     totalMissions: missions?.length || 0,
     activeMissions: missions?.filter(m => m.status === 'active').length || 0,
-    completedMissions: missions?.filter(m => m.status === 'completed').length || 0,
+    completedMissions: missions?.filter(m => m.status === 'terminée').length || 0,
     totalVolunteers: missions?.reduce((acc, mission) => acc + (mission.participants_count || 0), 0) || 0,
   };
 
-  // Missions récentes avec participants
+  // Missions récentes avec participants réels
   const recentMissions = missions?.slice(0, 5).map(mission => ({
     mission_id: mission.id,
     title: mission.title,
     status: mission.status,
     participants_count: mission.participants_count || 0,
-    volunteer_rating: 0, // Mock data
-    volunteer_feedback: "Excellent travail !",
+    volunteer_rating: 0, // TODO: Implémenter les évaluations
+    volunteer_feedback: "En attente d'évaluations",
     created_at: mission.created_at,
   })) || [];
 
   const getStatusBadge = (status: string) => {
     const variants = {
       'active': 'default',
-      'completed': 'secondary',
-      'cancelled': 'destructive',
+      'terminée': 'secondary',
+      'annulée': 'destructive',
       'draft': 'outline'
     } as const;
     
-    return <Badge variant={variants[status as keyof typeof variants] || 'outline'}>{status}</Badge>;
-  };
-
-  if (!profile?.is_organization || !organizationProfile) {
+    const statusLabels = {
+      'active': 'Active',
+      'terminée': 'Terminée',
+      'annulée': 'Annulée',
+      'draft': 'Brouillon'
+    } as const;
+    
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        Profil organisation non trouvé
-      </div>
+      <Badge variant={variants[status as keyof typeof variants] || 'outline'}>
+        {statusLabels[status as keyof typeof statusLabels] || status}
+      </Badge>
     );
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -96,7 +129,17 @@ const OrganizationImpact = () => {
 
       <Card>
         <CardHeader>
-          <CardTitle>Missions récentes</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Missions récentes</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => navigate('/missions/management')}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Gérer les missions
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -124,7 +167,12 @@ const OrganizationImpact = () => {
                 </div>
               ))
             ) : (
-              <p className="text-muted-foreground text-center py-4">Aucune mission trouvée</p>
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">Aucune mission trouvée</p>
+                <Button onClick={() => navigate('/missions/new')}>
+                  Créer votre première mission
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
