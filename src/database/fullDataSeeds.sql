@@ -5,6 +5,8 @@
 -- Réinitialisation des tables (optionnel - à décommenter si besoin)
 -- TRUNCATE TABLE mission_registrations, missions, organization_profiles, user_badges, user_skills, profiles CASCADE;
 
+-- ... keep existing code (profiles insertion) the same ...
+
 -- 1. Insertion des utilisateurs de test dans la table profiles
 INSERT INTO profiles (
     id, 
@@ -38,6 +40,8 @@ ON CONFLICT (id) DO UPDATE SET
     last_name = EXCLUDED.last_name,
     email = EXCLUDED.email,
     updated_at = now();
+
+-- ... keep existing code (organization profiles insertion) the same ...
 
 -- 2. Insertion des profils d'organisations
 INSERT INTO organization_profiles (
@@ -77,6 +81,8 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
+-- ... keep existing code (user skills insertion) the same ...
+
 -- 3. Attribution des compétences aux utilisateurs
 INSERT INTO user_skills (id, user_id, skill_id, level, created_at, updated_at) VALUES 
 -- Marie Dubois (Éducation/Social)
@@ -108,6 +114,8 @@ ON CONFLICT (user_id, skill_id) DO UPDATE SET
     level = EXCLUDED.level,
     updated_at = now();
 
+-- ... keep existing code (user badges insertion) the same ...
+
 -- 4. Attribution des premiers badges
 INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VALUES 
 (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '6 months', now()),
@@ -127,6 +135,8 @@ INSERT INTO user_badges (id, user_id, badge_id, acquisition_date, created_at) VA
 (gen_random_uuid(), '55555555-5555-5555-5555-555555555555', (SELECT id FROM badges WHERE name = 'Première mission'), now() - interval '3 months', now())
 
 ON CONFLICT (user_id, badge_id) DO NOTHING;
+
+-- ... keep existing code (missions insertion) the same ...
 
 -- 5. Création de missions variées
 INSERT INTO missions (
@@ -186,6 +196,8 @@ ON CONFLICT (id) DO UPDATE SET
     description = EXCLUDED.description,
     updated_at = now();
 
+-- ... keep existing code (mission skills insertion) the same ...
+
 -- 6. Compétences requises pour les missions
 INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_required, created_at) VALUES 
 -- Distribution alimentaire - Communication recommandée
@@ -214,6 +226,8 @@ INSERT INTO mission_skills (id, mission_id, skill_id, required_level, is_require
 ON CONFLICT (mission_id, skill_id) DO UPDATE SET
     required_level = EXCLUDED.required_level,
     is_required = EXCLUDED.is_required;
+
+-- ... keep existing code (mission registrations insertion) the same ...
 
 -- 7. Inscriptions aux missions (historique et actuelles)
 INSERT INTO mission_registrations (
@@ -261,9 +275,11 @@ INSERT INTO notifications (
 (gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'Nouveau badge obtenu !', 'Félicitations ! Vous avez obtenu le badge "Spécialiste social".', false, '/profile', now() - interval '1 month'),
 (gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Rappel de mission', 'Votre mission "Formation premiers secours" commence demain.', false, '/missions/mission02-2222-2222-2222-222222222222', now() - interval '2 hours'),
 (gen_random_uuid(), '33333333-3333-3333-3333-333333333333', 'Nouvelle mission disponible', 'Une mission "Aide aux devoirs" correspond à vos compétences !', true, '/missions', now() - interval '2 days'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Évaluation en attente', 'N\'oubliez pas d\'évaluer votre dernière mission terminée.', false, '/profile/missions', now() - interval '3 days')
+(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Évaluation en attente', 'N''oubliez pas d''évaluer votre dernière mission terminée.', false, '/profile/missions', now() - interval '3 days')
 
 ON CONFLICT (id) DO NOTHING;
+
+-- ... keep existing code (testimonials insertion) the same ...
 
 -- 9. Témoignages publics
 INSERT INTO testimonials (
@@ -275,9 +291,9 @@ INSERT INTO testimonials (
     created_at,
     updated_at
 ) VALUES 
-(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'MicroBénévole m\'a permis de trouver des missions parfaitement adaptées à mes compétences. L\'équipe de la Croix-Rouge était formidable !', 'Éducatrice spécialisée', true, now() - interval '2 weeks', now() - interval '2 weeks'),
-(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Grâce à cette plateforme, j\'ai pu mettre mes compétences techniques au service d\'associations qui en avaient vraiment besoin.', 'Développeur web', true, now() - interval '1 month', now() - interval '1 month'),
-(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Une expérience enrichissante ! J\'ai pu contribuer à la sensibilisation environnementale tout en développant de nouvelles compétences.', 'Photographe', true, now() - interval '3 weeks', now() - interval '3 weeks')
+(gen_random_uuid(), '11111111-1111-1111-1111-111111111111', 'MicroBénévole m''a permis de trouver des missions parfaitement adaptées à mes compétences. L''équipe de la Croix-Rouge était formidable !', 'Éducatrice spécialisée', true, now() - interval '2 weeks', now() - interval '2 weeks'),
+(gen_random_uuid(), '22222222-2222-2222-2222-222222222222', 'Grâce à cette plateforme, j''ai pu mettre mes compétences techniques au service d''associations qui en avaient vraiment besoin.', 'Développeur web', true, now() - interval '1 month', now() - interval '1 month'),
+(gen_random_uuid(), '44444444-4444-4444-4444-444444444444', 'Une expérience enrichissante ! J''ai pu contribuer à la sensibilisation environnementale tout en développant de nouvelles compétences.', 'Photographe', true, now() - interval '3 weeks', now() - interval '3 weeks')
 
 ON CONFLICT (id) DO NOTHING;
 
