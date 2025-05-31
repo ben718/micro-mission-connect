@@ -1,131 +1,56 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { MissionWithDetails, ParticipationStatus } from "@/types/mission";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate, formatDuration } from "@/utils/date";
 import { MapPin, Calendar, Clock, Users } from "lucide-react";
-import { toast } from "sonner";
 
 export default function MissionDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
+  
+  const {
+    mission,
+    isLoading,
+    participate,
+    updateRegistrationStatus,
+    isParticipating,
+    isUpdatingStatus
+  } = useMissionDetails(id!);
 
-  const { data: mission, isLoading } = useQuery({
-    queryKey: ["mission", id],
-    queryFn: async () => {
-      const { data: mission } = await supabase
-        .from("missions")
-        .select(`
-          *,
-          organization:organization_id(
-            *,
-            sector:sector_id(*)
-          ),
-          mission_type:mission_type_id(*),
-          mission_skills(
-            *,
-            skill:skill_id(*)
-          )
-        `)
-        .eq("id", id)
-        .single();
+  const handleParticipation = async () => {
+    if (!user) return;
 
-      const { count: participantsCount } = await supabase
-        .from("mission_registrations")
-        .select("*", { count: "exact" })
-        .eq("mission_id", id)
-        .eq("status", "inscrit");
-
-      // Vérifier si l'utilisateur est inscrit
-      let isRegistered = false;
-      let registrationStatus: ParticipationStatus | undefined;
-      if (user) {
-        const { data: registration } = await supabase
-          .from("mission_registrations")
-          .select("status")
-          .eq("mission_id", id)
-          .eq("user_id", user.id)
-          .single();
-        
-        if (registration) {
-          isRegistered = true;
-          registrationStatus = registration.status as ParticipationStatus;
-        }
-      }
-
-      const transformedMission: MissionWithDetails = {
-        ...mission,
-        required_skills: mission.mission_skills?.map(ms => ms.skill.name) || [],
-        participants_count: participantsCount || 0,
-        is_registered: isRegistered,
-        registration_status: registrationStatus,
-        organization: mission.organization,
-        mission_type: mission.mission_type,
-        // Handle geo_location safely
-        geo_location: mission.geo_location && typeof mission.geo_location === 'object' && 'type' in mission.geo_location && 'coordinates' in mission.geo_location
-          ? mission.geo_location as { type: "Point"; coordinates: [number, number] }
-          : null
-      };
-
-      return transformedMission;
+    if (mission?.is_registered) {
+      updateRegistrationStatus({ status: "annulé" });
+    } else {
+      participate();
     }
-  });
+  };
 
-  const participateMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("Vous devez être connecté pour participer");
-      if (!mission) throw new Error("Mission non trouvée");
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+  
+  if (!mission) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Mission non trouvée</h2>
+        <p className="text-gray-600">Cette mission n'existe pas ou a été supprimée.</p>
+      </div>
+    );
+  }
 
-      const { error } = await supabase
-        .from("mission_registrations")
-        .insert({
-          user_id: user.id,
-          mission_id: mission.id,
-          status: "inscrit" as ParticipationStatus,
-          registration_date: new Date().toISOString()
-        });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mission", id] });
-      toast.success("Inscription réussie !");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    }
-  });
-
-  const cancelParticipationMutation = useMutation({
-    mutationFn: async () => {
-      if (!user) throw new Error("Vous devez être connecté");
-      if (!mission) throw new Error("Mission non trouvée");
-
-      const { error } = await supabase
-        .from("mission_registrations")
-        .update({ status: "annulé" as ParticipationStatus })
-        .eq("mission_id", mission.id)
-        .eq("user_id", user.id);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mission", id] });
-      toast.success("Inscription annulée");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    }
-  });
-
-  if (isLoading) return <div>Chargement...</div>;
-  if (!mission) return <div>Mission non trouvée</div>;
+  const canParticipate = user && !mission.is_registered && mission.participants_count < mission.available_spots;
+  const canCancel = user && mission.is_registered && mission.registration_status !== "terminé";
 
   return (
     <div className="container mx-auto py-8">
@@ -141,6 +66,11 @@ export default function MissionDetail() {
             <Badge variant="outline">
               {mission.engagement_level}
             </Badge>
+            {mission.is_registered && (
+              <Badge variant="outline">
+                {mission.registration_status}
+              </Badge>
+            )}
           </div>
           <CardTitle>{mission.title}</CardTitle>
           <CardDescription>{mission.description}</CardDescription>
@@ -182,21 +112,45 @@ export default function MissionDetail() {
             <Button onClick={() => navigate("/login")}>
               Connectez-vous pour participer
             </Button>
-          ) : mission.is_registered ? (
-            <Button 
-              variant="destructive"
-              onClick={() => cancelParticipationMutation.mutate()}
-              disabled={cancelParticipationMutation.isPending}
-            >
-              Annuler ma participation
-            </Button>
           ) : (
-            <Button 
-              onClick={() => participateMutation.mutate()}
-              disabled={participateMutation.isPending || mission.participants_count >= mission.available_spots}
-            >
-              Participer
-            </Button>
+            <div className="w-full space-y-2">
+              {canParticipate && (
+                <Button 
+                  className="w-full"
+                  onClick={handleParticipation}
+                  disabled={isParticipating}
+                >
+                  {isParticipating ? "Inscription en cours..." : "Participer à cette mission"}
+                </Button>
+              )}
+              
+              {canCancel && (
+                <Button 
+                  variant="destructive"
+                  className="w-full"
+                  onClick={handleParticipation}
+                  disabled={isUpdatingStatus}
+                >
+                  {isUpdatingStatus ? "Annulation en cours..." : "Annuler ma participation"}
+                </Button>
+              )}
+              
+              {mission.is_registered && mission.registration_status === "terminé" && (
+                <div className="text-center p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-green-600">
+                    Mission terminée - Merci pour votre participation !
+                  </p>
+                </div>
+              )}
+              
+              {!canParticipate && !mission.is_registered && mission.participants_count >= mission.available_spots && (
+                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-yellow-600">
+                    Mission complète - Plus de places disponibles
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </CardFooter>
       </Card>
