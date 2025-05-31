@@ -5,7 +5,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, BellOff, Trash2, MarkAsRead } from 'lucide-react';
+import { Bell, BellOff, Trash2, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
@@ -51,7 +51,7 @@ const NotificationsPage = () => {
               size="sm"
               onClick={() => user && markAllAsRead(user.id)}
             >
-              <MarkAsRead className="w-4 h-4 mr-2" />
+              <CheckCircle className="w-4 h-4 mr-2" />
               Tout marquer comme lu
             </Button>
           )}
@@ -131,7 +131,7 @@ const NotificationsPage = () => {
                         size="sm"
                         onClick={() => markAsRead(notification.id)}
                       >
-                        <MarkAsRead className="w-4 h-4" />
+                        <CheckCircle className="w-4 h-4" />
                       </Button>
                     )}
                     
