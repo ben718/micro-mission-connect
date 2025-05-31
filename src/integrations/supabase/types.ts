@@ -307,6 +307,61 @@ export type Database = {
           },
         ]
       }
+      mission_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          is_anonymous: boolean | null
+          mission_id: string
+          rating: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean | null
+          mission_id: string
+          rating?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          is_anonymous?: boolean | null
+          mission_id?: string
+          rating?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mission_reviews_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "available_missions_details"
+            referencedColumns: ["mission_id"]
+          },
+          {
+            foreignKeyName: "mission_reviews_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mission_skills: {
         Row: {
           created_at: string | null
@@ -725,6 +780,48 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      review_responses: {
+        Row: {
+          created_at: string
+          id: string
+          organization_id: string
+          response_text: string
+          review_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          organization_id: string
+          response_text: string
+          review_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          organization_id?: string
+          response_text?: string
+          review_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_responses_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organization_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_responses_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "mission_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saved_missions: {
         Row: {
