@@ -19,10 +19,9 @@ const submitContactMessage = async (data: ContactFormData) => {
       email: data.email,
       subject: data.subject,
       message: data.message,
-      organization: data.organization,
-      phone: data.phone,
-      status: 'nouveau',
-      created_at: new Date().toISOString()
+      organization: data.organization || null,
+      phone: data.phone || null,
+      status: 'nouveau'
     });
 
   if (error) {

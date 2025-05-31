@@ -41,7 +41,17 @@ const Contact = () => {
 
   const onSubmit = async (data: ContactFormData) => {
     try {
-      await submitContactForm.mutateAsync(data);
+      // S'assurer que tous les champs requis sont présents
+      const validData = {
+        name: data.name,
+        email: data.email,
+        subject: data.subject,
+        message: data.message,
+        organization: data.organization,
+        phone: data.phone
+      };
+      
+      await submitContactForm.mutateAsync(validData);
       toast({
         title: "Message envoyé",
         description: "Votre message a été envoyé avec succès. Nous vous répondrons dans les plus brefs délais."
