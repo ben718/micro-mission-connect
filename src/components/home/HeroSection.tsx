@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,8 +24,8 @@ const HeroSection = () => {
               <span className="text-bleu"> même 15 minutes</span> comptent
             </h1>
             <p className="text-lg md:text-xl text-gray-600 mb-8 leading-relaxed">
-              Trouvez des missions de bénévolat qui s'adaptent à votre emploi du temps. 
-              Aidez les associations locales et développez vos compétences.
+              Trouvez des missions de bénévolat adaptées à votre emploi du temps.
+              Aidez des associations locales, faites la différence autour de vous, et développez vos compétences en donnant un peu de votre temps – même très peu.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Button asChild size="lg" className="bg-bleu hover:bg-bleu-700">
