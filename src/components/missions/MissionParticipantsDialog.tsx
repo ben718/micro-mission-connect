@@ -7,20 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { useMissionDetails } from "@/hooks/useMissionDetails";
+import { Check, X, Clock, User, MessageSquare } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-
-interface Participant {
-  id: string;
-  first_name: string;
-  last_name: string;
-  profile_picture_url: string | null;
-  status: "inscrit" | "confirmé" | "annulé" | "terminé";
-  created_at: string;
-}
+import { supabase } from "@/integrations/supabase/client";
 
 interface MissionParticipantsDialogProps {
   isOpen: boolean;
@@ -33,126 +29,203 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
   onClose,
   missionId,
 }) => {
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [participants, setParticipants] = React.useState<Participant[]>([]);
+  const { mission, validateParticipation, isLoading } = useMissionDetails(missionId);
+  const [reviewTexts, setReviewTexts] = useState<{[key: string]: string}>({});
+  const [isSubmittingReview, setIsSubmittingReview] = useState<{[key: string]: boolean}>({});
 
-  React.useEffect(() => {
-    if (isOpen && missionId) {
-      fetchParticipants();
-    }
-  }, [isOpen, missionId]);
+  if (isLoading || !mission) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Participants de la mission</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="text-muted-foreground mt-2">Chargement...</p>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
-  const fetchParticipants = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("mission_registrations")
-        .select(`
-          id,
-          status,
-          created_at,
-          user_id
-        `)
-        .eq("mission_id", missionId);
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        // Get user profiles separately
-        const userIds = data.map(reg => reg.user_id);
-        const { data: profiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, first_name, last_name, profile_picture_url")
-          .in("id", userIds);
-
-        if (profilesError) throw profilesError;
-
-        const formattedParticipants = data.map((registration) => {
-          const profile = profiles?.find(p => p.id === registration.user_id);
-          return {
-            id: registration.user_id,
-            first_name: profile?.first_name || "Utilisateur",
-            last_name: profile?.last_name || "",
-            profile_picture_url: profile?.profile_picture_url,
-            status: registration.status as "inscrit" | "confirmé" | "annulé" | "terminé",
-            created_at: registration.created_at,
-          };
-        });
-
-        setParticipants(formattedParticipants);
-      } else {
-        setParticipants([]);
-      }
-    } catch (error) {
-      console.error("Erreur lors de la récupération des participants:", error);
-      toast.error("Erreur lors de la récupération des participants");
-      setParticipants([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const registrations = mission.mission_registrations || [];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case "inscrit":
-        return <Badge variant="outline">En attente</Badge>;
-      case "confirmé":
-        return <Badge variant="default">Confirmé</Badge>;
-      case "terminé":
-        return <Badge variant="secondary">Terminé</Badge>;
-      case "annulé":
-        return <Badge variant="destructive">Annulé</Badge>;
+      case 'inscrit':
+        return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
+      case 'confirmé':
+        return <Badge variant="default"><Check className="w-3 h-3 mr-1" />Confirmé</Badge>;
+      case 'terminé':
+        return <Badge variant="secondary" className="bg-green-100 text-green-800"><Check className="w-3 h-3 mr-1" />Terminé</Badge>;
+      case 'annulé':
+        return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />Annulé</Badge>;
+      case 'no_show':
+        return <Badge variant="destructive"><X className="w-3 h-3 mr-1" />Absent</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
+  const handleValidation = (registrationId: string, status: string, userId: string) => {
+    if (validateParticipation) {
+      validateParticipation.mutate({ registrationId, status, userId });
+    }
+  };
+
+  const handleSubmitReview = async (userId: string, registrationId: string) => {
+    const reviewText = reviewTexts[registrationId];
+    if (!reviewText?.trim()) {
+      toast.error("Veuillez saisir un commentaire");
+      return;
+    }
+
+    setIsSubmittingReview(prev => ({ ...prev, [registrationId]: true }));
+
+    try {
+      const { error } = await supabase
+        .from('volunteer_reviews')
+        .insert({
+          volunteer_id: userId,
+          mission_id: missionId,
+          organization_id: mission.organization_id,
+          rating: 5, // Rating par défaut, pourrait être ajusté
+          comment: reviewText.trim(),
+          is_public: true
+        });
+
+      if (error) throw error;
+
+      toast.success("Commentaire ajouté avec succès");
+      setReviewTexts(prev => ({ ...prev, [registrationId]: '' }));
+    } catch (error) {
+      console.error("Erreur lors de l'ajout du commentaire:", error);
+      toast.error("Erreur lors de l'ajout du commentaire");
+    } finally {
+      setIsSubmittingReview(prev => ({ ...prev, [registrationId]: false }));
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Participants de la mission</DialogTitle>
           <DialogDescription>
-            Liste des bénévoles inscrits à cette mission
+            Gérez les participants et leur statut pour cette mission
           </DialogDescription>
         </DialogHeader>
-        <ScrollArea className="h-[400px] pr-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <p>Chargement des participants...</p>
-            </div>
-          ) : participants.length === 0 ? (
-            <div className="flex items-center justify-center h-full">
-              <p>Aucun participant pour le moment</p>
+        
+        <div className="space-y-4">
+          {registrations.length === 0 ? (
+            <div className="text-center py-8">
+              <User className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <p className="text-muted-foreground">
+                Aucun participant inscrit pour cette mission.
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {participants.map((participant) => (
-                <div
-                  key={participant.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center space-x-4">
-                    <Avatar>
-                      <AvatarImage src={participant.profile_picture_url || undefined} />
-                      <AvatarFallback>
-                        {participant.first_name[0]}{participant.last_name[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{participant.first_name} {participant.last_name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Inscrit le {new Date(participant.created_at).toLocaleDateString()}
-                      </p>
+              {registrations.map((registration: any) => (
+                <Card key={registration.id}>
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <User className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Link 
+                              to={`/profile/volunteer/${registration.user_id}`}
+                              className="font-medium hover:underline text-blue-600"
+                            >
+                              {registration.user?.first_name || 'Utilisateur'} {registration.user?.last_name || ''}
+                            </Link>
+                            {getStatusBadge(registration.status)}
+                          </div>
+                          <p className="text-sm text-gray-600">{registration.user?.email}</p>
+                          <p className="text-xs text-gray-500">
+                            Inscrit le {new Date(registration.created_at).toLocaleDateString('fr-FR')}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    {getStatusBadge(participant.status)}
-                  </div>
-                </div>
+
+                    {/* Actions de validation */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleValidation(registration.id, 'confirmé', registration.user_id)}
+                        disabled={registration.status === 'confirmé'}
+                      >
+                        <Check className="w-4 h-4 mr-1" />
+                        Confirmer
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleValidation(registration.id, 'terminé', registration.user_id)}
+                        disabled={registration.status === 'terminé'}
+                        className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                      >
+                        Marquer terminé
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleValidation(registration.id, 'no_show', registration.user_id)}
+                        disabled={registration.status === 'no_show'}
+                        className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                      >
+                        Marquer absent
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleValidation(registration.id, 'annulé', registration.user_id)}
+                        disabled={registration.status === 'annulé'}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Annuler
+                      </Button>
+                    </div>
+
+                    {/* Zone de commentaire pour les missions terminées */}
+                    {registration.status === 'terminé' && (
+                      <div className="border-t pt-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <MessageSquare className="w-4 h-4 text-gray-500" />
+                          <span className="text-sm font-medium">Laisser un commentaire public</span>
+                        </div>
+                        <div className="space-y-2">
+                          <Textarea
+                            placeholder="Décrivez l'expérience avec ce bénévole..."
+                            value={reviewTexts[registration.id] || ''}
+                            onChange={(e) => setReviewTexts(prev => ({ 
+                              ...prev, 
+                              [registration.id]: e.target.value 
+                            }))}
+                            rows={3}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => handleSubmitReview(registration.user_id, registration.id)}
+                            disabled={isSubmittingReview[registration.id] || !reviewTexts[registration.id]?.trim()}
+                          >
+                            {isSubmittingReview[registration.id] ? 'Envoi...' : 'Publier le commentaire'}
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );

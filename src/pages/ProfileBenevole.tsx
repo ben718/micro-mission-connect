@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { ProfileFormSkeleton, ProfileCardSkeleton, ProfileMissionSkeleton } from '@/components/ui/profile-skeleton';
@@ -24,7 +25,8 @@ const ProfileBenevole = () => {
     last_name: '',
     address: '',
     city: '',
-    postal_code: ''
+    postal_code: '',
+    bio: ''
   });
 
   useEffect(() => {
@@ -55,7 +57,8 @@ const ProfileBenevole = () => {
           last_name: data.last_name || '',
           address: data.address || '',
           city: data.city || '',
-          postal_code: data.postal_code || ''
+          postal_code: data.postal_code || '',
+          bio: data.bio || ''
         });
       }
     } catch (error) {
@@ -219,6 +222,17 @@ const ProfileBenevole = () => {
           </div>
 
           <div>
+            <label className="block text-sm font-medium mb-2">Bio</label>
+            <Textarea
+              value={formData.bio}
+              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+              disabled={!isEditing}
+              placeholder="Parlez-nous de vous..."
+              rows={3}
+            />
+          </div>
+
+          <div>
             <label className="block text-sm font-medium mb-2">Adresse</label>
             <Input
               value={formData.address}
@@ -314,6 +328,9 @@ const ProfileBenevole = () => {
                       <div className="flex gap-2 mt-2">
                         <Badge variant="outline">{registration.status}</Badge>
                         <Badge variant="secondary">{registration.missions?.status}</Badge>
+                        <Badge variant="outline">
+                          {new Date(registration.missions?.start_date).toLocaleDateString('fr-FR')}
+                        </Badge>
                       </div>
                     </div>
                   </div>

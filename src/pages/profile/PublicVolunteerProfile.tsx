@@ -1,290 +1,278 @@
 
-import React from "react";
-import { useParams, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CalendarDays, MapPin, User, Award, Star, Heart, Clock, ArrowLeft } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { User, MapPin, Star, Clock, Award } from 'lucide-react';
+import { ProfileCardSkeleton } from '@/components/ui/profile-skeleton';
+import { ErrorMessage } from '@/components/ui/error-message';
 
 const PublicVolunteerProfile = () => {
   const { userId } = useParams();
+  const [profile, setProfile] = useState<any>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    completedMissions: 0,
+    totalHours: 0,
+    badges: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const { data: profile, isLoading } = useQuery({
-    queryKey: ["public-volunteer-profile", userId],
-    queryFn: async () => {
-      if (!userId) throw new Error("User ID is required");
-      
+  useEffect(() => {
+    if (userId) {
+      fetchProfile();
+      fetchReviews();
+      fetchStats();
+    }
+  }, [userId]);
+
+  const fetchProfile = async () => {
+    try {
       const { data, error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .select(`
           *,
           user_skills (
-            *,
-            skills (*)
+            skills (name)
           ),
           user_badges (
-            *,
-            badges (*)
+            badges (name, image_url)
           )
         `)
-        .eq("id", userId)
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
-      return data;
-    },
-    enabled: !!userId,
-  });
-
-  // Données fictives pour la démo
-  const volunteerData = {
-    bio: "Étudiant en communication, j'ai envie de m'engager localement et de mettre mes compétences digitales au service d'une cause.",
-    age: 25,
-    availability: {
-      days: ["lundi", "mercredi", "samedi"],
-      frequency: "ponctuel",
-      timeSlots: ["matin", "soir"]
-    },
-    skills: [
-      { name: "Rédaction", level: "expert" },
-      { name: "Graphisme", level: "intermédiaire" },
-      { name: "Logistique", level: "débutant" }
-    ],
-    interests: ["environnement", "enfance", "culture"],
-    experiences: [
-      {
-        organization: "Les Restos du Cœur",
-        mission: "Distribution alimentaire",
-        rating: 5,
-        comment: "Bénévole très engagé et ponctuel"
-      }
-    ]
+      setProfile(data);
+    } catch (error) {
+      console.error('Erreur lors de la récupération du profil:', error);
+      setError('Profil non trouvé');
+    }
   };
 
-  if (isLoading) {
-    return (
-      <div className="container py-4 sm:py-8 space-y-6">
-        <Skeleton className="h-8 w-64" />
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-6">
-              <Skeleton className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto sm:mx-0" />
-              <div className="space-y-2 text-center sm:text-left">
-                <Skeleton className="h-6 w-48 mx-auto sm:mx-0" />
-                <Skeleton className="h-4 w-32 mx-auto sm:mx-0" />
-                <Skeleton className="h-4 w-64 mx-auto sm:mx-0" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
+  const fetchReviews = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('volunteer_reviews')
+        .select(`
+          *,
+          missions (title),
+          organization_profiles (organization_name)
+        `)
+        .eq('volunteer_id', userId)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
 
-  if (!profile) {
+      if (error) throw error;
+      setReviews(data || []);
+    } catch (error) {
+      console.error('Erreur lors de la récupération des avis:', error);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      // Missions terminées
+      const { data: completedMissions, error: missionsError } = await supabase
+        .from('mission_registrations')
+        .select('mission_id, missions(duration_minutes)')
+        .eq('user_id', userId)
+        .eq('status', 'terminé');
+
+      if (missionsError) throw missionsError;
+
+      // Badges
+      const { data: badges, error: badgesError } = await supabase
+        .from('user_badges')
+        .select('id')
+        .eq('user_id', userId);
+
+      if (badgesError) throw badgesError;
+
+      const totalHours = (completedMissions || [])
+        .reduce((acc, reg) => acc + (reg.missions?.duration_minutes || 0), 0) / 60;
+
+      setStats({
+        completedMissions: completedMissions?.length || 0,
+        totalHours: Math.round(totalHours * 10) / 10,
+        badges: badges?.length || 0
+      });
+    } catch (error) {
+      console.error('Erreur lors de la récupération des statistiques:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="container py-4 sm:py-8">
-        <div className="text-center space-y-4">
-          <p className="text-muted-foreground">Profil non trouvé</p>
-          <Button asChild>
-            <Link to="/dashboard">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour au tableau de bord
-            </Link>
-          </Button>
+      <div className="container mx-auto py-8 space-y-6">
+        <ProfileCardSkeleton />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <ProfileCardSkeleton />
+          <ProfileCardSkeleton />
+          <ProfileCardSkeleton />
         </div>
       </div>
     );
   }
 
+  if (error || !profile) {
+    return (
+      <div className="container mx-auto py-8">
+        <ErrorMessage message={error || 'Profil non trouvé'} />
+      </div>
+    );
+  }
+
+  const getInitials = (firstName?: string, lastName?: string) => {
+    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`;
+  };
+
   return (
-    <div className="container py-4 sm:py-8 space-y-6">
-      {/* Bouton retour */}
-      <Button variant="ghost" asChild className="mb-4">
-        <Link to="/dashboard">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Retour
-        </Link>
-      </Button>
-
-      {/* Header Section */}
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Header du profil */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-6">
-            <div className="flex-shrink-0 self-center md:self-start">
-              <Avatar className="w-20 h-20 sm:w-24 sm:h-24">
-                <AvatarImage src={profile.profile_picture_url || ''} />
-                <AvatarFallback>
-                  <User className="w-10 h-10 sm:w-12 sm:h-12" />
-                </AvatarFallback>
-              </Avatar>
-            </div>
-            
-            <div className="flex-1 space-y-2 text-center md:text-left">
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold break-words">
-                  {profile.first_name} {profile.last_name}
-                  {volunteerData.age && (
-                    <span className="text-muted-foreground ml-2 text-base sm:text-lg">
-                      ({volunteerData.age} ans)
-                    </span>
-                  )}
-                </h1>
-                <div className="flex justify-center md:justify-start mt-2">
-                  <Badge variant="secondary">Bénévole</Badge>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap justify-center md:justify-start gap-4 text-sm text-muted-foreground">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <Avatar className="w-24 h-24">
+              <AvatarImage 
+                src={profile.profile_picture_url || `https://ui-avatars.com/api/?name=${profile.first_name}+${profile.last_name}`} 
+              />
+              <AvatarFallback className="text-2xl">
+                {getInitials(profile.first_name, profile.last_name)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-2xl font-bold flex items-center gap-2 justify-center md:justify-start">
+                {profile.first_name} {profile.last_name}
+                <Badge variant="secondary">Bénévole</Badge>
+              </h1>
+              <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
                 {profile.city && (
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-4 h-4 flex-shrink-0" />
-                    <span className="truncate">{profile.city} {profile.postal_code}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-1">
-                  <CalendarDays className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate">
-                    Membre depuis {new Date(profile.created_at || '').toLocaleDateString('fr-FR')}
+                  <span className="flex items-center gap-1 text-gray-500 text-sm">
+                    <MapPin className="h-4 w-4" />
+                    {profile.city}
                   </span>
-                </div>
+                )}
               </div>
-
-              {/* Bio */}
-              <div className="mt-4">
-                <p className="text-muted-foreground text-sm sm:text-base">{volunteerData.bio}</p>
-              </div>
+              {profile.bio && (
+                <p className="text-gray-600 mt-3">{profile.bio}</p>
+              )}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabs pour organiser le contenu */}
-      <Tabs defaultValue="info" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="info" className="text-xs sm:text-sm">Informations</TabsTrigger>
-          <TabsTrigger value="skills" className="text-xs sm:text-sm">Compétences</TabsTrigger>
-          <TabsTrigger value="experience" className="text-xs sm:text-sm">Expériences</TabsTrigger>
-        </TabsList>
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card>
+          <CardContent className="flex flex-col items-center p-6">
+            <Clock className="h-8 w-8 mb-2 text-blue-600" />
+            <span className="font-bold text-2xl text-blue-600">{stats.totalHours}</span>
+            <span className="text-sm text-gray-500">Heures de bénévolat</span>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="flex flex-col items-center p-6">
+            <Star className="h-8 w-8 mb-2 text-blue-600" />
+            <span className="font-bold text-2xl text-blue-600">{stats.completedMissions}</span>
+            <span className="text-sm text-gray-500">Missions terminées</span>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="flex flex-col items-center p-6">
+            <Award className="h-8 w-8 mb-2 text-blue-600" />
+            <span className="font-bold text-2xl text-blue-600">{stats.badges}</span>
+            <span className="text-sm text-gray-500">Badges obtenus</span>
+          </CardContent>
+        </Card>
+      </div>
 
-        <TabsContent value="info" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Disponibilités */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Clock className="w-5 h-5" />
-                  Disponibilités
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-2">Jours disponibles</p>
-                  <div className="flex flex-wrap gap-2">
-                    {volunteerData.availability.days.map((day) => (
-                      <Badge key={day} variant="secondary" className="text-xs capitalize">{day}</Badge>
-                    ))}
-                  </div>
+      {/* Compétences */}
+      {profile.user_skills && profile.user_skills.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Compétences</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {profile.user_skills.map((userSkill: any, index: number) => (
+                <Badge key={index} variant="secondary">
+                  {userSkill.skills?.name}
+                </Badge>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Badges */}
+      {profile.user_badges && profile.user_badges.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Badges</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {profile.user_badges.map((userBadge: any, index: number) => (
+                <div key={index} className="flex items-center gap-2">
+                  <img
+                    src={userBadge.badges?.image_url || "/placeholder.svg"}
+                    alt={userBadge.badges?.name}
+                    className="w-8 h-8"
+                  />
+                  <span className="text-sm">{userBadge.badges?.name}</span>
                 </div>
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground mb-1">Fréquence</p>
-                  <Badge variant="outline" className="text-xs capitalize">{volunteerData.availability.frequency}</Badge>
-                </div>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-            {/* Centres d'intérêt */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Heart className="w-5 h-5" />
-                  Centres d'intérêt
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {volunteerData.interests.map((interest) => (
-                    <Badge key={interest} variant="secondary" className="text-xs capitalize">
-                      {interest}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="skills" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Star className="w-5 h-5" />
-                Compétences
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {volunteerData.skills.map((skill, index) => (
-                  <div key={index} className="border rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm sm:text-base">{skill.name}</span>
-                      <Badge variant={
-                        skill.level === 'expert' ? 'default' : 
-                        skill.level === 'intermédiaire' ? 'secondary' : 'outline'
-                      } className="text-xs">
-                        {skill.level}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="experience" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Award className="w-5 h-5" />
-                Expériences bénévoles
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {volunteerData.experiences.map((experience, index) => (
-                  <div key={index} className="border rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className="font-medium text-sm sm:text-base">{experience.organization}</h4>
-                        <p className="text-sm text-muted-foreground">{experience.mission}</p>
-                        {experience.comment && (
-                          <p className="text-sm mt-2 italic">"{experience.comment}"</p>
-                        )}
-                      </div>
-                      <div className="flex gap-1 self-center sm:self-start">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star
-                            key={star}
-                            className={`w-4 h-4 ${
-                              star <= experience.rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
+      {/* Avis des organisations */}
+      {reviews.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Avis des organisations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <div key={review.id} className="border rounded-lg p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <div className="font-medium">{review.organization_profiles?.organization_name}</div>
+                      <div className="text-sm text-gray-500">
+                        Mission: {review.missions?.title}
                       </div>
                     </div>
+                    <div className="flex items-center gap-1">
+                      {[...Array(5)].map((_, i) => (
+                        <Star
+                          key={i}
+                          className={`w-4 h-4 ${
+                            i < review.rating ? 'text-yellow-400 fill-current' : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  <p className="text-gray-700">{review.comment}</p>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {new Date(review.created_at).toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserMissions } from "@/hooks/useMissions";
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search, Bell } from "lucide-react";
+import { Calendar, MapPin, Star, User, Clock, CheckCircle2, Search, Bell, AlertTriangle, Ban } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -18,16 +19,27 @@ const DashboardBenevole = () => {
   const { data: userMissions, isLoading } = useUserMissions(user?.id);
   const { unreadCount } = useNotifications(user?.id);
   
-  // Séparer les missions à venir et passées
+  // Séparer les missions selon leur statut et date
   const now = new Date();
-  const upcomingMissions = userMissions?.filter(m => 
-    new Date(m.mission.start_date) >= now && 
-    ['inscrit', 'confirmé'].includes(m.status)
-  ) || [];
+  const upcomingMissions = userMissions?.filter(m => {
+    const missionActive = m.mission.status === 'active';
+    const futureDate = new Date(m.mission.start_date) >= now;
+    const registrationValid = ['inscrit', 'confirmé'].includes(m.status);
+    return missionActive && futureDate && registrationValid;
+  }) || [];
   
-  const pastMissions = userMissions?.filter(m => 
-    new Date(m.mission.start_date) < now || 
-    ['terminé', 'annulé'].includes(m.status)
+  const pastMissions = userMissions?.filter(m => {
+    const pastDate = new Date(m.mission.start_date) < now;
+    const completedStatus = ['terminé', 'annulé'].includes(m.status);
+    return pastDate || completedStatus;
+  }) || [];
+
+  const suspendedMissions = userMissions?.filter(m => 
+    m.mission.status === 'suspended' && ['inscrit', 'confirmé'].includes(m.status)
+  ) || [];
+
+  const cancelledMissions = userMissions?.filter(m => 
+    m.mission.status === 'annulée' && ['inscrit', 'confirmé'].includes(m.status)
   ) || [];
 
   // Statistiques calculées dynamiquement
@@ -39,7 +51,6 @@ const DashboardBenevole = () => {
   const totalHours = userMissions?.filter(m => m.status === 'terminé')
     .reduce((acc, m) => acc + (m.mission.duration_minutes || 0) / 60, 0) || 0;
 
-  // Badges dynamiques basés sur les vraies statistiques
   const badges = [];
   if (completedMissions >= 1) {
     badges.push({ 
@@ -74,6 +85,48 @@ const DashboardBenevole = () => {
     if (!firstName && !lastName) return "?";
     return `${firstName?.[0] || ""}${lastName?.[0] || ""}`;
   };
+
+  const getMissionStatusBadge = (mission: any, registration: any) => {
+    if (mission.status === 'suspended') {
+      return <Badge variant="secondary" className="bg-orange-100 text-orange-800"><AlertTriangle className="w-3 h-3 mr-1" />Suspendue</Badge>;
+    }
+    if (mission.status === 'annulée') {
+      return <Badge variant="destructive"><Ban className="w-3 h-3 mr-1" />Annulée</Badge>;
+    }
+    switch (registration.status) {
+      case 'inscrit':
+        return <Badge variant="outline">En attente</Badge>;
+      case 'confirmé':
+        return <Badge variant="default">Confirmé</Badge>;
+      case 'terminé':
+        return <Badge variant="secondary" className="bg-green-100 text-green-800">Terminé</Badge>;
+      case 'annulé':
+        return <Badge variant="destructive">Annulé</Badge>;
+      default:
+        return <Badge variant="outline">{registration.status}</Badge>;
+    }
+  };
+
+  const renderMissionCard = (registration: any) => (
+    <Card key={registration.id} className="overflow-hidden hover:shadow-md transition-shadow">
+      <CardContent className="p-4">
+        <Link to={`/missions/${registration.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
+          {registration.mission.title}
+        </Link>
+        <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
+          <Calendar className="w-4 h-4 mr-1" />
+          <span>{format(new Date(registration.mission.start_date), 'PPP', { locale: fr })}</span>
+          <span className="mx-2">•</span>
+          <MapPin className="w-4 h-4 mr-1" />
+          <span>{registration.mission.location}</span>
+        </div>
+        <p className="text-gray-600 text-sm line-clamp-2 mb-2">{registration.mission.description}</p>
+        <div className="flex justify-between items-center mt-2">
+          {getMissionStatusBadge(registration.mission, registration)}
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="container-custom py-10">
@@ -180,8 +233,14 @@ const DashboardBenevole = () => {
       {/* Mission tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-10">
         <TabsList className="mb-6">
-          <TabsTrigger value="upcoming">Missions à venir ({upcomingMissionsCount})</TabsTrigger>
+          <TabsTrigger value="upcoming">À venir ({upcomingMissionsCount})</TabsTrigger>
           <TabsTrigger value="past">Historique ({pastMissions.length})</TabsTrigger>
+          {suspendedMissions.length > 0 && (
+            <TabsTrigger value="suspended">Suspendues ({suspendedMissions.length})</TabsTrigger>
+          )}
+          {cancelledMissions.length > 0 && (
+            <TabsTrigger value="cancelled">Annulées ({cancelledMissions.length})</TabsTrigger>
+          )}
         </TabsList>
 
         {/* Upcoming missions */}
@@ -197,26 +256,7 @@ const DashboardBenevole = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {upcomingMissions.map((registration) => (
-                <Card key={registration.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <Link to={`/missions/${registration.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
-                      {registration.mission.title}
-                    </Link>
-                    <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      <span>{format(new Date(registration.mission.start_date), 'PPP', { locale: fr })}</span>
-                      <span className="mx-2">•</span>
-                      <MapPin className="w-4 h-4 mr-1" />
-                      <span>{registration.mission.location}</span>
-                    </div>
-                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{registration.mission.description}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <Badge variant="outline">{registration.status}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {upcomingMissions.map(renderMissionCard)}
             </div>
           )}
         </TabsContent>
@@ -234,28 +274,23 @@ const DashboardBenevole = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {pastMissions.map((registration) => (
-                <Card key={registration.id} className="overflow-hidden hover:shadow-md transition-shadow">
-                  <CardContent className="p-4">
-                    <Link to={`/missions/${registration.mission.id}`} className="font-medium text-lg text-bleu hover:underline">
-                      {registration.mission.title}
-                    </Link>
-                    <div className="flex items-center text-gray-500 text-sm mt-1 mb-2">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      <span>{format(new Date(registration.mission.start_date), 'PPP', { locale: fr })}</span>
-                      <span className="mx-2">•</span>
-                      <MapPin className="w-4 h-4 mr-1" />
-                      <span>{registration.mission.location}</span>
-                    </div>
-                    <p className="text-gray-600 text-sm line-clamp-2 mb-2">{registration.mission.description}</p>
-                    <div className="flex justify-between items-center mt-2">
-                      <Badge variant="outline">{registration.status}</Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              {pastMissions.map(renderMissionCard)}
             </div>
           )}
+        </TabsContent>
+
+        {/* Suspended missions */}
+        <TabsContent value="suspended">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {suspendedMissions.map(renderMissionCard)}
+          </div>
+        </TabsContent>
+
+        {/* Cancelled missions */}
+        <TabsContent value="cancelled">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {cancelledMissions.map(renderMissionCard)}
+          </div>
         </TabsContent>
       </Tabs>
     </div>

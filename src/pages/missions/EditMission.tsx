@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,8 +27,10 @@ const EditMission = () => {
   const { missionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: organizationProfile } = useOrganizationProfile(user?.id);
+  const { data: organizationProfile, isLoading: profileLoading } = useOrganizationProfile(user?.id);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [mission, setMission] = useState<any>(null);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -42,13 +45,16 @@ const EditMission = () => {
   });
 
   useEffect(() => {
-    if (missionId) {
+    if (missionId && organizationProfile) {
       fetchMission();
     }
-  }, [missionId]);
+  }, [missionId, organizationProfile]);
 
   const fetchMission = async () => {
+    if (!organizationProfile) return;
+    
     try {
+      setIsLoading(true);
       const { data: mission, error } = await supabase
         .from("missions")
         .select("*")
@@ -57,12 +63,14 @@ const EditMission = () => {
 
       if (error) throw error;
 
-      if (mission.organization_id !== organizationProfile?.id) {
+      // Vérifier que l'organisation a le droit de modifier cette mission
+      if (mission.organization_id !== organizationProfile.id) {
         toast.error("Vous n'avez pas l'autorisation de modifier cette mission");
         navigate("/dashboard");
         return;
       }
 
+      setMission(mission);
       setFormData({
         ...mission,
         start_date: new Date(mission.start_date)
@@ -70,6 +78,7 @@ const EditMission = () => {
     } catch (error) {
       console.error("Erreur lors de la récupération de la mission:", error);
       toast.error("Erreur lors de la récupération de la mission");
+      navigate("/dashboard");
     } finally {
       setIsLoading(false);
     }
@@ -77,7 +86,13 @@ const EditMission = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    
+    if (!organizationProfile) {
+      toast.error("Profil organisation non trouvé");
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
       const { error } = await supabase
@@ -85,7 +100,7 @@ const EditMission = () => {
         .update({
           ...formData,
           start_date: formData.start_date.toISOString(),
-          organization_id: organizationProfile?.id
+          organization_id: organizationProfile.id
         })
         .eq("id", missionId);
 
@@ -97,16 +112,29 @@ const EditMission = () => {
       console.error("Erreur lors de la mise à jour de la mission:", error);
       toast.error("Erreur lors de la mise à jour de la mission");
     } finally {
-      setIsLoading(false);
+      setIsSaving(false);
     }
   };
 
-  if (isLoading) {
+  if (profileLoading || isLoading) {
+    return (
+      <div className="container-custom py-10">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Chargement de la mission...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!organizationProfile) {
     return (
       <div className="container-custom py-10">
         <Card>
           <CardContent className="p-6">
-            <p>Chargement...</p>
+            <p>Vous devez être connecté en tant qu'organisation pour modifier une mission.</p>
           </CardContent>
         </Card>
       </div>
@@ -138,6 +166,7 @@ const EditMission = () => {
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 required
+                rows={4}
               />
             </div>
 
@@ -265,11 +294,12 @@ const EditMission = () => {
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/dashboard")}
+                disabled={isSaving}
               >
                 Annuler
               </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Mise à jour..." : "Mettre à jour la mission"}
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "Mise à jour..." : "Mettre à jour la mission"}
               </Button>
             </div>
           </form>
@@ -279,4 +309,4 @@ const EditMission = () => {
   );
 };
 
-export default EditMission; 
+export default EditMission;
