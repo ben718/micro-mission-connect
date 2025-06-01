@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useOrganizationProfile } from "@/hooks/useOrganizationProfile";
@@ -11,22 +12,29 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Plus, Eye, Edit, Trash2, Copy } from "lucide-react";
+import { MoreHorizontal, Plus, Eye, Edit, Trash2, AlertTriangle, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { MissionStatus } from "@/types/mission";
+import DeleteMissionDialog from "./DeleteMissionDialog";
+import SuspendMissionDialog from "./SuspendMissionDialog";
+import MissionParticipantsDialog from "./MissionParticipantsDialog";
 
 const MissionManagement = () => {
   const { user } = useAuth();
   const { data: organizationProfile } = useOrganizationProfile(user?.id);
   const [statusFilter, setStatusFilter] = useState<MissionStatus[]>(['active']);
+  const [deleteDialog, setDeleteDialog] = useState<{ isOpen: boolean; missionId: string }>({ isOpen: false, missionId: '' });
+  const [suspendDialog, setSuspendDialog] = useState<{ isOpen: boolean; missionId: string; title: string }>({ isOpen: false, missionId: '', title: '' });
+  const [participantsDialog, setParticipantsDialog] = useState<{ isOpen: boolean; missionId: string }>({ isOpen: false, missionId: '' });
   
   const organizationId = organizationProfile?.id;
-  const { data: missions, isLoading } = useOrganizationMissions(organizationId, statusFilter);
+  const { data: missions, isLoading, refetch } = useOrganizationMissions(organizationId, statusFilter);
   const { updateMissionStatus } = useMissionActions();
 
   const handleStatusChange = async (missionId: string, newStatus: MissionStatus) => {
     try {
       await updateMissionStatus.mutateAsync({ missionId, status: newStatus });
+      refetch();
     } catch (error) {
       console.error('Erreur lors du changement de statut:', error);
     }
@@ -37,6 +45,7 @@ const MissionManagement = () => {
       'active': { label: 'Active', variant: 'default' as const },
       'terminée': { label: 'Terminée', variant: 'outline' as const },
       'annulée': { label: 'Annulée', variant: 'destructive' as const },
+      'suspended': { label: 'Suspendue', variant: 'secondary' as const },
     };
     
     const statusInfo = statusMap[status as keyof typeof statusMap] || { label: status, variant: 'secondary' as const };
@@ -72,7 +81,7 @@ const MissionManagement = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-xl sm:text-2xl font-bold">Gestion des missions</h1>
         <Button asChild className="w-full sm:w-auto">
-          <Link to="/missions/new">
+          <Link to="/missions/create">
             <Plus className="w-4 h-4 mr-2" />
             Créer une mission
           </Link>
@@ -103,7 +112,7 @@ const MissionManagement = () => {
         </Button>
         <Button
           variant={statusFilter.length > 1 ? 'default' : 'outline'}
-          onClick={() => setStatusFilter(['active', 'terminée', 'annulée'])}
+          onClick={() => setStatusFilter(['active', 'terminée', 'annulée', 'suspended'])}
           className="flex-1 sm:flex-none"
         >
           Toutes
@@ -153,11 +162,26 @@ const MissionManagement = () => {
                           Modifier
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to={`/missions/${mission.id}/participants`} className="flex items-center">
-                          <Eye className="w-4 h-4 mr-2" />
-                          Participants ({mission.participants_count || 0})
-                        </Link>
+                      <DropdownMenuItem
+                        onClick={() => setParticipantsDialog({ isOpen: true, missionId: mission.id })}
+                        className="flex items-center"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        Participants ({mission.participants_count || 0})
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setSuspendDialog({ isOpen: true, missionId: mission.id, title: mission.title })}
+                        className="flex items-center"
+                      >
+                        <AlertTriangle className="w-4 h-4 mr-2" />
+                        Suspendre
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setDeleteDialog({ isOpen: true, missionId: mission.id })}
+                        className="flex items-center text-destructive"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Supprimer
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -178,7 +202,7 @@ const MissionManagement = () => {
           <CardContent className="py-8 text-center px-4 sm:px-6">
             <p className="text-muted-foreground mb-4">Aucune mission trouvée</p>
             <Button asChild className="w-full sm:w-auto">
-              <Link to="/missions/new">
+              <Link to="/missions/create">
                 <Plus className="w-4 h-4 mr-2" />
                 Créer votre première mission
               </Link>
@@ -186,6 +210,34 @@ const MissionManagement = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialogs */}
+      <DeleteMissionDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, missionId: '' })}
+        missionId={deleteDialog.missionId}
+        onSuccess={() => {
+          refetch();
+          setDeleteDialog({ isOpen: false, missionId: '' });
+        }}
+      />
+
+      <SuspendMissionDialog
+        isOpen={suspendDialog.isOpen}
+        onClose={() => setSuspendDialog({ isOpen: false, missionId: '', title: '' })}
+        missionId={suspendDialog.missionId}
+        missionTitle={suspendDialog.title}
+        onSuccess={() => {
+          refetch();
+          setSuspendDialog({ isOpen: false, missionId: '', title: '' });
+        }}
+      />
+
+      <MissionParticipantsDialog
+        isOpen={participantsDialog.isOpen}
+        onClose={() => setParticipantsDialog({ isOpen: false, missionId: '' })}
+        missionId={participantsDialog.missionId}
+      />
     </div>
   );
 };

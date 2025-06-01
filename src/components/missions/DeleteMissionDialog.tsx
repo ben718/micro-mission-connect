@@ -1,3 +1,4 @@
+
 import React from "react";
 import {
   Dialog,
@@ -77,4 +78,4 @@ const DeleteMissionDialog: React.FC<DeleteMissionDialogProps> = ({
   );
 };
 
-export default DeleteMissionDialog; 
+export default DeleteMissionDialog;
