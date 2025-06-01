@@ -11,7 +11,7 @@ export default function About() {
             Offrez votre temps – Même 15 minutes comptent
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Je m'appelle Ben Mvouama.
+            Une plateforme qui connecte associations et bénévoles pour des micro-missions d'impact.
           </p>
         </div>
 
@@ -19,17 +19,17 @@ export default function About() {
           {/* Story Section */}
           <div className="prose prose-lg prose-blue max-w-none">
             <p className="text-lg leading-relaxed text-gray-700">
-              Quand je suis arrivé en France avec ma famille, nous n'avions presque rien.
+              Quand certains arrivent en France avec leur famille, ils n'ont presque rien.
               Pas de repères, peu de ressources, et beaucoup d'inquiétudes sur l'avenir.
-              Mais des associations étaient là.
+              Mais des associations sont là.
               Les Restos du Cœur, la Croix-Rouge, La Maison des Femmes...
-              Grâce à elles, nous avons pu manger, nous soigner, trouver du soutien, et tout simplement vivre avec dignité.
+              Grâce à elles, il est possible de manger, se soigner, trouver du soutien, et tout simplement vivre avec dignité.
             </p>
             
             <p className="text-lg leading-relaxed text-gray-700">
-              Sans leur présence, leur écoute, et l'engagement des bénévoles, notre parcours aurait été bien plus dur.
-              Ces personnes ne nous connaissaient pas, mais elles ont donné de leur temps.
-              Et ce temps nous a permis de tenir debout.
+              Sans leur présence, leur écoute, et l'engagement des bénévoles, ces parcours seraient bien plus difficiles.
+              Ces personnes ne connaissent pas toujours ceux qu'elles aident, mais elles donnent de leur temps.
+              Et ce temps permet de tenir debout.
             </p>
           </div>
 
@@ -41,15 +41,15 @@ export default function About() {
               Pourquoi ce projet
             </h2>
             <p className="text-lg leading-relaxed text-gray-700 mb-6">
-              Aujourd'hui, je vais mieux. Ma famille aussi.
-              Et une chose m'est restée en tête :
+              Aujourd'hui, de nombreuses personnes vont mieux. Leurs familles aussi.
+              Et une chose nous reste en tête :
             </p>
             <blockquote className="text-2xl font-semibold text-center text-bleu italic border-l-4 border-orange pl-6 my-8">
-              "Comment rendre ce que j'ai reçu ?"
+              "Comment rendre ce que nous avons reçu ?"
             </blockquote>
             
             <p className="text-lg leading-relaxed text-gray-700 mb-6">
-              Mais en parlant autour de moi, je me suis rendu compte que beaucoup de gens veulent aider, mais ne savent pas comment :
+              Mais en observant autour de nous, nous nous rendons compte que beaucoup de gens veulent aider, mais ne savent pas comment :
             </p>
             <ul className="list-disc list-inside space-y-2 mb-6 text-gray-700">
               <li>"Je n'ai pas le temps."</li>
@@ -57,7 +57,7 @@ export default function About() {
               <li>"Je ne sais pas ce que je peux apporter."</li>
             </ul>
             <p className="text-lg leading-relaxed text-gray-700">
-              Alors j'ai décidé de créer Offrez votre temps, une plateforme qui casse ces barrières.
+              Alors nous avons décidé de créer MicroBénévole, une plateforme qui casse ces barrières.
               Un site où même 15 minutes peuvent devenir utiles.
               Un site pour tous ceux qui veulent aider, mais ne savent pas par où commencer.
               Un pont entre les personnes prêtes à donner un peu de leur énergie, et les associations qui en ont besoin.
@@ -128,8 +128,8 @@ export default function About() {
               Une plateforme humaine et simple
             </h2>
             <p className="text-lg text-gray-700 mb-4">
-              Offrez votre temps n'est pas une grande entreprise.
-              C'est un projet né d'une histoire vraie, porté par une volonté simple : faciliter l'entraide.
+              MicroBénévole n'est pas une grande entreprise.
+              C'est un projet né d'histoires vraies, porté par une volonté simple : faciliter l'entraide.
             </p>
             <p className="text-lg text-gray-700">
               Nous utilisons la technologie (et un peu d'intelligence artificielle) pour créer du lien humain, pas pour le remplacer.
@@ -145,16 +145,16 @@ export default function About() {
             </h2>
             <div className="space-y-3">
               <p className="text-lg text-gray-700">
-                • À toi, étudiant qui a 30 minutes entre deux cours.
+                • À vous, étudiant qui avez 30 minutes entre deux cours.
               </p>
               <p className="text-lg text-gray-700">
-                • À toi, parent, qui veux aider une cause locale pendant que tes enfants sont à l'école.
+                • À vous, parent, qui voulez aider une cause locale pendant que vos enfants sont à l'école.
               </p>
               <p className="text-lg text-gray-700">
-                • À toi, retraité, qui veux transmettre ton expérience et ton énergie.
+                • À vous, retraité, qui voulez transmettre votre expérience et votre énergie.
               </p>
               <p className="text-lg text-gray-700">
-                • À toi, salarié, qui veux agir sur ton temps libre, même un peu.
+                • À vous, salarié, qui voulez agir sur votre temps libre, même un peu.
               </p>
               <p className="text-lg text-gray-700">
                 • Et à toutes les associations, petites ou grandes, qui manquent de bras pour agir.
@@ -170,7 +170,7 @@ export default function About() {
               Ce n'est que le début
             </h2>
             <p className="text-lg text-gray-700 mb-6">
-              Ce projet, je le construis avec vous.
+              Ce projet, nous le construisons avec vous.
               Il évoluera, grandira, et s'améliorera grâce à vos retours, vos idées, vos histoires.
             </p>
             <p className="text-lg text-gray-700 mb-6">

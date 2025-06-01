@@ -1,5 +1,6 @@
 
 import { Facebook, Instagram, Linkedin, Twitter } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const Footer = () => {
   return (
@@ -39,34 +40,38 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Links */}
+          {/* Navigation Links */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Navigation</h3>
             <ul className="space-y-3">
-              <li><a href="/" className="text-gray-600 hover:text-bleu">Accueil</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Trouver une mission</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Proposer une mission</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">À propos</a></li>
+              <li><Link to="/" className="text-gray-600 hover:text-bleu transition-colors">Accueil</Link></li>
+              <li><Link to="/missions" className="text-gray-600 hover:text-bleu transition-colors">Trouver une mission</Link></li>
+              <li><Link to="/missions/create" className="text-gray-600 hover:text-bleu transition-colors">Proposer une mission</Link></li>
+              <li><Link to="/about" className="text-gray-600 hover:text-bleu transition-colors">À propos</Link></li>
+              <li><Link to="/dashboard" className="text-gray-600 hover:text-bleu transition-colors">Tableau de bord</Link></li>
             </ul>
           </div>
 
+          {/* Information Links */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Informations</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Comment ça marche</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Témoignages</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">FAQ</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Contact</a></li>
+              <li><Link to="/contact" className="text-gray-600 hover:text-bleu transition-colors">Contact</Link></li>
+              <li><Link to="/associations" className="text-gray-600 hover:text-bleu transition-colors">Associations</Link></li>
+              <li><Link to="/notifications" className="text-gray-600 hover:text-bleu transition-colors">Notifications</Link></li>
+              <li><a href="#faq" className="text-gray-600 hover:text-bleu transition-colors">FAQ</a></li>
+              <li><a href="#help" className="text-gray-600 hover:text-bleu transition-colors">Comment ça marche</a></li>
             </ul>
           </div>
 
+          {/* Legal Links */}
           <div>
             <h3 className="font-semibold text-lg mb-4">Légal</h3>
             <ul className="space-y-3">
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Conditions d'utilisation</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Politique de confidentialité</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Mentions légales</a></li>
-              <li><a href="#" className="text-gray-600 hover:text-bleu">Cookies</a></li>
+              <li><a href="#terms" className="text-gray-600 hover:text-bleu transition-colors">Conditions d'utilisation</a></li>
+              <li><a href="#privacy" className="text-gray-600 hover:text-bleu transition-colors">Politique de confidentialité</a></li>
+              <li><a href="#legal" className="text-gray-600 hover:text-bleu transition-colors">Mentions légales</a></li>
+              <li><a href="#cookies" className="text-gray-600 hover:text-bleu transition-colors">Cookies</a></li>
             </ul>
           </div>
         </div>

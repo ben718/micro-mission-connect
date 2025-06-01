@@ -1,4 +1,3 @@
-
 import { useMissionDetails } from "@/hooks/useMissionDetails";
 import { useSavedMissions } from "@/hooks/useSavedMissions";
 import { Button } from "@/components/ui/button";
@@ -76,6 +75,9 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
     navigate(-1);
   };
 
+  // Vérifier si l'utilisateur actuel est le créateur de la mission
+  const isCreator = user && mission.organization.user_id === user.id;
+
   // Logique pour la limitation des annulations
   const isCancelled = mission.registration_status === "annulé";
   const isActivelyRegistered = mission.is_registered && !isCancelled;
@@ -83,8 +85,9 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
   const cancellationCount = mission.cancellation_count || 0;
   const hasReachedCancellationLimit = cancellationCount >= 2;
   
-  const canParticipate = user && !isActivelyRegistered && hasAvailableSpots && !hasReachedCancellationLimit;
-  const canCancel = user && isActivelyRegistered && mission.registration_status !== "terminé";
+  // Les associations (créateurs) ne peuvent pas participer aux missions
+  const canParticipate = user && !isActivelyRegistered && hasAvailableSpots && !hasReachedCancellationLimit && !isCreator;
+  const canCancel = user && isActivelyRegistered && mission.registration_status !== "terminé" && !isCreator;
 
   return (
     <div className="container mx-auto py-4 px-4 sm:py-8">
@@ -104,7 +107,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle className="text-xl sm:text-2xl break-words">{mission.title}</CardTitle>
               <div className="flex flex-wrap items-center gap-2">
-                {user && (
+                {user && !isCreator && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -251,6 +254,12 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       Connectez-vous pour participer à cette mission
                     </p>
                   </div>
+                ) : isCreator ? (
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-blue-600">
+                      Vous êtes le créateur de cette mission
+                    </p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {canParticipate && (
@@ -286,7 +295,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
                     
-                    {!canParticipate && !canCancel && !hasAvailableSpots && !hasReachedCancellationLimit && (
+                    {!canParticipate && !canCancel && !hasAvailableSpots && !hasReachedCancellationLimit && !isCreator && (
                       <div className="text-center p-4 bg-yellow-50 rounded-lg">
                         <p className="text-sm text-yellow-600">
                           Mission complète - Plus de places disponibles
@@ -294,7 +303,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
 
-                    {hasReachedCancellationLimit && (
+                    {hasReachedCancellationLimit && !isCreator && (
                       <div className="text-center p-4 bg-red-50 rounded-lg">
                         <p className="text-sm text-red-600">
                           Vous avez atteint le nombre maximum d'annulations (2) pour cette mission.
@@ -302,7 +311,7 @@ export default function MissionDetail({ missionId }: MissionDetailProps) {
                       </div>
                     )}
 
-                    {isCancelled && !hasAvailableSpots && !hasReachedCancellationLimit && (
+                    {isCancelled && !hasAvailableSpots && !hasReachedCancellationLimit && !isCreator && (
                       <div className="text-center p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">
                           Vous avez annulé cette mission. La mission est maintenant complète.
