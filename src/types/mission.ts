@@ -61,7 +61,7 @@ export type MissionWithAssociation = MissionWithOrganization;
 export type MissionFormat = "Présentiel" | "À distance" | "Hybride";
 export type MissionDifficulty = "débutant" | "intermédiaire" | "expert";
 export type MissionEngagement = "Ultra-rapide" | "Petit coup de main" | "Mission avec suivi" | "Projet long";
-export type MissionStatus = 'active' | 'terminée' | 'annulée';
+export type MissionStatus = 'active' | 'terminée' | 'annulée' | 'suspended';
 export type ParticipationStatus = 'inscrit' | 'confirmé' | 'annulé' | 'terminé' | 'no_show';
 
 export type MissionWithDetails = MissionWithOrganization & {
@@ -129,4 +129,4 @@ export interface MissionNotification {
 export const MISSION_FORMATS: MissionFormat[] = ["Présentiel", "À distance", "Hybride"];
 export const MISSION_DIFFICULTIES: MissionDifficulty[] = ["débutant", "intermédiaire", "expert"];
 export const MISSION_ENGAGEMENTS: MissionEngagement[] = ["Ultra-rapide", "Petit coup de main", "Mission avec suivi", "Projet long"];
-export const MISSION_STATUSES: MissionStatus[] = ['active', 'terminée', 'annulée'];
+export const MISSION_STATUSES: MissionStatus[] = ['active', 'terminée', 'annulée', 'suspended'];
