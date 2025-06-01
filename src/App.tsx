@@ -12,7 +12,7 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Confirmation from "./pages/auth/Confirmation";
 import Missions from "./pages/Missions";
-import MissionsPage from "./pages/missions/MissionsPage";
+import { MissionsPage } from "./pages/missions/MissionsPage";
 import MissionDetailPage from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
 import EditMission from "./pages/missions/EditMission";
