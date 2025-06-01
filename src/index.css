@@ -55,19 +55,55 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-sans font-semibold;
   }
+
+  /* Amélioration de l'accessibilité */
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2;
+  }
+
+  /* Texte responsable */
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  /* Amélioration pour les liens */
+  a {
+    @apply transition-colors duration-200;
+  }
+
+  /* Support pour les high contrast modes */
+  @media (prefers-contrast: high) {
+    :root {
+      --foreground: 0 0% 0%;
+      --background: 0 0% 100%;
+      --muted-foreground: 0 0% 20%;
+    }
+  }
+
+  /* Support pour reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-bleu text-white font-medium py-2 px-6 rounded-full hover:bg-bleu-700 transition-all duration-300;
+    @apply bg-primary text-primary-foreground font-medium py-2 px-6 rounded-full hover:bg-primary/90 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
   }
   
   .btn-secondary {
-    @apply bg-jaune text-bleu font-medium py-2 px-6 rounded-full hover:bg-jaune-400 transition-all duration-300;
+    @apply bg-secondary text-secondary-foreground font-medium py-2 px-6 rounded-full hover:bg-secondary/90 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2;
   }
   
   .nav-link {
-    @apply relative font-medium text-foreground hover:text-bleu transition-colors duration-300 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-bleu-400 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left;
+    @apply relative font-medium text-foreground hover:text-primary transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-primary after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left;
   }
   
   .card-hover {
@@ -89,17 +125,17 @@
 
   /* Amélioration pour les cartes sur mobile */
   .mobile-card {
-    @apply p-4 sm:p-6;
+    @apply p-3 sm:p-4 md:p-6;
   }
 
   /* Amélioration pour les boutons sur mobile */
   .mobile-btn {
-    @apply w-full sm:w-auto;
+    @apply w-full sm:w-auto min-h-[44px] text-sm sm:text-base;
   }
 
   /* Espacement responsive */
   .responsive-spacing {
-    @apply space-y-4 sm:space-y-6 lg:space-y-8;
+    @apply space-y-3 sm:space-y-4 md:space-y-6 lg:space-y-8;
   }
 
   /* Texte responsive */
@@ -114,21 +150,97 @@
 
   /* Amélioration pour les modales sur mobile */
   .mobile-modal {
-    @apply mx-4 sm:mx-auto;
+    @apply mx-4 sm:mx-auto max-w-[calc(100vw-2rem)] sm:max-w-lg;
+  }
+
+  /* Amélioration pour les tables responsives */
+  .responsive-table {
+    @apply overflow-x-auto;
+  }
+
+  .responsive-table table {
+    @apply min-w-full;
+  }
+
+  /* Amélioration pour les avatars */
+  .responsive-avatar {
+    @apply w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12;
+  }
+
+  /* Amélioration pour les badges */
+  .responsive-badge {
+    @apply text-xs sm:text-sm px-2 py-1 sm:px-3 sm:py-1;
+  }
+
+  /* Amélioration pour les tabs mobiles */
+  .mobile-tabs {
+    @apply overflow-x-auto;
+  }
+
+  .mobile-tabs [role="tablist"] {
+    @apply min-w-max;
+  }
+
+  /* Truncate avec tooltips sur mobile */
+  .mobile-truncate {
+    @apply truncate max-w-[150px] sm:max-w-[200px] md:max-w-none;
+  }
+
+  /* Améliorations pour l'accessibilité */
+  .focus-visible {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+  }
+
+  /* Skip link pour l'accessibilité */
+  .skip-link {
+    @apply absolute -top-full left-4 z-50 bg-primary text-primary-foreground px-4 py-2 rounded focus:top-4 transition-all;
   }
 }
 
 /* Amélioration pour les dropdown menus */
 .dropdown-content {
-  @apply bg-white shadow-lg border border-gray-200 rounded-md z-50;
-}
-
-/* Amélioration pour le focus et l'accessibilité */
-.focus-visible {
-  @apply focus:outline-none focus:ring-2 focus:ring-bleu focus:ring-offset-2;
+  @apply bg-white shadow-lg border border-gray-200 rounded-md z-50 min-w-[200px];
 }
 
 /* Amélioration pour les transitions */
 .smooth-transition {
   @apply transition-all duration-200 ease-in-out;
+}
+
+/* Amélioration pour les images responsive */
+.responsive-image {
+  @apply w-full h-auto object-cover;
+}
+
+/* Support pour les écrans très petits */
+@media (max-width: 375px) {
+  .container {
+    @apply px-3;
+  }
+  
+  .mobile-card {
+    @apply p-2;
+  }
+  
+  .responsive-text {
+    @apply text-xs;
+  }
+}
+
+/* Amélioration pour les grands écrans */
+@media (min-width: 1536px) {
+  .container-custom {
+    @apply max-w-screen-2xl;
+  }
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    @apply hidden;
+  }
+  
+  * {
+    @apply text-black bg-white;
+  }
 }
