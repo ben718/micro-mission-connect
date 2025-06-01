@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMissions } from '@/hooks/useMissions';
-import { MissionCard } from '@/components/mission/MissionCard';
+import { MissionCard } from '@/components/missions/MissionCard';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import MissionFilters from './MissionFilters';
