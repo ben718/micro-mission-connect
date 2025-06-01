@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,15 +54,15 @@ const PublicVolunteerProfile = () => {
 
   const fetchReviews = async () => {
     try {
+      // Utiliser mission_reviews au lieu de volunteer_reviews
       const { data, error } = await supabase
-        .from('volunteer_reviews')
+        .from('mission_reviews')
         .select(`
           *,
           missions (title),
           organization_profiles (organization_name)
         `)
-        .eq('volunteer_id', userId)
-        .eq('is_public', true)
+        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

@@ -84,15 +84,15 @@ const MissionParticipantsDialog: React.FC<MissionParticipantsDialogProps> = ({
     setIsSubmittingReview(prev => ({ ...prev, [registrationId]: true }));
 
     try {
+      // Utiliser mission_reviews au lieu de volunteer_reviews
       const { error } = await supabase
-        .from('volunteer_reviews')
+        .from('mission_reviews')
         .insert({
-          volunteer_id: userId,
+          user_id: userId,
           mission_id: missionId,
-          organization_id: mission.organization_id,
           rating: 5, // Rating par défaut, pourrait être ajusté
           comment: reviewText.trim(),
-          is_public: true
+          is_anonymous: false
         });
 
       if (error) throw error;
