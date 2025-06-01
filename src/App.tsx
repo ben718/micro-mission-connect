@@ -17,6 +17,10 @@ import MissionDetailPage from "./pages/missions/MissionDetail";
 import CreateMission from "./pages/missions/CreateMission";
 import EditMission from "./pages/missions/EditMission";
 import ProfileRouter from "./pages/profile/ProfileRouter";
+import ProfileVolunteer from "./pages/profile/ProfileVolunteer";
+import ProfileOrganization from "./pages/profile/ProfileOrganization";
+import PublicVolunteerProfile from "./pages/profile/PublicVolunteerProfile";
+import SiteAudit from "./pages/SiteAudit";
 import Notifications from "./pages/Notifications";
 import NotFound from "./pages/NotFound";
 import ComingSoon from "./pages/ComingSoon";
@@ -54,6 +58,8 @@ const App = () => {
                     <Route path="/" element={<Index />} />
                     <Route path="/about" element={<About />} />
                     <Route path="/contact" element={<Contact />} />
+                    <Route path="/auth/login" element={<Login />} />
+                    <Route path="/auth/register" element={<Register />} />
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
                     <Route path="/confirmation" element={<Confirmation />} />
@@ -63,7 +69,11 @@ const App = () => {
                     <Route path="/missions/:id" element={<MissionDetailPage />} />
                     <Route path="/missions/create" element={<CreateMission />} />
                     <Route path="/missions/:id/edit" element={<EditMission />} />
-                    <Route path="/profile/*" element={<ProfileRouter />} />
+                    <Route path="/profile" element={<ProfileRouter />} />
+                    <Route path="/profile/volunteer" element={<ProfileVolunteer />} />
+                    <Route path="/profile/organization" element={<ProfileOrganization />} />
+                    <Route path="/profile/volunteer/:userId" element={<PublicVolunteerProfile />} />
+                    <Route path="/audit" element={<SiteAudit />} />
                     <Route path="/notifications" element={<Notifications />} />
                     <Route path="/associations" element={<AssociationsPage />} />
                     <Route path="/coming-soon" element={<ComingSoon />} />
