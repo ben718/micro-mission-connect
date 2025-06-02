@@ -1,4 +1,3 @@
-
 import { usePlatformFeatures } from "@/hooks/usePlatformFeatures";
 import * as LucideIcons from "lucide-react";
 
@@ -11,7 +10,7 @@ const FeatureSection = () => {
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">
-              Pourquoi choisir MicroBénévole ?
+              Pourquoi choisir Voisin Solidaire ?
             </h2>
             <p className="mt-4 text-lg text-gray-600">
               Une plateforme pensée pour simplifier l'engagement bénévole
@@ -37,7 +36,7 @@ const FeatureSection = () => {
         <div className="container-custom">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold">
-              Pourquoi choisir MicroBénévole ?
+              Pourquoi choisir Voisin Solidaire ?
             </h2>
             <p className="mt-4 text-lg text-gray-600">
               Une plateforme pensée pour simplifier l'engagement bénévole
@@ -56,7 +55,7 @@ const FeatureSection = () => {
       <div className="container-custom">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold">
-            Pourquoi choisir MicroBénévole ?
+            Pourquoi choisir Voisin Solidaire ?
           </h2>
           <p className="mt-4 text-lg text-gray-600">
             Une plateforme pensée pour simplifier l'engagement bénévole
@@ -84,3 +83,4 @@ const FeatureSection = () => {
 };
 
 export default FeatureSection;
+

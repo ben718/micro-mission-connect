@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types/profile';
+import { logger } from '@/utils/logger';
 
 interface AuthContextType {
   user: User | null;
@@ -32,7 +33,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error;
       return data;
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      logger.error('Error fetching profile:', error);
       return null;
     }
   };
@@ -49,7 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setProfile(profileData);
         }
       } catch (error) {
-        console.error('Error getting session:', error);
+        logger.error('Error getting session:', error);
       } finally {
         setIsLoading(false);
       }

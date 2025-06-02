@@ -6,97 +6,63 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useMissions, Mission } from '@/hooks/useMissions';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 const MissionCard: React.FC<{ mission: Mission; onJoin: (id: string) => void }> = ({ mission, onJoin }) => {
-  const calculateDuration = (startTime: string, endTime: string) => {
-    const start = new Date(`2000-01-01T${startTime}`);
-    const end = new Date(`2000-01-01T${endTime}`);
-    const diffMs = end.getTime() - start.getTime();
-    const diffMins = Math.floor(diffMs / (1000 * 60));
-    return diffMins;
-  };
-
-  const getUrgencyColor = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return 'bg-red-100 text-red-800 border-red-200';
-      case 'medium': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'low': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
-    }
-  };
-
-  const getUrgencyLabel = (urgency: string) => {
-    switch (urgency) {
-      case 'high': return 'Urgent';
-      case 'medium': return 'Modéré';
-      case 'low': return 'Flexible';
-      default: return 'Normal';
-    }
-  };
-
   return (
     <Card className="hover:shadow-lg transition-shadow duration-200">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <div className="flex-1">
             <CardTitle className="text-lg font-semibold text-gray-900 mb-1">
-              {mission.title}
+              {mission.title || 'Titre non disponible'}
             </CardTitle>
             <p className="text-sm text-gray-600 font-medium">
-              {mission.organization?.organization_name}
+              {mission.organization?.organization_name || 'Organisation non disponible'}
             </p>
           </div>
-          <Badge className={`${getUrgencyColor(mission.urgency)} border`}>
-            {getUrgencyLabel(mission.urgency)}
+          <Badge className="bg-blue-100 text-blue-800 border-blue-200 border">
+            Mission
           </Badge>
         </div>
       </CardHeader>
       
       <CardContent className="pt-0">
         <p className="text-gray-700 text-sm mb-4 line-clamp-2">
-          {mission.description}
+          {mission.description || 'Description non disponible'}
         </p>
         
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-sm text-gray-600">
             <MapPin className="w-4 h-4 mr-2 text-gray-400" />
-            <span>{mission.location}</span>
+            <span>{mission.location || 'Lieu non spécifié'}</span>
           </div>
           
           <div className="flex items-center text-sm text-gray-600">
             <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-            <span>{format(new Date(mission.date), 'dd MMMM yyyy', { locale: fr })}</span>
+            <span>Date à définir</span>
           </div>
           
           <div className="flex items-center text-sm text-gray-600">
             <Clock className="w-4 h-4 mr-2 text-gray-400" />
-            <span>
-              {mission.start_time} - {mission.end_time} 
-              ({calculateDuration(mission.start_time, mission.end_time)} min)
-            </span>
+            <span>Durée à définir</span>
           </div>
           
           <div className="flex items-center text-sm text-gray-600">
             <Users className="w-4 h-4 mr-2 text-gray-400" />
-            <span>
-              {mission.participants_current}/{mission.participants_needed} participants
-            </span>
+            <span>Participants recherchés</span>
           </div>
         </div>
         
         <div className="flex items-center justify-between">
           <Badge variant="secondary" className="text-xs">
-            {mission.category}
+            {mission.category || 'Général'}
           </Badge>
           
           <Button 
             onClick={() => onJoin(mission.id)}
             className="bg-blue-600 hover:bg-blue-700 text-white"
-            disabled={mission.participants_current >= mission.participants_needed}
           >
-            {mission.participants_current >= mission.participants_needed ? 'Complet' : 'Rejoindre'}
+            Rejoindre
           </Button>
         </div>
       </CardContent>
@@ -107,7 +73,6 @@ const MissionCard: React.FC<{ mission: Mission; onJoin: (id: string) => void }> 
 const MissionsPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [urgencyFilter, setUrgencyFilter] = useState('all');
   
   const { missions, loading, error, joinMission } = useMissions();
 
@@ -122,19 +87,19 @@ const MissionsPage: React.FC = () => {
 
   // Filtrage des missions
   const filteredMissions = missions.filter(mission => {
-    const matchesSearch = mission.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         mission.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         mission.organization?.organization_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         mission.location.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchQuery === '' || 
+                         mission.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         mission.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         mission.organization?.organization_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         mission.location?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesCategory = categoryFilter === 'all' || mission.category === categoryFilter;
-    const matchesUrgency = urgencyFilter === 'all' || mission.urgency === urgencyFilter;
     
-    return matchesSearch && matchesCategory && matchesUrgency;
+    return matchesSearch && matchesCategory;
   });
 
   // Obtenir les catégories uniques
-  const categories = Array.from(new Set(missions.map(mission => mission.category)));
+  const categories = Array.from(new Set(missions.map(mission => mission.category).filter(Boolean)));
 
   if (loading) {
     return (
@@ -179,7 +144,7 @@ const MissionsPage: React.FC = () => {
       {/* Filtres */}
       <Card className="mb-6">
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Recherche */}
             <div className="md:col-span-2">
               <div className="relative">
@@ -209,21 +174,6 @@ const MissionsPage: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Filtre par urgence */}
-            <div>
-              <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Urgence" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Toutes les urgences</SelectItem>
-                  <SelectItem value="high">Urgent</SelectItem>
-                  <SelectItem value="medium">Modéré</SelectItem>
-                  <SelectItem value="low">Flexible</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
         </CardContent>
       </Card>
@@ -235,13 +185,12 @@ const MissionsPage: React.FC = () => {
             {filteredMissions.length} mission{filteredMissions.length > 1 ? 's' : ''} trouvée{filteredMissions.length > 1 ? 's' : ''}
           </p>
           
-          {(searchQuery || categoryFilter !== 'all' || urgencyFilter !== 'all') && (
+          {(searchQuery || categoryFilter !== 'all') && (
             <Button
               variant="outline"
               onClick={() => {
                 setSearchQuery('');
                 setCategoryFilter('all');
-                setUrgencyFilter('all');
               }}
               className="text-sm"
             >
@@ -263,14 +212,16 @@ const MissionsPage: React.FC = () => {
               Aucune mission trouvée
             </h3>
             <p className="text-gray-600 mb-4">
-              Essayez de modifier vos critères de recherche ou de supprimer les filtres.
+              {missions.length === 0 
+                ? "Aucune mission n'est disponible pour le moment."
+                : "Essayez de modifier vos critères de recherche ou de supprimer les filtres."
+              }
             </p>
             <Button
               variant="outline"
               onClick={() => {
                 setSearchQuery('');
                 setCategoryFilter('all');
-                setUrgencyFilter('all');
               }}
             >
               Voir toutes les missions
