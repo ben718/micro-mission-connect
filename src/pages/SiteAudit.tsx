@@ -73,23 +73,30 @@ const SiteAudit = () => {
         });
       }
 
-      // Test des tables principales
-      const tables = ['profiles', 'missions', 'mission_registrations', 'organization_profiles', 'skills', 'badges'];
+      // Test des tables principales avec noms typés
+      const tableTests = [
+        { name: 'profiles', description: 'Profils utilisateurs' },
+        { name: 'missions', description: 'Missions' },
+        { name: 'mission_registrations', description: 'Inscriptions aux missions' },
+        { name: 'organization_profiles', description: 'Profils organisations' },
+        { name: 'skills', description: 'Compétences' },
+        { name: 'badges', description: 'Badges' }
+      ];
       
-      for (const table of tables) {
+      for (const tableTest of tableTests) {
         try {
-          const { data, error } = await supabase.from(table).select('count').limit(1);
+          const { data, error } = await supabase.from(tableTest.name as any).select('count').limit(1);
           if (error) throw error;
           results.push({
             category: 'Tables',
             status: 'success',
-            message: `Table '${table}' accessible`
+            message: `Table '${tableTest.description}' accessible`
           });
         } catch (error) {
           results.push({
             category: 'Tables',
             status: 'error',
-            message: `Erreur avec la table '${table}'`,
+            message: `Erreur avec la table '${tableTest.description}'`,
             details: error instanceof Error ? error.message : 'Erreur inconnue'
           });
         }
