@@ -34,8 +34,6 @@ const PublicVolunteerProfile = () => {
 
   const fetchProfile = async () => {
     try {
-      console.log('Fetching profile for user:', userId);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -51,15 +49,9 @@ const PublicVolunteerProfile = () => {
         .eq('is_organization', false)
         .single();
 
-      if (error) {
-        console.error('Error fetching profile:', error);
-        throw error;
-      }
-      
-      console.log('Profile fetched:', data);
+      if (error) throw error;
       setProfile(data);
     } catch (error) {
-      console.error('Erreur lors de la récupération du profil:', error);
       setError('Profil de bénévole non trouvé');
     }
   };
@@ -76,53 +68,34 @@ const PublicVolunteerProfile = () => {
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching reviews:', error);
-        return;
-      }
-      
-      console.log('Reviews fetched:', data);
+      if (error) return;
       setReviews(data || []);
     } catch (error) {
-      console.error('Erreur lors de la récupération des avis:', error);
+      // Silently handle review fetch errors
     }
   };
 
   const fetchStats = async () => {
     try {
-      // Missions terminées avec durée
-      const { data: completedMissions, error: missionsError } = await supabase
-        .from('mission_registrations')
-        .select(`
-          mission_id, 
-          missions!inner(duration_minutes)
-        `)
-        .eq('user_id', userId)
-        .eq('status', 'terminé');
-
-      if (missionsError) {
-        console.error('Error fetching completed missions:', missionsError);
-      }
-
-      // Badges obtenus
-      const { data: badges, error: badgesError } = await supabase
-        .from('user_badges')
-        .select('id')
-        .eq('user_id', userId);
-
-      if (badgesError) {
-        console.error('Error fetching badges:', badgesError);
-      }
-
-      // Calcul de la note moyenne depuis les avis
-      const { data: reviewsForRating, error: reviewsError } = await supabase
-        .from('mission_reviews')
-        .select('rating')
-        .eq('user_id', userId);
-
-      if (reviewsError) {
-        console.error('Error fetching reviews for rating:', reviewsError);
-      }
+      const [
+        { data: completedMissions },
+        { data: badges },
+        { data: reviewsForRating }
+      ] = await Promise.all([
+        supabase
+          .from('mission_registrations')
+          .select('mission_id, missions!inner(duration_minutes)')
+          .eq('user_id', userId)
+          .eq('status', 'terminé'),
+        supabase
+          .from('user_badges')
+          .select('id')
+          .eq('user_id', userId),
+        supabase
+          .from('mission_reviews')
+          .select('rating')
+          .eq('user_id', userId)
+      ]);
 
       const totalHours = (completedMissions || [])
         .reduce((acc, reg) => acc + (reg.missions?.duration_minutes || 0), 0) / 60;
@@ -137,15 +110,8 @@ const PublicVolunteerProfile = () => {
         badges: badges?.length || 0,
         averageRating: Math.round(averageRating * 10) / 10
       });
-
-      console.log('Stats calculated:', {
-        completedMissions: completedMissions?.length || 0,
-        totalHours: Math.round(totalHours * 10) / 10,
-        badges: badges?.length || 0,
-        averageRating: Math.round(averageRating * 10) / 10
-      });
     } catch (error) {
-      console.error('Erreur lors de la récupération des statistiques:', error);
+      // Silently handle stats fetch errors
     }
   };
 
@@ -216,7 +182,7 @@ const PublicVolunteerProfile = () => {
         </CardContent>
       </Card>
 
-      {/* Statistiques améliorées */}
+      {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="flex flex-col items-center p-6">

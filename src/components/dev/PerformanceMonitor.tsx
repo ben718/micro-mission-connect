@@ -24,6 +24,11 @@ export function PerformanceMonitor() {
   });
 
   useEffect(() => {
+    // Afficher seulement en mode développement
+    if (process.env.NODE_ENV !== 'development') {
+      return;
+    }
+
     const startTime = performance.now();
     
     return () => {
@@ -45,7 +50,7 @@ export function PerformanceMonitor() {
     };
   });
 
-  // Afficher seulement en mode développement
+  // Ne pas afficher en production
   if (process.env.NODE_ENV !== 'development') {
     return null;
   }
