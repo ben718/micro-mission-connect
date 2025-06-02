@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,21 +16,26 @@ const PublicVolunteerProfile = () => {
   const [stats, setStats] = useState({
     completedMissions: 0,
     totalHours: 0,
-    badges: 0
+    badges: 0,
+    averageRating: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (userId) {
-      fetchProfile();
-      fetchReviews();
-      fetchStats();
+      Promise.all([
+        fetchProfile(),
+        fetchReviews(),
+        fetchStats()
+      ]).finally(() => setLoading(false));
     }
   }, [userId]);
 
   const fetchProfile = async () => {
     try {
+      console.log('Fetching profile for user:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -42,30 +48,40 @@ const PublicVolunteerProfile = () => {
           )
         `)
         .eq('id', userId)
+        .eq('is_organization', false)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profile:', error);
+        throw error;
+      }
+      
+      console.log('Profile fetched:', data);
       setProfile(data);
     } catch (error) {
       console.error('Erreur lors de la récupération du profil:', error);
-      setError('Profil non trouvé');
+      setError('Profil de bénévole non trouvé');
     }
   };
 
   const fetchReviews = async () => {
     try {
-      // Utiliser mission_reviews au lieu de volunteer_reviews
       const { data, error } = await supabase
         .from('mission_reviews')
         .select(`
           *,
-          missions (title),
-          organization_profiles (organization_name)
+          missions (title, organization_id),
+          organization_profiles!inner(organization_name)
         `)
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching reviews:', error);
+        return;
+      }
+      
+      console.log('Reviews fetched:', data);
       setReviews(data || []);
     } catch (error) {
       console.error('Erreur lors de la récupération des avis:', error);
@@ -74,35 +90,62 @@ const PublicVolunteerProfile = () => {
 
   const fetchStats = async () => {
     try {
-      // Missions terminées
+      // Missions terminées avec durée
       const { data: completedMissions, error: missionsError } = await supabase
         .from('mission_registrations')
-        .select('mission_id, missions(duration_minutes)')
+        .select(`
+          mission_id, 
+          missions!inner(duration_minutes)
+        `)
         .eq('user_id', userId)
         .eq('status', 'terminé');
 
-      if (missionsError) throw missionsError;
+      if (missionsError) {
+        console.error('Error fetching completed missions:', missionsError);
+      }
 
-      // Badges
+      // Badges obtenus
       const { data: badges, error: badgesError } = await supabase
         .from('user_badges')
         .select('id')
         .eq('user_id', userId);
 
-      if (badgesError) throw badgesError;
+      if (badgesError) {
+        console.error('Error fetching badges:', badgesError);
+      }
+
+      // Calcul de la note moyenne depuis les avis
+      const { data: reviewsForRating, error: reviewsError } = await supabase
+        .from('mission_reviews')
+        .select('rating')
+        .eq('user_id', userId);
+
+      if (reviewsError) {
+        console.error('Error fetching reviews for rating:', reviewsError);
+      }
 
       const totalHours = (completedMissions || [])
         .reduce((acc, reg) => acc + (reg.missions?.duration_minutes || 0), 0) / 60;
 
+      const averageRating = reviewsForRating && reviewsForRating.length > 0
+        ? reviewsForRating.reduce((acc, review) => acc + review.rating, 0) / reviewsForRating.length
+        : 0;
+
       setStats({
         completedMissions: completedMissions?.length || 0,
         totalHours: Math.round(totalHours * 10) / 10,
-        badges: badges?.length || 0
+        badges: badges?.length || 0,
+        averageRating: Math.round(averageRating * 10) / 10
+      });
+
+      console.log('Stats calculated:', {
+        completedMissions: completedMissions?.length || 0,
+        totalHours: Math.round(totalHours * 10) / 10,
+        badges: badges?.length || 0,
+        averageRating: Math.round(averageRating * 10) / 10
       });
     } catch (error) {
       console.error('Erreur lors de la récupération des statistiques:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -122,7 +165,7 @@ const PublicVolunteerProfile = () => {
   if (error || !profile) {
     return (
       <div className="container mx-auto py-8">
-        <ErrorMessage message={error || 'Profil non trouvé'} />
+        <ErrorMessage message={error || 'Profil de bénévole non trouvé'} />
       </div>
     );
   }
@@ -140,6 +183,7 @@ const PublicVolunteerProfile = () => {
             <Avatar className="w-24 h-24">
               <AvatarImage 
                 src={profile.profile_picture_url || `https://ui-avatars.com/api/?name=${profile.first_name}+${profile.last_name}`} 
+                alt={`${profile.first_name} ${profile.last_name}`}
               />
               <AvatarFallback className="text-2xl">
                 {getInitials(profile.first_name, profile.last_name)}
@@ -157,6 +201,12 @@ const PublicVolunteerProfile = () => {
                     {profile.city}
                   </span>
                 )}
+                {stats.averageRating > 0 && (
+                  <span className="flex items-center gap-1 text-yellow-600 text-sm">
+                    <Star className="h-4 w-4 fill-current" />
+                    {stats.averageRating}/5
+                  </span>
+                )}
               </div>
               {profile.bio && (
                 <p className="text-gray-600 mt-3">{profile.bio}</p>
@@ -166,8 +216,8 @@ const PublicVolunteerProfile = () => {
         </CardContent>
       </Card>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Statistiques améliorées */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="flex flex-col items-center p-6">
             <Clock className="h-8 w-8 mb-2 text-blue-600" />
@@ -178,7 +228,7 @@ const PublicVolunteerProfile = () => {
         
         <Card>
           <CardContent className="flex flex-col items-center p-6">
-            <Star className="h-8 w-8 mb-2 text-blue-600" />
+            <User className="h-8 w-8 mb-2 text-blue-600" />
             <span className="font-bold text-2xl text-blue-600">{stats.completedMissions}</span>
             <span className="text-sm text-gray-500">Missions terminées</span>
           </CardContent>
@@ -189,6 +239,16 @@ const PublicVolunteerProfile = () => {
             <Award className="h-8 w-8 mb-2 text-blue-600" />
             <span className="font-bold text-2xl text-blue-600">{stats.badges}</span>
             <span className="text-sm text-gray-500">Badges obtenus</span>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="flex flex-col items-center p-6">
+            <Star className="h-8 w-8 mb-2 text-yellow-600" />
+            <span className="font-bold text-2xl text-yellow-600">
+              {stats.averageRating > 0 ? stats.averageRating : '—'}
+            </span>
+            <span className="text-sm text-gray-500">Note moyenne</span>
           </CardContent>
         </Card>
       </div>
@@ -238,7 +298,7 @@ const PublicVolunteerProfile = () => {
       {reviews.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Avis des organisations</CardTitle>
+            <CardTitle>Avis des organisations ({reviews.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -262,13 +322,29 @@ const PublicVolunteerProfile = () => {
                       ))}
                     </div>
                   </div>
-                  <p className="text-gray-700">{review.comment}</p>
-                  <div className="text-xs text-gray-500 mt-2">
+                  {review.comment && (
+                    <p className="text-gray-700 mb-2">{review.comment}</p>
+                  )}
+                  <div className="text-xs text-gray-500">
                     {new Date(review.created_at).toLocaleDateString('fr-FR')}
                   </div>
                 </div>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Message si pas d'avis */}
+      {reviews.length === 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Avis des organisations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-center text-gray-500 py-8">
+              Aucun avis pour le moment.
+            </p>
           </CardContent>
         </Card>
       )}

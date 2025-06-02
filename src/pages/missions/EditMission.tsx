@@ -27,7 +27,7 @@ const EditMission = () => {
   const { missionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: organizationProfile, isLoading: profileLoading } = useOrganizationProfile(user?.id);
+  const { data: organizationProfile, isLoading: profileLoading, error: profileError } = useOrganizationProfile(user?.id);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [mission, setMission] = useState<any>(null);
@@ -45,23 +45,42 @@ const EditMission = () => {
   });
 
   useEffect(() => {
-    if (missionId && organizationProfile) {
-      fetchMission();
+    // Si on a une erreur de profil ou pas d'utilisateur, rediriger
+    if (!user || profileError) {
+      console.log('No user or profile error:', { user, profileError });
+      navigate("/login");
+      return;
     }
-  }, [missionId, organizationProfile]);
+
+    // Si le profil est chargé et qu'on a un ID de mission
+    if (!profileLoading && organizationProfile && missionId) {
+      fetchMission();
+    } else if (!profileLoading && !organizationProfile) {
+      // L'utilisateur n'est pas une organisation
+      toast.error("Vous devez être connecté en tant qu'organisation pour modifier une mission");
+      navigate("/dashboard");
+    }
+  }, [user, profileLoading, organizationProfile, missionId, profileError, navigate]);
 
   const fetchMission = async () => {
-    if (!organizationProfile) return;
+    if (!organizationProfile || !missionId) return;
     
     try {
       setIsLoading(true);
+      console.log('Fetching mission with ID:', missionId);
+      
       const { data: mission, error } = await supabase
         .from("missions")
         .select("*")
         .eq("id", missionId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching mission:', error);
+        throw error;
+      }
+
+      console.log('Mission fetched:', mission);
 
       // Vérifier que l'organisation a le droit de modifier cette mission
       if (mission.organization_id !== organizationProfile.id) {
@@ -116,7 +135,22 @@ const EditMission = () => {
     }
   };
 
-  if (profileLoading || isLoading) {
+  // Affichage de chargement pour le profil
+  if (profileLoading) {
+    return (
+      <div className="container-custom py-10">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p>Chargement du profil...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Affichage de chargement pour la mission
+  if (isLoading) {
     return (
       <div className="container-custom py-10">
         <Card>
@@ -129,12 +163,16 @@ const EditMission = () => {
     );
   }
 
+  // Vérification si l'utilisateur est une organisation
   if (!organizationProfile) {
     return (
       <div className="container-custom py-10">
         <Card>
           <CardContent className="p-6">
             <p>Vous devez être connecté en tant qu'organisation pour modifier une mission.</p>
+            <Button onClick={() => navigate("/dashboard")} className="mt-4">
+              Retour au dashboard
+            </Button>
           </CardContent>
         </Card>
       </div>
