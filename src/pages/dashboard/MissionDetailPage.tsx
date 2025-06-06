@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, MapPin, Clock, Users, Calendar } from 'lucide-react';
+import { ArrowLeft, MapPin, Users, Calendar } from 'lucide-react';
 
 const MissionDetailPage: React.FC = () => {
   const { id } = useParams();

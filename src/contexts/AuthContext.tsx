@@ -56,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     checkAuth();
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, _password: string) => {
     setIsLoading(true);
     try {
       // Simuler la connexion
@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const signup = async (email: string, password: string, role = 'user') => {
+  const signup = async (email: string, _password: string, role = 'user') => {
     setIsLoading(true);
     try {
       // Simuler l'inscription

@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   
-  login: async (email: string, password: string) => {
+  login: async (email: string, _password: string) => {
     set({ isLoading: true });
     try {
       await new Promise(resolve => setTimeout(resolve, 1000));
