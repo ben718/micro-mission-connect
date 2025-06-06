@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { missionService } from '../lib/supabase';
 import type { SupabaseData } from '../lib/mappers';
@@ -113,7 +114,7 @@ export const useMissionStore = create<MissionState>((set, get) => ({
           return mission;
         });
         
-        // Update current mission if it's the one being registered for
+        // Update current mission if it exists and is the one being registered for
         let updatedCurrentMission = currentMission;
         if (currentMission && currentMission.id === missionId) {
           updatedCurrentMission = {
@@ -170,7 +171,7 @@ export const useMissionStore = create<MissionState>((set, get) => ({
           return mission;
         });
         
-        // Update current mission if it's the one being cancelled
+        // Update current mission if it exists and is the one being cancelled
         let updatedCurrentMission = currentMission;
         if (currentMission && currentMission.id === missionId) {
           updatedCurrentMission = {

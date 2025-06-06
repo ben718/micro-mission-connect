@@ -10,7 +10,6 @@ interface MainLayoutProps {
   userName?: string;
   userAvatar?: string;
   activeTab?: 'explore' | 'missions' | 'impact' | 'profile';
-  isAssociation?: boolean;
 }
 
 const pageVariants = {
@@ -39,7 +38,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   userName = 'Thomas',
   userAvatar = '',
   activeTab = 'explore',
-  isAssociation = false,
 }) => {
   const location = useLocation();
   

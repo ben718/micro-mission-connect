@@ -20,7 +20,7 @@ const MissionDetailPage: React.FC = () => {
     userMissions 
   } = useMissionStore();
   
-  const isRegistered = userMissions.includes(id || '');
+  const isRegistered = userMissions.some(m => m.id === id);
   
   useEffect(() => {
     const fetchMission = async () => {

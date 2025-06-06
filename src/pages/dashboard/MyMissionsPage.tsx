@@ -1,11 +1,8 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../../stores/authStore';
 
 const MyMissionsPage: React.FC = () => {
-  const { isAuthenticated } = useAuthStore();
-  
   return (
     <motion.div 
       className="py-6"

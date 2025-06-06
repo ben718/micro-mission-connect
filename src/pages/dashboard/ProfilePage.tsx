@@ -4,7 +4,11 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
 
 const ProfilePage: React.FC = () => {
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, logout } = useAuthStore();
+  
+  const handleLogout = async () => {
+    await logout();
+  };
   
   return (
     <motion.div 
@@ -16,90 +20,81 @@ const ProfilePage: React.FC = () => {
     >
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Mon Profil</h1>
       
-      {/* Photo et informations principales */}
+      {/* Informations personnelles */}
       <div className="card mb-6">
-        <div className="flex items-center space-x-4 mb-4">
-          <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center">
-            {user?.avatar ? (
-              <img src={user.avatar} alt="Avatar" className="w-20 h-20 rounded-full object-cover" />
-            ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            )}
+        <div className="flex items-center mb-4">
+          <div className="h-16 w-16 rounded-full bg-vs-blue-primary flex items-center justify-center text-white text-xl font-bold mr-4">
+            {user?.first_name?.[0] || 'U'}
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              {user?.firstName} {user?.lastName}
+            <h2 className="text-lg font-semibold text-gray-900">
+              {user?.first_name} {user?.last_name}
             </h2>
             <p className="text-gray-600">{user?.email}</p>
-            <p className="text-sm text-vs-blue-primary">Bénévole actif</p>
           </div>
         </div>
         
         <button className="btn-outline w-full">
-          Modifier le profil
+          Modifier mon profil
         </button>
       </div>
-      
+
       {/* Statistiques */}
       <div className="card mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Mes statistiques</h3>
-        <div className="grid grid-cols-3 gap-4 text-center">
-          <div>
-            <p className="text-2xl font-bold text-vs-blue-primary">42</p>
-            <p className="text-sm text-gray-600">Missions</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="text-center">
+            <div className="text-2xl font-bold text-vs-blue-primary">24</div>
+            <div className="text-sm text-gray-600">Missions</div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-vs-green-primary">156h</p>
-            <p className="text-sm text-gray-600">Bénévolat</p>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-green-600">48h</div>
+            <div className="text-sm text-gray-600">Bénévolat</div>
           </div>
-          <div>
-            <p className="text-2xl font-bold text-vs-orange-primary">4.8</p>
-            <p className="text-sm text-gray-600">Note</p>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-orange-600">156</div>
+            <div className="text-sm text-gray-600">Personnes aidées</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-bold text-purple-600">4.8</div>
+            <div className="text-sm text-gray-600">Note moyenne</div>
           </div>
         </div>
       </div>
-      
-      {/* Paramètres */}
-      <div className="space-y-4">
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Notifications</h3>
-              <p className="text-sm text-gray-600">Gérer vos préférences</p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
+
+      {/* Préférences */}
+      <div className="card mb-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Préférences</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Notifications</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" defaultChecked />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-vs-blue-primary"></div>
+            </label>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className="text-gray-700">Localisation</span>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" className="sr-only peer" defaultChecked />
+              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-vs-blue-primary"></div>
+            </label>
           </div>
         </div>
-        
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Confidentialité</h3>
-              <p className="text-sm text-gray-600">Gérer vos données</p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-        </div>
-        
-        <div className="card">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-medium text-gray-900">Aide et support</h3>
-              <p className="text-sm text-gray-600">Obtenir de l'aide</p>
-            </div>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
-            </svg>
-          </div>
-        </div>
-        
-        <button className="btn-outline-red w-full">
+      </div>
+
+      {/* Actions */}
+      <div className="space-y-3">
+        <button className="btn-outline w-full">
+          Aide & Support
+        </button>
+        <button className="btn-outline w-full">
+          Conditions d'utilisation
+        </button>
+        <button 
+          className="btn-outline-red w-full"
+          onClick={handleLogout}
+        >
           Se déconnecter
         </button>
       </div>
