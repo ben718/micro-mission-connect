@@ -1,67 +1,111 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuthStore } from '../stores/authStore';
-import type { SupabaseData } from '../lib/mappers';
+
+interface User {
+  id: string;
+  email: string;
+  role: 'user' | 'association';
+  name?: string;
+}
 
 interface AuthContextType {
-  user: SupabaseData | null;
+  user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => void;
+  signup: (email: string, password: string, role?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { 
-    user, 
-    isAuthenticated, 
-    isLoading, 
-    login, 
-    signup, 
-    logout, 
-    checkAuth 
-  } = useAuthStore();
-
-  const [initialized, setInitialized] = useState(false);
-
-  // Vérifier l'authentification au chargement de l'application
-  useEffect(() => {
-    const initAuth = async () => {
-      await checkAuth();
-      setInitialized(true);
-    };
-
-    initAuth();
-  }, [checkAuth]);
-
-  // Attendre que la vérification d'authentification soit terminée
-  if (!initialized && isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-vs-blue-primary"></div>
-      </div>
-    );
-  }
-
-  const value = {
-    user,
-    isAuthenticated,
-    isLoading,
-    login,
-    signup,
-    logout
-  };
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
+};
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Simuler la vérification de l'authentification
+    const checkAuth = async () => {
+      try {
+        // Simuler un délai de vérification
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Pour la démo, on simule un utilisateur connecté
+        const mockUser = {
+          id: '1',
+          email: 'jean.dupont@example.com',
+          role: 'user' as const,
+          name: 'Jean Dupont'
+        };
+        setUser(mockUser);
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true);
+    try {
+      // Simuler la connexion
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const mockUser = {
+        id: '1',
+        email,
+        role: 'user' as const,
+        name: 'Jean Dupont'
+      };
+      setUser(mockUser);
+    } catch (error) {
+      throw new Error('Échec de la connexion');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+  };
+
+  const signup = async (email: string, password: string, role = 'user') => {
+    setIsLoading(true);
+    try {
+      // Simuler l'inscription
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const mockUser = {
+        id: '1',
+        email,
+        role: role as 'user' | 'association',
+        name: 'Nouvel utilisateur'
+      };
+      setUser(mockUser);
+    } catch (error) {
+      throw new Error('Échec de l\'inscription');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const value = {
+    user,
+    isAuthenticated: !!user,
+    isLoading,
+    login,
+    logout,
+    signup,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

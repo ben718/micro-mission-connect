@@ -1,104 +1,91 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../../stores/authStore';
+import { Settings, MapPin, Star, Award } from 'lucide-react';
 
 const ProfilePage: React.FC = () => {
-  const { user, logout } = useAuthStore();
-  
-  const handleLogout = async () => {
-    await logout();
-  };
-  
   return (
-    <motion.div 
-      className="py-6"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Mon Profil</h1>
-      
-      {/* Informations personnelles */}
-      <div className="card mb-6">
-        <div className="flex items-center mb-4">
-          <div className="h-16 w-16 rounded-full bg-vs-blue-primary flex items-center justify-center text-white text-xl font-bold mr-4">
-            {user?.first_name?.[0] || 'U'}
+    <div className="space-y-6">
+      {/* Profile Header */}
+      <motion.div 
+        className="bg-white rounded-xl p-6 shadow-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <div className="h-16 w-16 rounded-full bg-vs-blue-primary flex items-center justify-center text-white text-xl font-bold mr-4">
+              JD
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-gray-900">Jean Dupont</h2>
+              <p className="text-sm text-gray-600">Membre depuis juin 2025</p>
+              <div className="flex items-center mt-1">
+                <MapPin className="h-4 w-4 text-gray-400 mr-1" />
+                <span className="text-sm text-gray-600">Paris 19ème</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">
-              {user?.first_name} {user?.last_name}
-            </h2>
-            <p className="text-gray-600">{user?.email}</p>
-          </div>
+          <button className="p-2 rounded-full hover:bg-gray-100">
+            <Settings className="h-5 w-5 text-gray-600" />
+          </button>
         </div>
-        
-        <button className="btn-outline w-full">
+        <button className="w-full btn-secondary">
           Modifier mon profil
         </button>
-      </div>
+      </motion.div>
 
-      {/* Statistiques */}
-      <div className="card mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Mes statistiques</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-vs-blue-primary">24</div>
-            <div className="text-sm text-gray-600">Missions</div>
+      {/* Impact Stats */}
+      <motion.div 
+        className="bg-white rounded-xl p-6 shadow-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Mon impact</h3>
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div>
+            <p className="text-2xl font-bold text-vs-blue-primary">5</p>
+            <p className="text-sm text-gray-600">Missions</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">48h</div>
-            <div className="text-sm text-gray-600">Bénévolat</div>
+          <div>
+            <p className="text-2xl font-bold text-vs-green-secondary">3h</p>
+            <p className="text-sm text-gray-600">Temps donné</p>
           </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-orange-600">156</div>
-            <div className="text-sm text-gray-600">Personnes aidées</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">4.8</div>
-            <div className="text-sm text-gray-600">Note moyenne</div>
+          <div>
+            <p className="text-2xl font-bold text-vs-orange-accent">2</p>
+            <p className="text-sm text-gray-600">Associations</p>
           </div>
         </div>
-      </div>
+      </motion.div>
 
-      {/* Préférences */}
-      <div className="card mb-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Préférences</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700">Notifications</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-vs-blue-primary"></div>
-            </label>
+      {/* Badges */}
+      <motion.div 
+        className="bg-white rounded-xl p-6 shadow-card"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Mes badges</h3>
+          <button className="text-sm text-vs-blue-primary">Voir tout</button>
+        </div>
+        <div className="flex space-x-4 overflow-x-auto">
+          <div className="flex flex-col items-center min-w-0">
+            <div className="h-16 w-16 rounded-full bg-vs-orange-light flex items-center justify-center mb-2">
+              <Star className="h-6 w-6 text-vs-orange-dark" />
+            </div>
+            <span className="text-xs text-gray-600">Premier pas</span>
           </div>
-          <div className="flex justify-between items-center">
-            <span className="text-gray-700">Localisation</span>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" className="sr-only peer" defaultChecked />
-              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-vs-blue-primary"></div>
-            </label>
+          <div className="flex flex-col items-center min-w-0">
+            <div className="h-16 w-16 rounded-full bg-vs-green-light flex items-center justify-center mb-2">
+              <Award className="h-6 w-6 text-vs-green-dark" />
+            </div>
+            <span className="text-xs text-gray-600">Alimentaire</span>
           </div>
         </div>
-      </div>
-
-      {/* Actions */}
-      <div className="space-y-3">
-        <button className="btn-outline w-full">
-          Aide & Support
-        </button>
-        <button className="btn-outline w-full">
-          Conditions d'utilisation
-        </button>
-        <button 
-          className="btn-outline-red w-full"
-          onClick={handleLogout}
-        >
-          Se déconnecter
-        </button>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   );
 };
 

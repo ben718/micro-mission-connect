@@ -1,241 +1,108 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useMissionStore } from '../../stores/tempMissionStore';
-import { Link } from 'react-router-dom';
+import { Search, MapPin, Filter } from 'lucide-react';
 
 const ExplorePage: React.FC = () => {
-  const { 
-    missions, 
-    fetchMissions, 
-    loading, 
-    filters, 
-    setFilter, 
-    resetFilters 
-  } = useMissionStore();
-  
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  
-  useEffect(() => {
-    fetchMissions();
-  }, [fetchMissions]);
-  
-  // Filtrage des missions
-  const filteredMissions = missions.filter(mission => {
-    // Filtre par disponibilité
-    if (filters.timing === 'now' && mission.timing !== 'now' && mission.timing !== 'soon') {
-      return false;
-    } else if (filters.timing === 'planned' && (mission.timing === 'now' || mission.timing === 'soon')) {
-      return false;
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const missions = [
+    {
+      id: '1',
+      title: 'Distribution alimentaire',
+      description: 'Aider à distribuer des repas aux personnes sans-abri',
+      duration: 15,
+      distance: '500m',
+      category: 'Alimentaire',
+      borderColor: 'border-vs-orange-accent'
+    },
+    {
+      id: '2',
+      title: 'Lecture aux seniors',
+      description: 'Lire le journal à des personnes âgées',
+      duration: 30,
+      distance: '1.2 km',
+      category: 'Social',
+      borderColor: 'border-vs-green-secondary'
+    },
+    {
+      id: '3',
+      title: 'Aide aux courses',
+      description: 'Accompagner une personne âgée pour ses courses',
+      duration: 45,
+      distance: '800m',
+      category: 'Aide',
+      borderColor: 'border-vs-blue-primary'
     }
-    
-    // Filtre par durée
-    if (filters.duration !== null) {
-      if (filters.duration === 15 && mission.duration > 15) return false;
-      if (filters.duration === 30 && (mission.duration < 16 || mission.duration > 30)) return false;
-      if (filters.duration === 60 && mission.duration <= 30) return false;
-    }
-    
-    // Filtre par catégorie
-    if (filters.category !== null && mission.category !== filters.category) {
-      return false;
-    }
-    
-    // Filtre par distance
-    if (filters.distance !== null && mission.distance && mission.distance > filters.distance) {
-      return false;
-    }
-    
-    return true;
-  });
-  
-  // Formatage du timing
-  const getTimingText = (timing?: string) => {
-    if (timing === 'now') {
-      return 'Maintenant';
-    } else if (timing === 'soon') {
-      return 'Bientôt';
-    } else {
-      return timing || 'À planifier';
-    }
-  };
-  
+  ];
+
   return (
-    <motion.div 
-      className="py-6"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Explorer les missions</h1>
-      
-      {/* Filtres principaux */}
-      <div className="flex mb-4 border-b border-gray-200">
-        <button
-          className={`py-2 px-4 font-medium ${
-            filters.timing === 'now'
-              ? 'text-vs-blue-primary border-b-2 border-vs-blue-primary'
-              : 'text-gray-500'
-          }`}
-          onClick={() => setFilter('timing', filters.timing === 'now' ? null : 'now')}
-        >
-          Disponible maintenant
-        </button>
-        <button
-          className={`py-2 px-4 font-medium ${
-            filters.timing === 'planned'
-              ? 'text-vs-blue-primary border-b-2 border-vs-blue-primary'
-              : 'text-gray-500'
-          }`}
-          onClick={() => setFilter('timing', filters.timing === 'planned' ? null : 'planned')}
-        >
-          Planifier
+    <div className="space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Explorer</h1>
+        <p className="text-gray-600">Trouvez des missions près de chez vous</p>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+        <input
+          type="text"
+          placeholder="Rechercher une mission..."
+          className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-vs-blue-primary focus:border-vs-blue-primary"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+        <button className="absolute right-3 top-1/2 transform -translate-y-1/2">
+          <Filter className="h-5 w-5 text-gray-400" />
         </button>
       </div>
-      
-      {/* Filtres secondaires */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          className={`px-3 py-1 text-sm rounded-full ${
-            filters.duration === 15
-              ? 'bg-vs-blue-primary text-white'
-              : 'bg-gray-100 text-gray-700'
-          }`}
-          onClick={() => setFilter('duration', filters.duration === 15 ? null : 15)}
-        >
-          15 min
-        </button>
-        <button
-          className={`px-3 py-1 text-sm rounded-full ${
-            filters.duration === 30
-              ? 'bg-vs-blue-primary text-white'
-              : 'bg-gray-100 text-gray-700'
-          }`}
-          onClick={() => setFilter('duration', filters.duration === 30 ? null : 30)}
-        >
-          30 min
-        </button>
-        <button
-          className={`px-3 py-1 text-sm rounded-full ${
-            filters.duration === 60
-              ? 'bg-vs-blue-primary text-white'
-              : 'bg-gray-100 text-gray-700'
-          }`}
-          onClick={() => setFilter('duration', filters.duration === 60 ? null : 60)}
-        >
-          1h+
-        </button>
-        
-        <div className="ml-auto flex">
-          <button
-            className={`px-3 py-1 rounded-l-md ${
-              viewMode === 'list'
-                ? 'bg-vs-blue-primary text-white'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-            onClick={() => setViewMode('list')}
-          >
-            Liste
-          </button>
-          <button
-            className={`px-3 py-1 rounded-r-md ${
-              viewMode === 'map'
-                ? 'bg-vs-blue-primary text-white'
-                : 'bg-gray-100 text-gray-700'
-            }`}
-            onClick={() => setViewMode('map')}
-          >
-            Carte
-          </button>
+
+      {/* Map Placeholder */}
+      <div className="bg-gray-200 rounded-xl h-48 flex items-center justify-center">
+        <div className="text-center">
+          <MapPin className="h-8 w-8 text-vs-blue-primary mx-auto mb-2" />
+          <p className="text-gray-600">Carte des missions</p>
         </div>
       </div>
-      
-      {/* Résultats */}
-      <div className="mb-4">
-        {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <svg className="animate-spin h-8 w-8 text-vs-blue-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          </div>
-        ) : (
-          <>
-            <p className="text-sm text-gray-500 mb-2">
-              {filteredMissions.length} mission{filteredMissions.length !== 1 ? 's' : ''} trouvée{filteredMissions.length !== 1 ? 's' : ''}
-            </p>
-            
-            {viewMode === 'list' ? (
-              <div>
-                {filteredMissions.map(mission => (
-                  <motion.div 
-                    key={mission.id}
-                    className="card hover:cursor-pointer mb-4"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    onClick={() => {}}
-                  >
-                    <Link to={`/app/missions/${mission.id}`} className="block">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h3 className="font-semibold text-gray-900">{mission.title}</h3>
-                          <p className="text-sm text-gray-600">{mission.association_name}</p>
-                        </div>
-                        <span className={mission.duration <= 15 ? 'badge-orange' : mission.duration <= 30 ? 'badge-green' : 'badge-blue'}>
-                          {mission.duration} min
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center text-sm text-gray-500 mb-3">
-                        <span className="mr-3">{mission.distance || 0} km</span>
-                        <span>{getTimingText(mission.timing)}</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500">
-                          {mission.spots_taken}/{mission.spots_available} places
-                        </span>
-                        
-                        <div className="w-24 bg-gray-200 rounded-full h-1.5">
-                          <div 
-                            className="bg-vs-blue-primary h-1.5 rounded-full" 
-                            style={{ width: `${(mission.spots_taken / mission.spots_available) * 100}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-2">
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                          {mission.category}
-                        </span>
-                      </div>
-                    </Link>
-                  </motion.div>
-                ))}
-                
-                {filteredMissions.length === 0 && (
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">Aucune mission ne correspond à vos critères</p>
-                    <button 
-                      className="btn-secondary"
-                      onClick={resetFilters}
-                    >
-                      Réinitialiser les filtres
-                    </button>
-                  </div>
-                )}
+
+      {/* Mission List */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-gray-900">Missions disponibles ({missions.length})</h2>
+        
+        {missions.map((mission, index) => (
+          <motion.div
+            key={mission.id}
+            className={`bg-white rounded-xl p-4 shadow-card border-l-4 ${mission.borderColor}`}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
+          >
+            <div className="flex justify-between items-start mb-2">
+              <h3 className="font-medium text-gray-900">{mission.title}</h3>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                mission.category === 'Alimentaire' ? 'bg-vs-orange-light text-vs-orange-dark' :
+                mission.category === 'Social' ? 'bg-vs-green-light text-vs-green-dark' :
+                'bg-vs-blue-light text-vs-blue-dark'
+              }`}>
+                {mission.duration} min
+              </span>
+            </div>
+            <p className="text-sm text-gray-600 mb-3">{mission.description}</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-gray-500">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span className="text-xs">{mission.distance}</span>
               </div>
-            ) : (
-              <div className="bg-gray-100 rounded-lg h-64 flex items-center justify-center">
-                <p className="text-gray-500">Carte des missions à proximité</p>
-                {/* Dans une implémentation réelle, intégrer une carte interactive ici */}
-              </div>
-            )}
-          </>
-        )}
+              <button className="btn-primary text-sm py-1 px-4">
+                Je participe
+              </button>
+            </div>
+          </motion.div>
+        ))}
       </div>
-    </motion.div>
+    </div>
   );
 };
 

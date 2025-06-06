@@ -1,122 +1,60 @@
 
 import { create } from 'zustand';
-import type { Mission } from '../lib/types';
-import { supabase } from '../integrations/supabase/client';
+
+interface Mission {
+  id: string;
+  title: string;
+  description: string;
+  duration: number;
+  category: string;
+  location: string;
+  date: string;
+  association: string;
+}
 
 interface MissionState {
   missions: Mission[];
-  selectedMission: Mission | null;
-  loading: boolean;
-  error: string | null;
-  
-  // Actions
+  isLoading: boolean;
   fetchMissions: () => Promise<void>;
-  getMissionById: (id: string) => Mission | null;
-  applyToMission: (missionId: string, userId: string) => Promise<void>;
-  setSelectedMission: (mission: Mission | null) => void;
 }
 
-export const useMissionStore = create<MissionState>((set, get) => ({
+export const useMissionStore = create<MissionState>((set) => ({
   missions: [],
-  selectedMission: null,
-  loading: false,
-  error: null,
-
+  isLoading: false,
+  
   fetchMissions: async () => {
-    set({ loading: true, error: null });
+    set({ isLoading: true });
     try {
-      const { data, error } = await supabase
-        .from('available_missions')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Transform the data to match Mission interface, filtering out null ids
-      const missions: Mission[] = (data || [])
-        .filter(mission => mission.id !== null) // Filter out missions with null ids
-        .map(mission => ({
-          ...mission,
-          id: mission.id!, // We know it's not null after filtering
-          title: mission.title || '',
-          description: mission.description || '',
-          short_description: mission.short_description || '',
-          association_id: mission.association_id || '',
-          association_name: mission.association_name || '',
-          category: mission.category || '',
-          address: mission.address || '',
-          city: mission.city || '',
-          postal_code: mission.postal_code || '',
-          date: mission.date || '',
-          time_start: mission.start_time || '09:00', // Use start_time from Supabase
-          time_end: mission.end_time || '17:00', // Use end_time from Supabase
-          duration: mission.duration || 60,
-          status: mission.status || 'published',
-          is_recurring: mission.is_recurring || false,
-          created_at: mission.created_at || '',
-          updated_at: mission.updated_at || '',
-          spots: {
-            available: mission.spots_available || 0,
-            taken: mission.spots_taken || 0
-          },
-          spots_available: mission.spots_available || 0,
-          spots_taken: mission.spots_taken || 0
-        } as Mission));
-
-      set({ 
-        missions, 
-        loading: false 
-      });
+      // Simuler la récupération des missions
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const mockMissions: Mission[] = [
+        {
+          id: '1',
+          title: 'Distribution alimentaire',
+          description: 'Aider à distribuer des repas aux personnes sans-abri',
+          duration: 15,
+          category: 'Alimentaire',
+          location: 'Paris 19ème',
+          date: '2025-06-06',
+          association: 'Les Restos du Cœur'
+        },
+        {
+          id: '2',
+          title: 'Lecture aux seniors',
+          description: 'Lire le journal à des personnes âgées',
+          duration: 30,
+          category: 'Social',
+          location: 'Paris 18ème',
+          date: '2025-06-06',
+          association: 'Secours Populaire'
+        }
+      ];
+      
+      set({ missions: mockMissions, isLoading: false });
     } catch (error) {
-      console.error('Erreur lors du chargement des missions:', error);
-      set({ 
-        error: error instanceof Error ? error.message : 'Erreur inconnue', 
-        loading: false 
-      });
+      console.error('Failed to fetch missions:', error);
+      set({ isLoading: false });
     }
-  },
-
-  getMissionById: (id: string) => {
-    const { missions } = get();
-    return missions.find(mission => mission.id === id) || null;
-  },
-
-  applyToMission: async (missionId: string, userId: string) => {
-    try {
-      const { error } = await supabase
-        .from('mission_registrations')
-        .insert({
-          mission_id: missionId,
-          user_id: userId,
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      // Mettre à jour le store local si nécessaire
-      const mission = get().getMissionById(missionId);
-      if (mission?.spots) {
-        const updatedMission = {
-          ...mission,
-          spots: {
-            ...mission.spots,
-            taken: mission.spots.taken + 1
-          }
-        };
-        
-        set({ 
-          missions: get().missions.map(m => 
-            m.id === missionId ? updatedMission : m
-          )
-        });
-      }
-    } catch (error) {
-      console.error('Erreur lors de l\'inscription à la mission:', error);
-      throw error;
-    }
-  },
-
-  setSelectedMission: (mission: Mission | null) => {
-    set({ selectedMission: mission });
   },
 }));
