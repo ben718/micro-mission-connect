@@ -1,22 +1,15 @@
+
 import React from 'react';
 import { motion } from 'framer-motion';
-import { useAuthStore } from '../../stores/authStore';
 import { useMissionStore } from '../../stores/missionStore';
 
 const ImpactPage: React.FC = () => {
   const { missions } = useMissionStore();
-  const { user } = useAuthStore();
-
-  // Calcul du nombre total de missions
-  const totalMissions = missions ? missions.length : 0;
 
   // Calcul du nombre de missions auxquelles l'utilisateur s'est inscrit
   const userMissions = missions
     ? missions.filter(mission => mission.registration_status === 'accepted').length
     : 0;
-
-  // Calcul du nombre d'heures de bénévolat (exemple simplifié)
-  const totalHours = userMissions * 4; // Supposons 4 heures par mission
 
   return (
     <motion.div 
@@ -35,11 +28,11 @@ const ImpactPage: React.FC = () => {
           <div className="space-y-3">
             <div className="flex justify-between">
               <span className="text-gray-600">Missions accomplies</span>
-              <span className="font-medium text-vs-blue-primary">12</span>
+              <span className="font-medium text-vs-blue-primary">{userMissions}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Heures de bénévolat</span>
-              <span className="font-medium text-vs-blue-primary">48h</span>
+              <span className="font-medium text-vs-blue-primary">{userMissions * 4}h</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">Personnes aidées</span>

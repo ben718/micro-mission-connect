@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import type { Mission, MissionFilters } from '../lib/types';
+import type { Mission } from '../lib/types';
 import { supabase } from '../integrations/supabase/client';
 
 interface MissionState {
@@ -32,8 +32,19 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
       if (error) throw error;
 
+      // Transform the data to match Mission interface
+      const missions: Mission[] = (data || []).map(mission => ({
+        ...mission,
+        time_start: mission.time_start || '09:00',
+        time_end: mission.time_end || '17:00',
+        spots: {
+          available: mission.spots_available || 0,
+          taken: mission.spots_taken || 0
+        }
+      }));
+
       set({ 
-        missions: data || [], 
+        missions, 
         loading: false 
       });
     } catch (error) {
@@ -56,7 +67,7 @@ export const useMissionStore = create<MissionState>((set, get) => ({
         .from('mission_registrations')
         .insert({
           mission_id: missionId,
-          volunteer_id: userId,
+          user_id: userId,
           status: 'pending'
         });
 
@@ -64,11 +75,18 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
       // Mettre à jour le store local si nécessaire
       const mission = get().getMissionById(missionId);
-      if (mission && mission.spots) {
-        mission.spots.taken += 1;
+      if (mission?.spots) {
+        const updatedMission = {
+          ...mission,
+          spots: {
+            ...mission.spots,
+            taken: mission.spots.taken + 1
+          }
+        };
+        
         set({ 
           missions: get().missions.map(m => 
-            m.id === missionId ? mission : m
+            m.id === missionId ? updatedMission : m
           )
         });
       }

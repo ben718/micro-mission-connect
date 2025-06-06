@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -7,7 +8,7 @@ import { useAuthStore } from '../../stores/authStore';
 const MissionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { missions, getMissionById, applyToMission } = useMissionStore();
+  const { getMissionById, applyToMission } = useMissionStore();
   const { user } = useAuthStore();
 
   const mission = id ? getMissionById(id) : null;
@@ -17,14 +18,6 @@ const MissionDetailPage: React.FC = () => {
       console.error("Mission ID is missing.");
       navigate('/app/explore');
       return;
-    }
-    
-    if (!mission) {
-      // Tenter de recharger les missions si l'ID est valide mais la mission n'est pas trouvée
-      // Cela peut arriver si l'utilisateur arrive directement sur cette page sans passer par la liste des missions
-      // et que le store n'est pas encore initialisé.
-      // Vous pouvez commenter cette ligne si vous préférez ne pas recharger automatiquement.
-      // fetchMissions();
     }
   }, [id, mission, navigate]);
 
