@@ -2,7 +2,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, Bolt, Heart } from 'lucide-react';
 
 const HomePage: React.FC = () => {
   return (
@@ -81,7 +80,9 @@ const HomePage: React.FC = () => {
               transition={{ duration: 0.5 }}
             >
               <div className="h-16 w-16 rounded-full bg-vs-blue-light flex items-center justify-center mx-auto mb-4">
-                <Search className="h-8 w-8 text-vs-blue-dark" />
+                <svg className="h-8 w-8 text-vs-blue-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">1. Trouvez</h3>
               <p className="text-gray-600">
@@ -97,7 +98,9 @@ const HomePage: React.FC = () => {
               transition={{ delay: 0.2, duration: 0.5 }}
             >
               <div className="h-16 w-16 rounded-full bg-vs-green-light flex items-center justify-center mx-auto mb-4">
-                <Bolt className="h-8 w-8 text-vs-green-dark" />
+                <svg className="h-8 w-8 text-vs-green-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">2. Participez</h3>
               <p className="text-gray-600">
@@ -113,7 +116,9 @@ const HomePage: React.FC = () => {
               transition={{ delay: 0.4, duration: 0.5 }}
             >
               <div className="h-16 w-16 rounded-full bg-vs-orange-light flex items-center justify-center mx-auto mb-4">
-                <Heart className="h-8 w-8 text-vs-orange-dark" />
+                <svg className="h-8 w-8 text-vs-orange-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">3. Impactez</h3>
               <p className="text-gray-600">
