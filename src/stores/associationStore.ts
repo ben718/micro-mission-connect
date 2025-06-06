@@ -1,5 +1,7 @@
+
 import { create } from 'zustand';
-import { supabase, Association } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import type { Association } from '../lib/types';
 
 interface AssociationState {
   association: Association | null;
@@ -96,7 +98,7 @@ export const useAssociationStore = create<AssociationState>((set, get) => ({
         return false;
       }
       
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('associations')
         .update({
           notification_preferences: preferences
@@ -135,7 +137,7 @@ export const useAssociationStore = create<AssociationState>((set, get) => ({
       }
       
       // Dans une implémentation réelle, nous enverrions une invitation via Supabase
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('association_members')
         .insert({
           association_id: authData.session.user.id,

@@ -1,33 +1,59 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useMissionStore } from '../../stores/missionStore';
+import { missionService } from '../../lib/supabase';
+import type { Mission } from '../../lib/types';
 
 const MissionDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isRegistering, setIsRegistering] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [mission, setMission] = useState<Mission | null>(null);
+  const [loading, setLoading] = useState(true);
   
   const { 
-    getMission, 
     registerForMission, 
     cancelMissionRegistration, 
     userMissions 
   } = useMissionStore();
   
-  const mission = getMission(id || '');
   const isRegistered = userMissions.includes(id || '');
   
   useEffect(() => {
-    if (!mission) {
-      // Rediriger si la mission n'existe pas
-      navigate('/app/explore');
-    }
-  }, [mission, navigate]);
+    const fetchMission = async () => {
+      if (!id) {
+        navigate('/app/explore');
+        return;
+      }
+      
+      try {
+        setLoading(true);
+        const missionData = await missionService.getMissionById(id);
+        setMission(missionData as Mission);
+      } catch (error) {
+        console.error('Error fetching mission:', error);
+        navigate('/app/explore');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchMission();
+  }, [id, navigate]);
+  
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-vs-blue-primary"></div>
+      </div>
+    );
+  }
   
   if (!mission) {
-    return null; // Ou un composant de chargement
+    return null;
   }
   
   const handleRegister = async () => {
@@ -48,17 +74,6 @@ const MissionDetailPage: React.FC = () => {
     }
   };
   
-  // Formatage du timing - commenté car non utilisé pour éviter l'erreur TS
-  // const getTimingText = () => {
-  //   if (mission.timing === 'now') {
-  //     return 'Maintenant';
-  //   } else if (mission.timing === 'soon') {
-  //     return 'Bientôt';
-  //   } else {
-  //     return mission.timing;
-  //   }
-  // };
-  
   return (
     <motion.div 
       className="py-6 pb-20"
@@ -76,7 +91,7 @@ const MissionDetailPage: React.FC = () => {
           <span>Retour aux missions</span>
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">{mission.title}</h1>
-        <p className="text-gray-600">{mission.organization}</p>
+        <p className="text-gray-600">{mission.association_name}</p>
       </div>
 
       {/* Informations principales */}
@@ -112,82 +127,28 @@ const MissionDetailPage: React.FC = () => {
             </div>
             <div>
               <h3 className="text-sm font-medium text-gray-700">Places</h3>
-              <p className="text-gray-600 mt-1">{mission.spots.taken}/{mission.spots.available}</p>
+              <p className="text-gray-600 mt-1">{mission.spots_taken}/{mission.spots_available}</p>
             </div>
           </div>
           
           <div>
             <h3 className="text-sm font-medium text-gray-700">Adresse</h3>
             <p className="text-gray-600 mt-1">
-              {mission.location.address}, {mission.location.postal_code} {mission.location.city}
-            </p>
-            <p className="text-sm text-vs-blue-primary mt-1">
-              {mission.distance} km de votre position
+              {mission.address}, {mission.postal_code} {mission.city}
             </p>
           </div>
           
-          {mission.requirements.length > 0 && (
+          {mission.requirements && mission.requirements.length > 0 && (
             <div>
               <h3 className="text-sm font-medium text-gray-700">Prérequis</h3>
               <ul className="list-disc list-inside text-gray-600 mt-1">
-                {mission.requirements.map((req, index) => (
+                {mission.requirements.map((req: string, index: number) => (
                   <li key={index}>{req}</li>
                 ))}
               </ul>
             </div>
           )}
-          
-          <div>
-            <h3 className="text-sm font-medium text-gray-700">Impact</h3>
-            <p className="text-gray-600 mt-1">{mission.impact}</p>
-          </div>
         </div>
-      </motion.div>
-
-      {/* Carte */}
-      <motion.div 
-        className="card p-0 overflow-hidden mb-6"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.3 }}
-      >
-        <div className="h-48 bg-gray-200 flex items-center justify-center">
-          <p className="text-gray-500">Carte de localisation</p>
-          {/* Dans une implémentation réelle, intégrer une carte interactive ici */}
-        </div>
-      </motion.div>
-
-      {/* Organisation */}
-      <motion.div 
-        className="card mb-6"
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3, duration: 0.3 }}
-      >
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">À propos de l'organisation</h2>
-        <div className="flex items-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-gray-200 flex items-center justify-center mr-3">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-            </svg>
-          </div>
-          <div>
-            <h3 className="font-medium text-gray-900">{mission.organization}</h3>
-            <p className="text-sm text-gray-500">{mission.location.city}</p>
-          </div>
-        </div>
-        <p className="text-gray-600 mb-4">
-          Association engagée dans l'aide aux personnes en difficulté depuis plus de 10 ans.
-        </p>
-        <a 
-          href="#"
-          className="text-vs-blue-primary font-medium flex items-center"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-          Visiter le site web
-        </a>
       </motion.div>
 
       {/* Bouton d'action */}
@@ -217,7 +178,7 @@ const MissionDetailPage: React.FC = () => {
           <button 
             className={`btn-primary w-full flex justify-center items-center ${isRegistering ? 'opacity-70 cursor-not-allowed' : ''}`}
             onClick={handleRegister}
-            disabled={isRegistering || mission.spots.taken >= mission.spots.available}
+            disabled={isRegistering || mission.spots_taken >= mission.spots_available}
           >
             {isRegistering ? (
               <>
@@ -227,7 +188,7 @@ const MissionDetailPage: React.FC = () => {
                 </svg>
                 Inscription en cours...
               </>
-            ) : mission.spots.taken >= mission.spots.available ? 'Mission complète' : 'Participer à cette mission'}
+            ) : mission.spots_taken >= mission.spots_available ? 'Mission complète' : 'Participer à cette mission'}
           </button>
         )}
       </motion.div>

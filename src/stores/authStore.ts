@@ -1,6 +1,7 @@
+
 import { create } from 'zustand';
 import { authService } from '../lib/supabase';
-import { SupabaseData } from '../lib/mappers';
+import type { SupabaseData } from '../lib/mappers';
 
 // Types
 interface AuthState {

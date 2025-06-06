@@ -1,6 +1,7 @@
+
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useMissionStore } from '../../stores/missionStore';
+import { useMissionStore } from '../../stores/tempMissionStore';
 import { Link } from 'react-router-dom';
 
 const ExplorePage: React.FC = () => {
@@ -41,7 +42,7 @@ const ExplorePage: React.FC = () => {
     }
     
     // Filtre par distance
-    if (filters.distance !== null && mission.distance > filters.distance) {
+    if (filters.distance !== null && mission.distance && mission.distance > filters.distance) {
       return false;
     }
     
@@ -49,13 +50,13 @@ const ExplorePage: React.FC = () => {
   });
   
   // Formatage du timing
-  const getTimingText = (timing: string) => {
+  const getTimingText = (timing?: string) => {
     if (timing === 'now') {
       return 'Maintenant';
     } else if (timing === 'soon') {
       return 'Bientôt';
     } else {
-      return timing;
+      return timing || 'À planifier';
     }
   };
   
@@ -179,7 +180,7 @@ const ExplorePage: React.FC = () => {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="font-semibold text-gray-900">{mission.title}</h3>
-                          <p className="text-sm text-gray-600">{mission.organization}</p>
+                          <p className="text-sm text-gray-600">{mission.association_name}</p>
                         </div>
                         <span className={mission.duration <= 15 ? 'badge-orange' : mission.duration <= 30 ? 'badge-green' : 'badge-blue'}>
                           {mission.duration} min
@@ -187,19 +188,19 @@ const ExplorePage: React.FC = () => {
                       </div>
                       
                       <div className="flex items-center text-sm text-gray-500 mb-3">
-                        <span className="mr-3">{mission.distance} km</span>
+                        <span className="mr-3">{mission.distance || 0} km</span>
                         <span>{getTimingText(mission.timing)}</span>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-gray-500">
-                          {mission.spots.taken}/{mission.spots.available} places
+                          {mission.spots_taken}/{mission.spots_available} places
                         </span>
                         
                         <div className="w-24 bg-gray-200 rounded-full h-1.5">
                           <div 
                             className="bg-vs-blue-primary h-1.5 rounded-full" 
-                            style={{ width: `${(mission.spots.taken / mission.spots.available) * 100}%` }}
+                            style={{ width: `${(mission.spots_taken / mission.spots_available) * 100}%` }}
                           ></div>
                         </div>
                       </div>

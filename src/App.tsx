@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -83,7 +84,7 @@ function App() {
               {/* Routes protégées - Associations */}
               <Route path="/association" element={
                 <ProtectedRoute role="association">
-                  <MainLayout isAssociation />
+                  <MainLayout isAssociation={true} />
                 </ProtectedRoute>
               }>
                 <Route index element={<Navigate to="/association/dashboard" replace />} />
@@ -108,9 +109,9 @@ function App() {
 
 // Composant pour protéger les routes qui nécessitent une authentification
 function ProtectedRoute({ children, role }: { children: React.ReactNode, role?: 'user' | 'association' }) {
-  const { isAuthenticated, loading, user } = useAuthStore();
+  const { isAuthenticated, isLoading, user } = useAuthStore();
   
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-vs-blue-primary"></div>

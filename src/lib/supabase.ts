@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { mappers, type SupabaseData } from './mappers';
 
@@ -7,6 +8,9 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 // Client Supabase
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Exports pour les types
+export type { SupabaseData };
 
 // Service d'authentification
 export const authService = {
@@ -190,10 +194,10 @@ export const missionService = {
   // Récupérer toutes les missions publiées
   getPublishedMissions: async () => {
     const { data, error } = await supabase
-      .from('missions_view')
+      .from('available_missions')
       .select('*')
       .eq('status', 'published')
-      .order('date_start', { ascending: true });
+      .order('date', { ascending: true });
     
     if (error) throw error;
     
@@ -206,10 +210,9 @@ export const missionService = {
     if (!userData.user) throw new Error('Utilisateur non connecté');
     
     const { data, error } = await supabase
-      .from('volunteer_missions_view')
+      .from('user_upcoming_missions')
       .select('*')
-      .eq('volunteer_id', userData.user.id)
-      .order('date_start', { ascending: true });
+      .order('date', { ascending: true });
     
     if (error) throw error;
     
@@ -219,7 +222,7 @@ export const missionService = {
   // Récupérer une mission par son ID
   getMissionById: async (id: string) => {
     const { data, error } = await supabase
-      .from('missions_view')
+      .from('available_missions')
       .select('*')
       .eq('id', id)
       .single();
@@ -234,10 +237,12 @@ export const missionService = {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error('Utilisateur non connecté');
     
-    const { data, error } = await supabase
-      .rpc('register_for_mission', {
-        p_mission_id: missionId,
-        p_volunteer_id: userData.user.id
+    const { error } = await supabase
+      .from('mission_registrations')
+      .insert({
+        mission_id: missionId,
+        user_id: userData.user.id,
+        status: 'pending'
       });
     
     if (error) throw error;
@@ -250,12 +255,15 @@ export const missionService = {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error('Utilisateur non connecté');
     
-    const { data, error } = await supabase
-      .rpc('cancel_mission_registration', {
-        p_mission_id: missionId,
-        p_volunteer_id: userData.user.id,
-        p_reason: reason || null
-      });
+    const { error } = await supabase
+      .from('mission_registrations')
+      .update({ 
+        status: 'cancelled',
+        cancellation_reason: reason || null,
+        cancellation_date: new Date().toISOString()
+      })
+      .eq('mission_id', missionId)
+      .eq('user_id', userData.user.id);
     
     if (error) throw error;
     
@@ -270,11 +278,13 @@ export const languageService = {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error('Utilisateur non connecté');
     
-    const { data, error } = await supabase
-      .rpc('add_language_to_profile', {
-        p_language_code: languageCode,
-        p_level: level,
-        p_is_primary: isPrimary
+    const { error } = await supabase
+      .from('language_levels')
+      .insert({
+        user_id: userData.user.id,
+        language: languageCode,
+        level: level,
+        is_primary: isPrimary
       });
     
     if (error) throw error;
@@ -287,10 +297,11 @@ export const languageService = {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) throw new Error('Utilisateur non connecté');
     
-    const { data, error } = await supabase
-      .rpc('remove_language_from_profile', {
-        p_language_code: languageCode
-      });
+    const { error } = await supabase
+      .from('language_levels')
+      .delete()
+      .eq('user_id', userData.user.id)
+      .eq('language', languageCode);
     
     if (error) throw error;
     

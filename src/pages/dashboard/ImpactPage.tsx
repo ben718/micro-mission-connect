@@ -1,132 +1,81 @@
-import React, { useState, useEffect } from 'react';
-import { useMissionStore } from '../../stores/missionStore';
+
+import React from 'react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../../stores/authStore';
-import type { SupabaseData } from '../../lib/mappers';
 
 const ImpactPage: React.FC = () => {
-  const { user } = useAuthStore();
-  const { fetchUserMissions } = useMissionStore();
-  
-  const [userMissions, setUserMissions] = useState<SupabaseData[]>([]);
-  const [stats, setStats] = useState({
-    missionsCompleted: 0,
-    totalHours: 0,
-    peopleHelped: 0,
-    organizationsSupported: 0
-  });
-  
-  useEffect(() => {
-    const loadMissions = async () => {
-      const missions = await fetchUserMissions();
-      setUserMissions(missions);
-      
-      // Calculer les statistiques
-      setStats({
-        missionsCompleted: missions.length,
-        totalHours: missions.reduce((acc: number, mission: SupabaseData) => acc + (mission.duration || 0), 0) / 60,
-        peopleHelped: missions.length * 5, // Estimation fictive
-        organizationsSupported: new Set(missions.map((m: SupabaseData) => m.association_id)).size
-      });
-    };
-    
-    loadMissions();
-  }, [fetchUserMissions]);
+  const { isAuthenticated } = useAuthStore();
   
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Mon impact</h1>
+    <motion.div 
+      className="py-6"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Mon Impact</h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-2">Missions complétées</h2>
-          <p className="text-3xl font-bold text-primary-600">{stats.missionsCompleted}</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-2">Heures de bénévolat</h2>
-          <p className="text-3xl font-bold text-primary-600">{stats.totalHours.toFixed(1)}h</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-2">Personnes aidées</h2>
-          <p className="text-3xl font-bold text-primary-600">{stats.peopleHelped}</p>
-        </div>
-        
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-semibold mb-2">Associations soutenues</h2>
-          <p className="text-3xl font-bold text-primary-600">{stats.organizationsSupported}</p>
-        </div>
-      </div>
-      
-      <div className="bg-white rounded-lg shadow-md overflow-hidden mb-8">
-        <div className="p-6">
-          <h2 className="text-xl font-semibold mb-4">Évolution de mon impact</h2>
-          
-          <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-            <p className="text-gray-500">Graphique d'évolution de votre impact au fil du temps</p>
+      <div className="grid gap-6">
+        {/* Statistiques principales */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="card text-center">
+            <h3 className="text-2xl font-bold text-vs-blue-primary">42</h3>
+            <p className="text-sm text-gray-600">Missions réalisées</p>
+          </div>
+          <div className="card text-center">
+            <h3 className="text-2xl font-bold text-vs-green-primary">156h</h3>
+            <p className="text-sm text-gray-600">Temps donné</p>
           </div>
         </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Répartition par catégorie</h2>
-            
-            <div className="h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-              <p className="text-gray-500">Graphique de répartition par catégorie de mission</p>
+        
+        {/* Badges */}
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Mes badges</h2>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-2xl">🌟</span>
+              </div>
+              <p className="text-xs text-gray-600">Première mission</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-2xl">🎯</span>
+              </div>
+              <p className="text-xs text-gray-600">10 missions</p>
+            </div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                <span className="text-2xl">⚡</span>
+              </div>
+              <p className="text-xs text-gray-600">Réactif</p>
             </div>
           </div>
         </div>
         
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Objectifs d'impact</h2>
-            
-            <div className="space-y-4">
+        {/* Historique récent */}
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">Missions récentes</h2>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium">10 missions complétées</span>
-                  <span className="text-sm font-medium">{Math.min(stats.missionsCompleted / 10, 1) * 100}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary-600 h-2.5 rounded-full" 
-                    style={{ width: `${Math.min(stats.missionsCompleted / 10, 1) * 100}%` }}
-                  ></div>
-                </div>
+                <h3 className="font-medium text-gray-900">Aide aux devoirs</h3>
+                <p className="text-sm text-gray-600">École primaire Jules Ferry</p>
               </div>
-              
+              <span className="text-xs text-gray-500">Il y a 2 jours</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium">50 heures de bénévolat</span>
-                  <span className="text-sm font-medium">{Math.min(stats.totalHours / 50, 1) * 100}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary-600 h-2.5 rounded-full" 
-                    style={{ width: `${Math.min(stats.totalHours / 50, 1) * 100}%` }}
-                  ></div>
-                </div>
+                <h3 className="font-medium text-gray-900">Distribution alimentaire</h3>
+                <p className="text-sm text-gray-600">Restos du Cœur</p>
               </div>
-              
-              <div>
-                <div className="flex justify-between mb-1">
-                  <span className="text-sm font-medium">5 associations soutenues</span>
-                  <span className="text-sm font-medium">{Math.min(stats.organizationsSupported / 5, 1) * 100}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-primary-600 h-2.5 rounded-full" 
-                    style={{ width: `${Math.min(stats.organizationsSupported / 5, 1) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
+              <span className="text-xs text-gray-500">Il y a 1 semaine</span>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

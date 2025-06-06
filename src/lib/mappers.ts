@@ -1,5 +1,6 @@
+
 // Types génériques pour les données Supabase
-export type SupabaseData = Record<string, any>;
+export type SupabaseData = Record<string, any> | null;
 
 // Adaptateurs pour convertir les données Supabase en types frontend
 export const mappers = {

@@ -1,5 +1,7 @@
+
 import { create } from 'zustand';
-import { supabase, Mission } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
+import type { Mission } from '../lib/types';
 
 interface AssociationMissionState {
   missions: Mission[];

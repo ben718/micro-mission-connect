@@ -1,13 +1,14 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { User } from '../lib/supabase';
+import type { SupabaseData } from '../lib/mappers';
 
 interface AuthContextType {
-  user: User | null;
+  user: SupabaseData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<boolean>;
-  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -17,7 +18,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { 
     user, 
     isAuthenticated, 
-    loading: isLoading, 
+    isLoading, 
     login, 
     signup, 
     logout, 

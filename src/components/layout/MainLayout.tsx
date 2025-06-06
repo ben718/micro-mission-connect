@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
@@ -9,6 +10,7 @@ interface MainLayoutProps {
   userName?: string;
   userAvatar?: string;
   activeTab?: 'explore' | 'missions' | 'impact' | 'profile';
+  isAssociation?: boolean;
 }
 
 const pageVariants = {
@@ -37,6 +39,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   userName = 'Thomas',
   userAvatar = '',
   activeTab = 'explore',
+  isAssociation = false,
 }) => {
   const location = useLocation();
   
