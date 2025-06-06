@@ -382,6 +382,13 @@ export type Database = {
             foreignKeyName: "messages_mission_id_fkey"
             columns: ["mission_id"]
             isOneToOne: false
+            referencedRelation: "missions_enriched"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
             referencedRelation: "missions_language_match"
             referencedColumns: ["id"]
           },
@@ -463,6 +470,13 @@ export type Database = {
             columns: ["mission_id"]
             isOneToOne: false
             referencedRelation: "missions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mission_registrations_mission_id_fkey"
+            columns: ["mission_id"]
+            isOneToOne: false
+            referencedRelation: "missions_enriched"
             referencedColumns: ["id"]
           },
           {
@@ -882,6 +896,52 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      missions_enriched: {
+        Row: {
+          address: string | null
+          association_id: string | null
+          association_logo: string | null
+          association_name: string | null
+          category: string | null
+          city: string | null
+          created_at: string | null
+          date: string | null
+          description: string | null
+          duration: number | null
+          end_time: string | null
+          id: string | null
+          image_url: string | null
+          impact_description: string | null
+          impact_metrics: Json | null
+          is_recurring: boolean | null
+          languages_needed: string[] | null
+          latitude: number | null
+          longitude: number | null
+          materials_provided: string[] | null
+          materials_to_bring: string[] | null
+          min_age: number | null
+          postal_code: string | null
+          recurring_pattern: Json | null
+          requirements: string[] | null
+          short_description: string | null
+          skills_needed: string[] | null
+          spots_available: number | null
+          spots_taken: number | null
+          start_time: string | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "missions_association_id_fkey"
+            columns: ["association_id"]
+            isOneToOne: false
+            referencedRelation: "associations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       missions_language_match: {
         Row: {
