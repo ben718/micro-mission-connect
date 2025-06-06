@@ -30,7 +30,6 @@ import AssociationSettingsPage from './pages/association/AssociationSettingsPage
 // Contextes et stores
 import { AuthProvider } from './contexts/AuthContext';
 import { useAuthStore } from './stores/authStore';
-import { useMissionStore } from './stores/missionStore';
 
 // Création du client React Query
 const queryClient = new QueryClient({
@@ -43,15 +42,6 @@ const queryClient = new QueryClient({
 });
 
 function App() {
-  const { fetchMissions } = useMissionStore();
-  const { checkAuth } = useAuthStore();
-  
-  // Préchargement des données au démarrage de l'application
-  React.useEffect(() => {
-    checkAuth();
-    fetchMissions();
-  }, [fetchMissions, checkAuth]);
-  
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>

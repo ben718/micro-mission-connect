@@ -1,9 +1,10 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import BottomNav from './BottomNav';
+import StoreInitializer from '../StoreInitializer';
 
 interface MainLayoutProps {
   isAuthenticated?: boolean;
@@ -53,6 +54,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
+      <StoreInitializer />
       <Navbar 
         isAuthenticated={isAuthenticated}
         userName={userName}
