@@ -84,7 +84,7 @@ function App() {
               {/* Routes protégées - Associations */}
               <Route path="/association" element={
                 <ProtectedRoute role="association">
-                  <MainLayout isAssociation={true} />
+                  <MainLayout />
                 </ProtectedRoute>
               }>
                 <Route index element={<Navigate to="/association/dashboard" replace />} />

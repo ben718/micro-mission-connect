@@ -1,217 +1,84 @@
 
 import { create } from 'zustand';
-import { missionService } from '../lib/supabase';
-import type { SupabaseData } from '../lib/mappers';
+import type { Mission, MissionFilters } from '../lib/types';
+import { supabase } from '../integrations/supabase/client';
 
-// Types
 interface MissionState {
-  missions: SupabaseData[];
-  userMissions: SupabaseData[];
-  currentMission: SupabaseData | null;
-  isLoading: boolean;
+  missions: Mission[];
+  selectedMission: Mission | null;
+  loading: boolean;
   error: string | null;
   
   // Actions
-  fetchMissions: () => Promise<SupabaseData[]>;
-  fetchUserMissions: () => Promise<SupabaseData[]>;
-  fetchMissionById: (id: string) => Promise<SupabaseData | null>;
-  registerForMission: (missionId: string) => Promise<{ success: boolean; error?: string }>;
-  cancelRegistration: (missionId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
-  
-  // Alias pour compatibilité avec le code existant
-  getUserMissions: () => Promise<SupabaseData[]>;
-  cancelMissionRegistration: (missionId: string, reason?: string) => Promise<{ success: boolean; error?: string }>;
-  loading: boolean;
+  fetchMissions: () => Promise<void>;
+  getMissionById: (id: string) => Mission | null;
+  applyToMission: (missionId: string, userId: string) => Promise<void>;
+  setSelectedMission: (mission: Mission | null) => void;
 }
 
-// Store
 export const useMissionStore = create<MissionState>((set, get) => ({
   missions: [],
-  userMissions: [],
-  currentMission: null,
-  isLoading: false,
+  selectedMission: null,
+  loading: false,
   error: null,
-  loading: false, // Alias pour compatibilité
-  
-  // Fetch all published missions
+
   fetchMissions: async () => {
-    set({ isLoading: true, loading: true, error: null });
-    
+    set({ loading: true, error: null });
     try {
-      const missions = await missionService.getPublishedMissions();
-      set({ missions, isLoading: false, loading: false });
-      return missions;
-    } catch (error: any) {
+      const { data, error } = await supabase
+        .from('available_missions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
       set({ 
-        error: error.message || 'Une erreur est survenue lors de la récupération des missions.', 
-        isLoading: false,
-        loading: false
+        missions: data || [], 
+        loading: false 
       });
-      return [];
+    } catch (error) {
+      console.error('Erreur lors du chargement des missions:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Erreur inconnue', 
+        loading: false 
+      });
     }
   },
-  
-  // Fetch user's missions
-  fetchUserMissions: async () => {
-    set({ isLoading: true, loading: true, error: null });
-    
-    try {
-      const missions = await missionService.getVolunteerMissions();
-      set({ userMissions: missions, isLoading: false, loading: false });
-      return missions;
-    } catch (error: any) {
-      set({ 
-        error: error.message || 'Une erreur est survenue lors de la récupération de vos missions.', 
-        isLoading: false,
-        loading: false
-      });
-      return [];
-    }
+
+  getMissionById: (id: string) => {
+    const { missions } = get();
+    return missions.find(mission => mission.id === id) || null;
   },
-  
-  // Alias pour compatibilité
-  getUserMissions: async () => {
-    return get().fetchUserMissions();
-  },
-  
-  // Fetch mission by ID
-  fetchMissionById: async (id: string) => {
-    set({ isLoading: true, loading: true, error: null, currentMission: null });
-    
+
+  applyToMission: async (missionId: string, userId: string) => {
     try {
-      const mission = await missionService.getMissionById(id);
-      set({ currentMission: mission, isLoading: false, loading: false });
-      return mission;
-    } catch (error: any) {
-      set({ 
-        error: error.message || 'Une erreur est survenue lors de la récupération de la mission.', 
-        isLoading: false,
-        loading: false
-      });
-      return null;
-    }
-  },
-  
-  // Register for a mission
-  registerForMission: async (missionId: string) => {
-    set({ isLoading: true, loading: true, error: null });
-    
-    try {
-      const result = await missionService.registerForMission(missionId);
-      
-      if (result.success) {
-        // Update mission in the list
-        const { missions, currentMission } = get();
-        
-        // Update missions list
-        const updatedMissions = missions.map(mission => {
-          if (mission.id === missionId) {
-            return {
-              ...mission,
-              spots_taken: (mission.spots_taken || 0) + 1
-            };
-          }
-          return mission;
+      const { error } = await supabase
+        .from('mission_registrations')
+        .insert({
+          mission_id: missionId,
+          volunteer_id: userId,
+          status: 'pending'
         });
-        
-        // Update current mission if it exists and is the one being registered for
-        let updatedCurrentMission = currentMission;
-        if (currentMission && currentMission.id === missionId) {
-          updatedCurrentMission = {
-            ...currentMission,
-            spots_taken: (currentMission.spots_taken || 0) + 1
-          };
-        }
-        
+
+      if (error) throw error;
+
+      // Mettre à jour le store local si nécessaire
+      const mission = get().getMissionById(missionId);
+      if (mission && mission.spots) {
+        mission.spots.taken += 1;
         set({ 
-          missions: updatedMissions, 
-          currentMission: updatedCurrentMission, 
-          isLoading: false,
-          loading: false
+          missions: get().missions.map(m => 
+            m.id === missionId ? mission : m
+          )
         });
-        
-        return { success: true };
-      } else {
-        set({ 
-          error: "Échec de l'inscription à la mission.", 
-          isLoading: false,
-          loading: false
-        });
-        return { 
-          success: false, 
-          error: "Échec de l'inscription à la mission."
-        };
       }
-    } catch (error: any) {
-      const errorMessage = error.message || "Une erreur est survenue lors de l'inscription à la mission.";
-      set({ error: errorMessage, isLoading: false, loading: false });
-      return { success: false, error: errorMessage };
+    } catch (error) {
+      console.error('Erreur lors de l\'inscription à la mission:', error);
+      throw error;
     }
   },
-  
-  // Cancel registration for a mission
-  cancelRegistration: async (missionId: string, reason?: string) => {
-    set({ isLoading: true, loading: true, error: null });
-    
-    try {
-      const result = await missionService.cancelRegistration(missionId, reason);
-      
-      if (result.success) {
-        // Update mission in the list
-        const { missions, currentMission, userMissions } = get();
-        
-        // Update missions list
-        const updatedMissions = missions.map(mission => {
-          if (mission.id === missionId) {
-            return {
-              ...mission,
-              spots_taken: Math.max(0, (mission.spots_taken || 0) - 1)
-            };
-          }
-          return mission;
-        });
-        
-        // Update current mission if it exists and is the one being cancelled
-        let updatedCurrentMission = currentMission;
-        if (currentMission && currentMission.id === missionId) {
-          updatedCurrentMission = {
-            ...currentMission,
-            spots_taken: Math.max(0, (currentMission.spots_taken || 0) - 1)
-          };
-        }
-        
-        // Remove from user missions
-        const updatedUserMissions = userMissions.filter(mission => mission.id !== missionId);
-        
-        set({ 
-          missions: updatedMissions, 
-          currentMission: updatedCurrentMission,
-          userMissions: updatedUserMissions,
-          isLoading: false,
-          loading: false
-        });
-        
-        return { success: true };
-      } else {
-        set({ 
-          error: "Échec de l'annulation de l'inscription.", 
-          isLoading: false,
-          loading: false
-        });
-        return { 
-          success: false, 
-          error: "Échec de l'annulation de l'inscription."
-        };
-      }
-    } catch (error: any) {
-      const errorMessage = error.message || "Une erreur est survenue lors de l'annulation de l'inscription.";
-      set({ error: errorMessage, isLoading: false, loading: false });
-      return { success: false, error: errorMessage };
-    }
+
+  setSelectedMission: (mission: Mission | null) => {
+    set({ selectedMission: mission });
   },
-  
-  // Alias pour compatibilité
-  cancelMissionRegistration: async (missionId: string, reason?: string) => {
-    return get().cancelRegistration(missionId, reason);
-  }
 }));
