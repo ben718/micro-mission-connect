@@ -1,4 +1,5 @@
 
+
 import { create } from 'zustand';
 import type { Mission } from '../lib/types';
 import { supabase } from '../integrations/supabase/client';
@@ -32,16 +33,36 @@ export const useMissionStore = create<MissionState>((set, get) => ({
 
       if (error) throw error;
 
-      // Transform the data to match Mission interface
-      const missions: Mission[] = (data || []).map(mission => ({
-        ...mission,
-        time_start: mission.time_start || '09:00',
-        time_end: mission.time_end || '17:00',
-        spots: {
-          available: mission.spots_available || 0,
-          taken: mission.spots_taken || 0
-        }
-      }));
+      // Transform the data to match Mission interface, filtering out null ids
+      const missions: Mission[] = (data || [])
+        .filter(mission => mission.id !== null) // Filter out missions with null ids
+        .map(mission => ({
+          ...mission,
+          id: mission.id!, // We know it's not null after filtering
+          title: mission.title || '',
+          description: mission.description || '',
+          short_description: mission.short_description || '',
+          association_id: mission.association_id || '',
+          association_name: mission.association_name || '',
+          category: mission.category || '',
+          address: mission.address || '',
+          city: mission.city || '',
+          postal_code: mission.postal_code || '',
+          date: mission.date || '',
+          time_start: mission.time_start || '09:00',
+          time_end: mission.time_end || '17:00',
+          duration: mission.duration || 60,
+          status: mission.status || 'published',
+          is_recurring: mission.is_recurring || false,
+          created_at: mission.created_at || '',
+          updated_at: mission.updated_at || '',
+          spots: {
+            available: mission.spots_available || 0,
+            taken: mission.spots_taken || 0
+          },
+          spots_available: mission.spots_available || 0,
+          spots_taken: mission.spots_taken || 0
+        } as Mission));
 
       set({ 
         missions, 
@@ -100,3 +121,4 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     set({ selectedMission: mission });
   },
 }));
+
