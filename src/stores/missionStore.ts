@@ -1,5 +1,4 @@
 
-
 import { create } from 'zustand';
 import type { Mission } from '../lib/types';
 import { supabase } from '../integrations/supabase/client';
@@ -49,8 +48,8 @@ export const useMissionStore = create<MissionState>((set, get) => ({
           city: mission.city || '',
           postal_code: mission.postal_code || '',
           date: mission.date || '',
-          time_start: mission.time_start || '09:00',
-          time_end: mission.time_end || '17:00',
+          time_start: mission.start_time || '09:00', // Use start_time from Supabase
+          time_end: mission.end_time || '17:00', // Use end_time from Supabase
           duration: mission.duration || 60,
           status: mission.status || 'published',
           is_recurring: mission.is_recurring || false,
@@ -121,4 +120,3 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     set({ selectedMission: mission });
   },
 }));
-
