@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voisin Solidaire - Page hors ligne</title>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #f9fafb;
+      color: #1f2937;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .container {
+      max-width: 90%;
+      width: 500px;
+      padding: 2rem;
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+    
+    h1 {
+      font-family: 'Montserrat', system-ui, sans-serif;
+      font-weight: 700;
+      color: #3B82F6;
+      margin-bottom: 1rem;
+    }
+    
+    p {
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    
+    .icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    
+    .button {
+      display: inline-block;
+      background-color: #3B82F6;
+      color: white;
+      font-weight: 500;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.375rem;
+      text-decoration: none;
+      transition: background-color 0.2s;
+    }
+    
+    .button:hover {
+      background-color: #1E40AF;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📶</div>
+    <h1>Vous êtes hors ligne</h1>
+    <p>Il semble que vous n'ayez pas de connexion internet. Voisin Solidaire nécessite une connexion pour afficher les missions à proximité.</p>
+    <p>Certaines fonctionnalités restent disponibles hors ligne, comme la consultation de vos missions enregistrées.</p>
+    <a href="/" class="button">Réessayer</a>
+  </div>
+</body>
+</html>
