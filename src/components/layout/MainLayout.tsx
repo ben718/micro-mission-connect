@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
